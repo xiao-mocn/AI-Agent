@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>第十一课：保护你的 API——Bearer Token 鉴权</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --bg-code: #f4f4f5;
+      --border: #e4e4e7;
+      --width: 680px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Georgia', serif;
+      font-size: 17px;
+      line-height: 1.75;
+      color: var(--text);
+      max-width: var(--width);
+      margin: 60px auto;
+      padding: 0 24px 100px;
+      background: #fff;
+    }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; }
+    h2 { font-size: 1.2rem; font-weight: 700; margin: 2.4em 0 0.6em; color: var(--text); }
+    h3 { font-size: 1rem; font-weight: 700; margin: 1.6em 0 0.4em; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2em; }
+    p { margin: 0.7em 0; }
+    a { color: var(--accent); }
+    code {
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 0.85em;
+      background: var(--bg-code);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 1em 0 1.4em;
+      font-size: 0.84em;
+      line-height: 1.6;
+    }
+    pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+    .kw  { color: #cba6f7; }
+    .fn  { color: #89b4fa; }
+    .str { color: #a6e3a1; }
+    .cm  { color: #6c7086; font-style: italic; }
+    .num { color: #fab387; }
+    .var { color: #cdd6f4; }
+
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 10px 16px;
+      background: #eff6ff;
+      border-radius: 0 6px 6px 0;
+      margin: 1.2em 0;
+      font-size: 0.93rem;
+    }
+    .callout.warn { border-color: var(--danger); background: #fff5f5; }
+    .callout.ok   { border-color: var(--success); background: #f0fdf4; }
+
+    .flow {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 1.2em 0;
+      font-size: 0.88rem;
+    }
+    .flow .box {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+    .flow .arrow { color: var(--muted); }
+
+    /* 小测验 */
+    .quiz { border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 2em 0; }
+    .quiz h2 { margin-top: 0; }
+    .question { margin: 1.4em 0 0.5em; font-weight: 600; }
+    .options { list-style: none; }
+    .options li {
+      margin: 6px 0;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.92rem;
+    }
+    .options li:hover { background: var(--bg-code); }
+    .options li.correct { background: #f0fdf4; border-color: var(--success); color: var(--success); font-weight: 600; }
+    .options li.wrong   { background: #fff5f5; border-color: var(--danger);  color: var(--danger);  font-weight: 600; }
+    .explain { display: none; margin-top: 8px; font-size: 0.88rem; color: var(--muted); padding-left: 4px; }
+    .explain.show { display: block; }
+
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li {
+      counter-increment: step;
+      padding: 12px 0 12px 44px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 14px;
+      width: 28px; height: 28px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      font-family: 'Menlo', monospace;
+    }
+
+    footer { margin-top: 3em; padding-top: 1.5em; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--muted); }
+    .nav-links { display: flex; gap: 2em; margin-top: 1em; }
+    .nav-links a { font-size: 0.88rem; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-family: 'Menlo', monospace;
+      padding: 2px 8px;
+      border-radius: 20px;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .badge.backend { background: #dbeafe; color: #1d4ed8; }
+    .badge.frontend { background: #dcfce7; color: #166534; }
+  </style>
+</head>
+<body>
+
+<h1>第十一课：保护你的 API</h1>
+<p class="subtitle">Bearer Token 鉴权 · 防止 API 额度被滥用</p>
+
+<h2>你现在的处境</h2>
+<p>
+  你的 AI 聊天应用已经部署在公网。这意味着：
+  任何知道 URL 的人都可以无限次调用它，每次调用都消耗你的 DeepSeek API 额度。
+</p>
+
+<div class="callout warn">
+  <strong>真实风险：</strong>一旦 URL 被人分享到论坛，你的 API 配额可能在几分钟内耗尽，
+  还可能产生账单。这不是假设——这种事每天都在发生。
+</div>
+
+<p>本节课用最少的代码给你的 API 加上一把锁——<strong>Bearer Token 鉴权</strong>。</p>
+
+<h2>什么是 Bearer Token？</h2>
+<p>
+  HTTP 协议定义了一个标准请求头 <code>Authorization</code>，格式是：
+</p>
+<pre><code>Authorization: Bearer &lt;token&gt;</code></pre>
+
+<p>
+  <strong>Bearer</strong> 就是"持有者"的意思——谁持有这个 token，谁就有权访问。
+  后端收到请求时，先检查这个 Header，如果 token 不匹配就返回 <code>401 Unauthorized</code>，
+  拒绝处理。
+</p>
+
+<div class="flow">
+  <div class="box">浏览器<br/><small>带 Authorization Header</small></div>
+  <div class="arrow">→</div>
+  <div class="box">后端中间件<br/><small>校验 token</small></div>
+  <div class="arrow">→</div>
+  <div class="box">通过 ✓<br/><small>路由处理</small></div>
+</div>
+<div class="flow" style="margin-top: 0">
+  <div class="box" style="opacity:.4">浏览器<br/><small>token 错误</small></div>
+  <div class="arrow">→</div>
+  <div class="box">后端中间件<br/><small>校验 token</small></div>
+  <div class="arrow">→</div>
+  <div class="box" style="color:var(--danger);border-color:var(--danger)">401 ✗<br/><small>直接拒绝</small></div>
+</div>
+
+<h2>实践</h2>
+
+<h3>第一步：后端加中间件 <span class="badge backend">backend</span></h3>
+
+<p>在 <code>src/index.ts</code> 里，在所有路由之前加一个认证中间件：</p>
+
+<pre><code><span class="cm">// 从环境变量读取允许的 token</span>
+<span class="kw">const</span> <span class="var">ALLOWED_TOKEN</span> <span class="kw">=</span> <span class="var">process</span>.<span class="fn">env</span>.<span class="var">API_TOKEN</span>
+
+<span class="var">app</span>.<span class="fn">use</span>(<span class="str">'*'</span>, <span class="kw">async</span> (<span class="var">c</span>, <span class="var">next</span>) <span class="kw">=></span> {
+  <span class="cm">// 没有配置 token 时跳过（本地开发方便）</span>
+  <span class="kw">if</span> (!<span class="var">ALLOWED_TOKEN</span>) <span class="kw">return</span> <span class="var">next</span>()
+
+  <span class="kw">const</span> <span class="var">auth</span> <span class="kw">=</span> <span class="var">c</span>.<span class="fn">req</span>.<span class="fn">header</span>(<span class="str">'Authorization'</span>)
+  <span class="kw">if</span> (<span class="var">auth</span> !== <span class="str">`Bearer <span class="kw">${</span><span class="var">ALLOWED_TOKEN</span><span class="kw">}</span>`</span>) {
+    <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">error</span>: <span class="str">'Unauthorized'</span> }, <span class="num">401</span>)
+  }
+  <span class="kw">return</span> <span class="var">next</span>()
+})</code></pre>
+
+<div class="callout">
+  <strong>为什么写在路由前？</strong>Hono 的中间件按注册顺序依次执行。
+  只要在 <code>app.post('/chat', ...)</code> 之前注册，每个请求都会先经过这里。
+</div>
+
+<h3>第二步：前端带上 Token <span class="badge frontend">frontend</span></h3>
+
+<p>在 <code>App.vue</code> 的 <code>send()</code> 函数里，给 <code>fetch</code> 加一个 Header：</p>
+
+<pre><code><span class="cm">// 从 localStorage 读 token（用户第一次访问时提示输入）</span>
+<span class="kw">let</span> <span class="var">token</span> <span class="kw">=</span> <span class="var">localStorage</span>.<span class="fn">getItem</span>(<span class="str">'api_token'</span>)
+<span class="kw">if</span> (!<span class="var">token</span>) {
+  <span class="var">token</span> <span class="kw">=</span> <span class="var">prompt</span>(<span class="str">'请输入访问密码：'</span>) ?? <span class="str">''</span>
+  <span class="kw">if</span> (<span class="var">token</span>) <span class="var">localStorage</span>.<span class="fn">setItem</span>(<span class="str">'api_token'</span>, <span class="var">token</span>)
+}
+
+<span class="kw">const</span> <span class="var">res</span> <span class="kw">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`<span class="kw">${</span><span class="var">API_BASE</span><span class="kw">}</span>/chat`</span>, {
+  <span class="var">method</span>: <span class="str">'POST'</span>,
+  <span class="var">headers</span>: {
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+    <span class="str">'Authorization'</span>: <span class="str">`Bearer <span class="kw">${</span><span class="var">token</span><span class="kw">}</span>`</span>,  <span class="cm">// 新增</span>
+  },
+  <span class="var">body</span>: <span class="var">JSON</span>.<span class="fn">stringify</span>({ <span class="var">message</span>: <span class="var">text</span>, <span class="var">sessionId</span> }),
+})</code></pre>
+
+<h3>第三步：在 Render 加环境变量 <span class="badge backend">backend</span></h3>
+
+<ol class="steps">
+  <li>登录 Render Dashboard → 你的服务 → <strong>Environment</strong></li>
+  <li>Add Environment Variable：
+    <code>API_TOKEN</code> = <em>一串你自己编的随机字符串</em>（比如 <code>my-secret-key-2024</code>）</li>
+  <li>点击 Save → 服务自动重启</li>
+</ol>
+
+<div class="callout ok">
+  <strong>本地开发不受影响：</strong>本地没有配置 <code>API_TOKEN</code> 环境变量，
+  中间件里的 <code>if (!ALLOWED_TOKEN) return next()</code> 会直接放行，不需要改任何配置。
+</div>
+
+<h3>第四步：用 curl 验证</h3>
+
+<pre><code><span class="cm"># 没有 token → 应返回 401</span>
+<span class="fn">curl</span> -X POST https://your-app.onrender.com/chat \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"message":"hi","sessionId":"test"}'</span>
+
+<span class="cm"># 带正确 token → 应正常返回</span>
+<span class="fn">curl</span> -X POST https://your-app.onrender.com/chat \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"Authorization: Bearer my-secret-key-2024"</span> \
+  -d <span class="str">'{"message":"hi","sessionId":"test"}'</span></code></pre>
+
+<!-- 小测验 -->
+<div class="quiz">
+  <h2>小测验</h2>
+  <p style="color:var(--muted);font-size:.9rem">点击选项查看解析</p>
+
+  <p class="question">1. 后端收到一个没有 <code>Authorization</code> Header 的请求，应该返回什么状态码？</p>
+  <ul class="options" data-answer="1">
+    <li>400 Bad Request</li>
+    <li>401 Unauthorized</li>
+    <li>403 Forbidden</li>
+    <li>404 Not Found</li>
+  </ul>
+  <p class="explain">
+    <strong>401 Unauthorized</strong>：表示"没有提供有效的身份凭证"。
+    400 是请求格式错误，403 是有凭证但无权限，401 才是"未经认证"。
+  </p>
+
+  <p class="question">2. 我们把 token 存在 <code>localStorage</code> 而不是写死在代码里，主要原因是？</p>
+  <ul class="options" data-answer="0">
+    <li>写死在代码里会被 git 提交，任何看到仓库的人都能知道 token</li>
+    <li>localStorage 比变量访问更快</li>
+    <li>Vue 3 不支持在组件里定义常量</li>
+    <li>前端变量会在每次刷新后丢失</li>
+  </ul>
+  <p class="explain">
+    <strong>安全考虑：</strong>硬编码的密钥会进入 git 历史，即使之后删除也能被翻出来。
+    敏感信息要么从环境变量读（后端），要么让用户运行时输入（前端）。
+  </p>
+
+  <p class="question">3. 为什么中间件要在路由注册<strong>之前</strong>调用 <code>app.use()</code>？</p>
+  <ul class="options" data-answer="2">
+    <li>这是 Hono 的 bug，其实顺序不影响结果</li>
+    <li>只有放在最前面才能读到 Authorization Header</li>
+    <li>Hono 按注册顺序执行中间件，放在路由前才能拦截所有请求</li>
+    <li>后注册的中间件优先级更高</li>
+  </ul>
+  <p class="explain">
+    Hono（和大多数 HTTP 框架一样）按照<strong>注册顺序</strong>依次执行中间件链。
+    先注册的先跑，所以认证中间件要最先注册，才能在路由处理之前拦截。
+  </p>
+</div>
+
+<h2>进阶思考</h2>
+<p>
+  这种方案适合<strong>单人使用</strong>的工具。如果要支持多个不同用户各自的账号和对话历史，
+  就需要完整的用户认证系统（注册、登录、JWT）。这会是第十二课的内容。
+</p>
+
+<h2>本节要点</h2>
+<ul style="padding-left:1.4em">
+  <li><code>Authorization: Bearer &lt;token&gt;</code> 是 HTTP 标准的认证头</li>
+  <li>后端中间件在路由之前统一校验，一处代码保护所有接口</li>
+  <li>token 存环境变量（后端）/ localStorage（前端），不写死在代码里</li>
+  <li>本地开发时不配置环境变量 → 自动放行，不影响调试</li>
+</ul>
+
+<div class="callout">
+  有任何疑问，直接在对话框里问老师——这是你专属的学习环境。
+</div>
+
+<footer>
+  <div class="nav-links">
+    <a href="0010-sse-streaming.html">← 第十课：流式输出 SSE</a>
+    <a href="0012-jwt-auth.html">第十二课：JWT 用户认证 →</a>
+  </div>
+  <p style="margin-top:1em">
+    延伸阅读：
+    <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication" target="_blank">
+      MDN — HTTP Authentication
+    </a>
+  </p>
+</footer>
+
+<script>
+  document.querySelectorAll('.options').forEach((ul) => {
+    const correct = parseInt(ul.dataset.answer, 10)
+    const explain = ul.nextElementSibling
+    ul.querySelectorAll('li').forEach((li, i) => {
+      li.addEventListener('click', () => {
+        ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'wrong'))
+        li.classList.add(i === correct ? 'correct' : 'wrong')
+        if (explain) explain.classList.add('show')
+      })
+    })
+  })
+</script>
+
+</body>
+</html>
