@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>第十二课：JWT 用户认证——注册与登录</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --bg-code: #f4f4f5;
+      --border: #e4e4e7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Georgia', serif;
+      font-size: 17px;
+      line-height: 1.75;
+      color: var(--text);
+      max-width: 680px;
+      margin: 60px auto;
+      padding: 0 24px 100px;
+      background: #fff;
+    }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; }
+    h2 { font-size: 1.2rem; font-weight: 700; margin: 2.4em 0 0.6em; }
+    h3 { font-size: 1rem; font-weight: 700; margin: 1.6em 0 0.4em; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2em; }
+    p { margin: 0.7em 0; }
+    a { color: var(--accent); }
+    code {
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 0.85em;
+      background: var(--bg-code);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 1em 0 1.4em;
+      font-size: 0.84em;
+      line-height: 1.6;
+    }
+    pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+    .kw  { color: #cba6f7; }
+    .fn  { color: #89b4fa; }
+    .str { color: #a6e3a1; }
+    .cm  { color: #6c7086; font-style: italic; }
+    .num { color: #fab387; }
+    .var { color: #cdd6f4; }
+
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 10px 16px;
+      background: #eff6ff;
+      border-radius: 0 6px 6px 0;
+      margin: 1.2em 0;
+      font-size: 0.93rem;
+    }
+    .callout.warn { border-color: var(--danger); background: #fff5f5; }
+    .callout.ok   { border-color: var(--success); background: #f0fdf4; }
+
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 1.2em 0;
+      font-size: 0.88rem;
+    }
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .flow .box {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      white-space: nowrap;
+    }
+    .flow .box.hi { background: #dbeafe; border-color: #93c5fd; }
+    .flow .arrow { color: var(--muted); }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-family: 'Menlo', monospace;
+      padding: 2px 8px;
+      border-radius: 20px;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .badge.backend  { background: #dbeafe; color: #1d4ed8; }
+    .badge.frontend { background: #dcfce7; color: #166534; }
+    .badge.db       { background: #fef9c3; color: #854d0e; }
+
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li {
+      counter-increment: step;
+      padding: 12px 0 12px 44px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 14px;
+      width: 28px; height: 28px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      font-family: 'Menlo', monospace;
+    }
+
+    /* 小测验 */
+    .quiz { border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 2em 0; }
+    .quiz h2 { margin-top: 0; }
+    .question { margin: 1.4em 0 0.5em; font-weight: 600; }
+    .options { list-style: none; }
+    .options li {
+      margin: 6px 0;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.92rem;
+    }
+    .options li:hover { background: var(--bg-code); }
+    .options li.correct { background: #f0fdf4; border-color: var(--success); color: var(--success); font-weight: 600; }
+    .options li.wrong   { background: #fff5f5; border-color: var(--danger);  color: var(--danger); font-weight: 600; }
+    .explain { display: none; margin-top: 8px; font-size: 0.88rem; color: var(--muted); }
+    .explain.show { display: block; }
+
+    footer { margin-top: 3em; padding-top: 1.5em; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--muted); }
+    .nav-links { display: flex; gap: 2em; margin-top: 1em; }
+    .nav-links a { font-size: 0.88rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 1em 0; }
+    th { background: var(--bg-code); text-align: left; padding: 8px 12px; border: 1px solid var(--border); font-weight: 600; }
+    td { padding: 8px 12px; border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<h1>第十二课：JWT 用户认证</h1>
+<p class="subtitle">注册与登录 · 让应用支持多用户</p>
+
+<h2>上节课的局限</h2>
+<p>
+  Bearer Token 解决了"谁能用"的问题，但所有人用的是<strong>同一个 token</strong>、<strong>同一份对话历史</strong>。
+  真正的产品需要每个用户有自己的账号和独立数据。
+</p>
+<p>这节课实现：<strong>注册 → 登录 → 拿到 JWT → 用 JWT 访问受保护接口</strong>。</p>
+
+<h2>JWT 是什么？</h2>
+<p>
+  JWT（JSON Web Token）是一种<strong>自包含的令牌</strong>——用户登录成功后，
+  服务器把用户 ID 等信息加密签名打包成一个字符串发给前端。
+  之后前端每次请求都带上这个字符串，服务器验证签名后直接从中取出用户信息，<strong>不需要查数据库</strong>。
+</p>
+
+<div class="flow">
+  <div class="flow-row">
+    <div class="box hi">前端 POST /register</div>
+    <div class="arrow">→</div>
+    <div class="box">后端写入 users 表</div>
+    <div class="arrow">→</div>
+    <div class="box">返回成功</div>
+  </div>
+  <div class="flow-row">
+    <div class="box hi">前端 POST /login</div>
+    <div class="arrow">→</div>
+    <div class="box">校验密码</div>
+    <div class="arrow">→</div>
+    <div class="box hi">返回 JWT</div>
+  </div>
+  <div class="flow-row">
+    <div class="box hi">前端带 JWT 请求 /api/chat</div>
+    <div class="arrow">→</div>
+    <div class="box">验证 JWT 签名</div>
+    <div class="arrow">→</div>
+    <div class="box">取出 userId 处理请求</div>
+  </div>
+</div>
+
+<h2>JWT 的结构</h2>
+<p>一个 JWT 长这样（三段用 <code>.</code> 分隔）：</p>
+<pre><code>eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjF9.abc123签名</code></pre>
+<table>
+  <tr><th>段</th><th>内容</th><th>可以被解码？</th></tr>
+  <tr><td>Header</td><td>算法类型（HS256）</td><td>是（Base64）</td></tr>
+  <tr><td>Payload</td><td>用户数据（userId、过期时间）</td><td>是（Base64）</td></tr>
+  <tr><td>Signature</td><td>用密钥对前两段做的签名</td><td>无法伪造</td></tr>
+</table>
+
+<div class="callout warn">
+  <strong>JWT Payload 不是加密的，</strong>任何人都能 Base64 解码看到里面的内容。
+  不要把密码、信用卡等敏感信息放进去，只放 userId 等标识符。
+</div>
+
+<h2>实践</h2>
+
+<h3>第一步：安装依赖 <span class="badge backend">backend</span></h3>
+<pre><code><span class="cm"># 在 ai-backend 目录下</span>
+npm install jsonwebtoken bcryptjs
+npm install --save-dev @types/jsonwebtoken @types/bcryptjs</code></pre>
+
+<p><code>bcryptjs</code> 用来对密码做哈希（绝对不能明文存密码）；<code>jsonwebtoken</code> 用来签发和校验 JWT。</p>
+
+<h3>第二步：数据库加 users 表 <span class="badge db">SQLite</span></h3>
+<p>在 <code>src/db.ts</code> 里加：</p>
+<pre><code><span class="cm">// 创建 users 表</span>
+<span class="var">db</span>.<span class="fn">prepare</span>(<span class="str">`
+  CREATE TABLE IF NOT EXISTS users (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT    UNIQUE NOT NULL,
+    password TEXT    NOT NULL
+  )
+`</span>).<span class="fn">run</span>()
+
+<span class="kw">export const</span> <span class="var">createUser</span> <span class="kw">=</span> <span class="var">db</span>.<span class="fn">prepare</span>(
+  <span class="str">'INSERT INTO users (username, password) VALUES (?, ?)'</span>
+)
+<span class="kw">export const</span> <span class="var">findUser</span> <span class="kw">=</span> <span class="var">db</span>.<span class="fn">prepare</span>(
+  <span class="str">'SELECT * FROM users WHERE username = ?'</span>
+)</code></pre>
+
+<h3>第三步：注册和登录接口 <span class="badge backend">backend</span></h3>
+<pre><code><span class="kw">import</span> <span class="var">jwt</span> <span class="kw">from</span> <span class="str">'jsonwebtoken'</span>
+<span class="kw">import</span> <span class="var">bcrypt</span> <span class="kw">from</span> <span class="str">'bcryptjs'</span>
+<span class="kw">import</span> { <span class="var">createUser</span>, <span class="var">findUser</span> } <span class="kw">from</span> <span class="str">'./db'</span>
+
+<span class="kw">const</span> <span class="var">JWT_SECRET</span> <span class="kw">=</span> <span class="var">process</span>.<span class="var">env</span>.<span class="var">JWT_SECRET</span> ?? <span class="str">'dev-secret'</span>
+
+<span class="cm">// 注册</span>
+<span class="var">app</span>.<span class="fn">post</span>(<span class="str">'/register'</span>, <span class="kw">async</span> (<span class="var">c</span>) <span class="kw">=></span> {
+  <span class="kw">const</span> { <span class="var">username</span>, <span class="var">password</span> } <span class="kw">=</span> <span class="kw">await</span> <span class="var">c</span>.<span class="var">req</span>.<span class="fn">json</span>()
+  <span class="kw">if</span> (!<span class="var">username</span> || !<span class="var">password</span>) <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">error</span>: <span class="str">'缺少参数'</span> }, <span class="num">400</span>)
+
+  <span class="kw">const</span> <span class="var">hash</span> <span class="kw">=</span> <span class="kw">await</span> <span class="var">bcrypt</span>.<span class="fn">hash</span>(<span class="var">password</span>, <span class="num">10</span>)
+  <span class="kw">try</span> {
+    <span class="var">createUser</span>.<span class="fn">run</span>(<span class="var">username</span>, <span class="var">hash</span>)
+    <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">ok</span>: <span class="kw">true</span> })
+  } <span class="kw">catch</span> {
+    <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">error</span>: <span class="str">'用户名已存在'</span> }, <span class="num">409</span>)
+  }
+})
+
+<span class="cm">// 登录</span>
+<span class="var">app</span>.<span class="fn">post</span>(<span class="str">'/login'</span>, <span class="kw">async</span> (<span class="var">c</span>) <span class="kw">=></span> {
+  <span class="kw">const</span> { <span class="var">username</span>, <span class="var">password</span> } <span class="kw">=</span> <span class="kw">await</span> <span class="var">c</span>.<span class="var">req</span>.<span class="fn">json</span>()
+  <span class="kw">const</span> <span class="var">user</span> <span class="kw">=</span> <span class="var">findUser</span>.<span class="fn">get</span>(<span class="var">username</span>) <span class="kw">as any</span>
+  <span class="kw">if</span> (!<span class="var">user</span>) <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">error</span>: <span class="str">'用户不存在'</span> }, <span class="num">401</span>)
+
+  <span class="kw">const</span> <span class="var">ok</span> <span class="kw">=</span> <span class="kw">await</span> <span class="var">bcrypt</span>.<span class="fn">compare</span>(<span class="var">password</span>, <span class="var">user</span>.<span class="var">password</span>)
+  <span class="kw">if</span> (!<span class="var">ok</span>) <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">error</span>: <span class="str">'密码错误'</span> }, <span class="num">401</span>)
+
+  <span class="kw">const</span> <span class="var">token</span> <span class="kw">=</span> <span class="var">jwt</span>.<span class="fn">sign</span>({ <span class="var">userId</span>: <span class="var">user</span>.<span class="var">id</span> }, <span class="var">JWT_SECRET</span>, { <span class="var">expiresIn</span>: <span class="str">'7d'</span> })
+  <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">token</span> })
+})</code></pre>
+
+<h3>第四步：把 Bearer Token 中间件换成 JWT 校验 <span class="badge backend">backend</span></h3>
+<pre><code><span class="var">app</span>.<span class="fn">use</span>(<span class="str">'/api/*'</span>, <span class="kw">async</span> (<span class="var">c</span>, <span class="var">next</span>) <span class="kw">=></span> {
+  <span class="kw">const</span> <span class="var">auth</span> <span class="kw">=</span> <span class="var">c</span>.<span class="var">req</span>.<span class="fn">header</span>(<span class="str">'Authorization'</span>) ?? <span class="str">''</span>
+  <span class="kw">const</span> <span class="var">token</span> <span class="kw">=</span> <span class="var">auth</span>.<span class="fn">replace</span>(<span class="str">'Bearer '</span>, <span class="str">''</span>)
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="var">payload</span> <span class="kw">=</span> <span class="var">jwt</span>.<span class="fn">verify</span>(<span class="var">token</span>, <span class="var">JWT_SECRET</span>) <span class="kw">as</span> { <span class="var">userId</span>: <span class="var">number</span> }
+    <span class="var">c</span>.<span class="fn">set</span>(<span class="str">'userId'</span>, <span class="var">payload</span>.<span class="var">userId</span>)  <span class="cm">// 传给后续路由</span>
+    <span class="kw">return</span> <span class="var">next</span>()
+  } <span class="kw">catch</span> {
+    <span class="kw">return</span> <span class="var">c</span>.<span class="fn">json</span>({ <span class="var">error</span>: <span class="str">'无效 token'</span> }, <span class="num">401</span>)
+  }
+})</code></pre>
+
+<div class="callout">
+  <strong>注意路径改为 <code>/api/*</code>：</strong>注册和登录接口本身不需要鉴权，只保护 <code>/api/</code> 下的接口。
+</div>
+
+<h3>第五步：在 Render 加 JWT_SECRET 环境变量 <span class="badge backend">backend</span></h3>
+<p>
+  <code>JWT_SECRET</code> 是签名密钥，必须保密——任何知道这个值的人都能伪造任意用户的 token。
+  设置一个长度 32 位以上的随机字符串，不要用 <code>dev-secret</code>。
+</p>
+
+<h2>用 curl 测试</h2>
+<pre><code><span class="cm"># 注册</span>
+curl -X POST http://localhost:3000/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"123456"}'
+
+<span class="cm"># 登录，拿到 token</span>
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"123456"}'
+
+<span class="cm"># 用 token 发消息</span>
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer &lt;上面拿到的token&gt;" \
+  -d '{"message":"你好","sessionId":"s1"}'</code></pre>
+
+<!-- 小测验 -->
+<div class="quiz">
+  <h2>小测验</h2>
+  <p style="color:var(--muted);font-size:.9rem">点击选项查看解析</p>
+
+  <p class="question">1. 为什么密码要用 bcrypt 哈希，而不是直接存明文？</p>
+  <ul class="options" data-answer="1">
+    <li>bcrypt 比明文存储更省空间</li>
+    <li>数据库一旦泄露，攻击者也无法还原出原始密码</li>
+    <li>bcrypt 加密后密码可以被解密，方便找回</li>
+    <li>这是 Node.js 的强制要求</li>
+  </ul>
+  <p class="explain">
+    <strong>单向哈希：</strong>bcrypt 是不可逆的哈希，无法从哈希值还原密码。
+    即使数据库被拖库，攻击者也只能拿到哈希值，无法直接登录其他网站（防止撞库攻击）。
+  </p>
+
+  <p class="question">2. JWT Payload 里的数据安全吗？</p>
+  <ul class="options" data-answer="2">
+    <li>完全安全，JWT 是加密的</li>
+    <li>只有服务端能读取</li>
+    <li>任何人都能 Base64 解码读到，但无法伪造签名</li>
+    <li>浏览器会自动加密存储</li>
+  </ul>
+  <p class="explain">
+    JWT Payload 只是 Base64 编码（不是加密），任何人都能解码。
+    安全性来自<strong>签名</strong>——没有密钥就无法伪造有效 token。
+    所以 Payload 里只放 userId，不放密码等敏感信息。
+  </p>
+
+  <p class="question">3. 为什么认证中间件挂在 <code>/api/*</code> 而不是 <code>*</code>？</p>
+  <ul class="options" data-answer="0">
+    <li>注册/登录接口本身不需要 token，挂 * 会导致无法登录</li>
+    <li>/api/* 性能更好</li>
+    <li>Hono 不支持 * 通配符</li>
+    <li>这只是代码风格约定，效果相同</li>
+  </ul>
+  <p class="explain">
+    如果把鉴权挂在所有路径（<code>*</code>），用户连 <code>/login</code> 都需要 token 才能访问——
+    但 token 是登录后才能拿到的，形成死锁。所以只保护需要认证的路径。
+  </p>
+</div>
+
+<h2>本节要点</h2>
+<ul style="padding-left:1.4em">
+  <li>JWT = 自包含令牌，服务器无需查库即可验证身份</li>
+  <li>密码必须用 bcrypt 哈希存储，绝不明文</li>
+  <li>JWT_SECRET 放环境变量，生产环境必须是强随机字符串</li>
+  <li>认证中间件只保护需要登录的路径（<code>/api/*</code>），不拦截登录/注册接口</li>
+</ul>
+
+<div class="callout">
+  有任何疑问，直接在对话框里问老师。
+</div>
+
+<footer>
+  <div class="nav-links">
+    <a href="0011-api-bearer-token.html">← 第十一课：Bearer Token 鉴权</a>
+    <a href="0013-login-page.html">第十三课：前端登录页面 →</a>
+  </div>
+  <p style="margin-top:1em">
+    延伸阅读：
+    <a href="https://jwt.io/introduction" target="_blank">jwt.io — JWT 官方介绍</a>
+  </p>
+</footer>
+
+<script>
+  document.querySelectorAll('.options').forEach((ul) => {
+    const correct = parseInt(ul.dataset.answer, 10)
+    const explain = ul.nextElementSibling
+    ul.querySelectorAll('li').forEach((li, i) => {
+      li.addEventListener('click', () => {
+        ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'wrong'))
+        li.classList.add(i === correct ? 'correct' : 'wrong')
+        if (explain) explain.classList.add('show')
+      })
+    })
+  })
+</script>
+
+</body>
+</html>
