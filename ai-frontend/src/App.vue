@@ -38,14 +38,10 @@
     <!-- 输入区域 -->
     <footer class="footer">
       <div class="input-wrap">
-        <input
-          v-model="input"
-          placeholder="输入消息，按 Enter 发送…"
-          @keydown.enter="send"
-          :disabled="loading"
-        />
+        <input v-model="input" placeholder="输入消息，按 Enter 发送…" @keydown.enter="send" :disabled="loading" />
         <button @click="send" :disabled="loading || !input.trim()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>
@@ -82,9 +78,16 @@ async function send() {
   scrollToBottom()
 
   try {
+    // 从 localStorage 读 token（用户第一次访问时提示输入）
+    let token = localStorage.getItem('api_token')
+    if (!token) {
+      token = prompt('请输入访问密码：') ?? ''
+      if (token) localStorage.setItem('api_token', token)
+    }
+
     const res = await fetch(`${API_URL}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ message: text, sessionId }),
     })
     if (!res.ok) throw new Error('请求失败')
@@ -117,8 +120,18 @@ async function send() {
 </script>
 
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #f6f6f4;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
 </style>
 
 <style scoped>
@@ -134,20 +147,24 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   border-bottom: 1px solid #ebebeb;
   flex-shrink: 0;
 }
+
 .header-inner {
   max-width: 760px;
   margin: 0 auto;
   padding: 0.9rem 1.5rem;
 }
+
 .logo {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
+
 .logo-icon {
   font-size: 1.1rem;
   color: #2563eb;
 }
+
 .logo-text {
   font-size: 1rem;
   font-weight: 600;
@@ -178,9 +195,22 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   color: #999;
   padding-bottom: 6rem;
 }
-.empty-icon { font-size: 2.5rem; color: #2563eb; opacity: 0.5; }
-.empty-title { font-size: 1.15rem; font-weight: 600; color: #555; }
-.empty-sub { font-size: 0.9rem; }
+
+.empty-icon {
+  font-size: 2.5rem;
+  color: #2563eb;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.empty-sub {
+  font-size: 0.9rem;
+}
 
 /* 消息行 */
 .row {
@@ -188,6 +218,7 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   gap: 0.75rem;
   align-items: flex-start;
 }
+
 .row.user {
   flex-direction: row-reverse;
 }
@@ -217,16 +248,18 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 .row.user .bubble {
   background: #2563eb;
   color: #fff;
   border-bottom-right-radius: 4px;
 }
+
 .row.assistant .bubble {
   background: #fff;
   color: #1a1a1a;
   border-bottom-left-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* Loading 动画 */
@@ -236,6 +269,7 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   align-items: center;
   padding: 0.9rem 1rem;
 }
+
 .dot {
   width: 7px;
   height: 7px;
@@ -243,11 +277,28 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   background: #aaa;
   animation: bounce 1.2s infinite ease-in-out;
 }
-.dot:nth-child(2) { animation-delay: 0.2s; }
-.dot:nth-child(3) { animation-delay: 0.4s; }
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
 @keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40%            { transform: translateY(-6px); opacity: 1; }
+
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
 }
 
 /* 输入区域 */
@@ -256,6 +307,7 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   padding: 1rem 1.5rem 1.5rem;
   flex-shrink: 0;
 }
+
 .input-wrap {
   max-width: 760px;
   margin: 0 auto;
@@ -266,12 +318,14 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   border: 1px solid #e0e0e0;
   border-radius: 14px;
   padding: 0.5rem 0.5rem 0.5rem 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: border-color 0.2s;
 }
+
 .input-wrap:focus-within {
   border-color: #2563eb;
 }
+
 .input-wrap input {
   flex: 1;
   border: none;
@@ -281,7 +335,11 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   color: #1a1a1a;
   line-height: 1.5;
 }
-.input-wrap input::placeholder { color: #bbb; }
+
+.input-wrap input::placeholder {
+  color: #bbb;
+}
+
 .input-wrap button {
   width: 36px;
   height: 36px;
@@ -296,10 +354,12 @@ body { background: #f6f6f4; font-family: -apple-system, 'PingFang SC', 'Microsof
   flex-shrink: 0;
   transition: background 0.15s, opacity 0.15s;
 }
+
 .input-wrap button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
 .input-wrap button:not(:disabled):hover {
   background: #1d4ed8;
 }

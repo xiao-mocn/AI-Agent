@@ -57,7 +57,7 @@ content-type: application/json
 }
 
 ### 8.1 测试
-POST https://ai-agent-2b72.onrender.com/api/chat HTTP/1.1
+POST https://ai-agent-opan.onrender.com/api/chat HTTP/1.1
 content-type: application/json
 
 { 

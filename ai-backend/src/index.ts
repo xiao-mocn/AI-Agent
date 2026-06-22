@@ -9,6 +9,21 @@ const app = new Hono()
 // 允许跨域请求
 app.use(cors())
 
+// 添加中间件,
+const ALLOWED_TOKEN = process.env.ALLOWED_TOKEN
+
+app.use('*', async (c, next) => {
+  // 如果没有配置Token，则放行。（开发环境）
+  if (!ALLOWED_TOKEN) return next()
+  // 检查请求头是否包含 Authorization 字段
+  const token = c.req.header('Authorization')
+  if (`Bearer ${ALLOWED_TOKEN}` !== token) {
+    return c.json({ error: '未授权' }, 401)
+  }
+  // 放行
+  return next()
+})
+
 // AI 的行为设定
 const SYSTEM_PROMPT =
   `你是一个 AI 全栈工程师助教。
