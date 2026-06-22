@@ -27,3 +27,20 @@ export const getHistory = db.prepare(
 export const countSession = db.prepare(
   'SELECT COUNT(*) AS cnt FROM messages WHERE session_id = ?'
 )
+
+// 创建一个User表
+// 创建 users 表
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS users (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT    UNIQUE NOT NULL,
+    password TEXT    NOT NULL
+  )
+`).run()
+
+export const createUser = db.prepare(
+  'INSERT INTO users (username, password) VALUES (?, ?)'
+)
+export const findUser = db.prepare(
+  'SELECT * FROM users WHERE username = ?'
+)

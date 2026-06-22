@@ -64,3 +64,32 @@ content-type: application/json
   "message": "我能用你干什么事？",
   "sessionId": "test-session-1"
 }
+
+### 12.1 测试注册
+POST http://localhost:3000/register HTTP/1.1
+content-type: application/json
+
+{ 
+  "username": "test-user",
+  "password": "123456"
+}
+
+### 12.2 测试登录
+POST http://localhost:3000/login HTTP/1.1
+content-type: application/json
+
+{ 
+  "username": "test-user",
+  "password": "123456"
+}
+
+### 用 JWT 发消息（把登录返回的 token 填进去）
+POST http://localhost:3000/api/chat
+Content-Type: application/json
+# Authorization: Bearer 这里填登录返回的token
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc4MjExNjQ4OCwiZXhwIjoxNzgyNzIxMjg4fQ.wzH2pwcfPPwMI9L1Uwo3Z1nsJYzPuDh93XUTy1vEk9w
+
+{
+  "message": "你好",
+  "sessionId": "test-jwt-1"
+}
