@@ -1,0 +1,66 @@
+### 测试对话功能
+
+POST http://localhost:3000/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "你好, 我是张三",
+  "sessionId": "test-session-1"
+}
+
+###  测试对话功能
+POST http://localhost:3000/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "我叫什么名字？",
+  "sessionId": "test-session-1"
+}
+
+
+###  第五课测试
+POST http://localhost:3000/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "给我推荐一部电影",
+  "sessionId": "test-session-1"
+}
+
+
+###  第六课测试
+POST http://localhost:3000/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "",
+  "sessionId": "test-session-1"
+}
+
+
+### 7.1 测试
+POST http://localhost:3000/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "我要借三本小说",
+  "sessionId": "test-session-1"
+}
+
+### 7.2 测试
+POST http://localhost:3000/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "我刚才说了什么？",
+  "sessionId": "test-session-1"
+}
+
+### 8.1 测试
+POST https://ai-agent-2b72.onrender.com/api/chat HTTP/1.1
+content-type: application/json
+
+{ 
+  "message": "我能用你干什么事？",
+  "sessionId": "test-session-1"
+}
