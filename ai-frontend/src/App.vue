@@ -37,9 +37,27 @@ async function send() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, sessionId }),
     })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error)
-    messages.value.push({ role: 'assistant', content: data.reply })
+    if (!res.ok) throw new Error('请求失败')
+
+    // 创建一个空的 assistant 消息，边读边填充
+    messages.value.push({ role: 'assistant', content: '' })
+    const lastMsg = messages.value[messages.value.length - 1]
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const text = decoder.decode(value)
+      // SSE 格式：每行一个 event
+      const lines = text.split('\n')
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6)
+        if (payload === '[DONE]') break
+        const { delta } = JSON.parse(payload)
+        lastMsg.content += delta  // 追加到消息气泡里
+      }
+    }
   } catch {
     messages.value.push({ role: 'assistant', content: '出错了，请稍后重试' })
   } finally {
