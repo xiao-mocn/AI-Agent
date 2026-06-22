@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第十四课：前端体验完善——401 自动跳登录、退出登录、多会话</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #667eea; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .goal ul { margin: 0.4rem 0 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #667eea; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+</style>
+</head>
+<body>
+
+<h1>第十四课：前端体验完善</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐☆ · 纯前端课</p>
+
+<div class="goal">
+  <strong>本节课你会实现：</strong>
+  <ul>
+    <li>接口返回 401 时自动跳转登录页（而不是显示「出错了」）</li>
+    <li>Header 右上角加「退出登录」按钮，清除 token 并跳回登录页</li>
+    <li>多会话支持：侧边栏可以新建/切换对话，每个对话有独立的 sessionId</li>
+  </ul>
+</div>
+
+<h2>一、为什么现在要做这些？</h2>
+
+<p>上节课打通了登录 → 拿 token → 带 token 请求的完整链路。但还有两个明显的体验问题：</p>
+
+<ol>
+  <li><strong>token 过期没有处理</strong>：JWT 7 天后过期，接口会返回 401，前端现在只显示「出错了」，用户不知道要重新登录。</li>
+  <li><strong>没有退出登录</strong>：用户无法主动退出，token 一直留在 localStorage 里。</li>
+</ol>
+
+<p>第三个功能（多会话）属于加餐，视时间决定是否实现。</p>
+
+<h2>二、第一步：401 自动跳登录页</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>思路</strong>
+
+  <p>当前 <code>send()</code> 函数里：</p>
+  <pre>if (!res.ok) throw new Error('请求失败')</pre>
+  <p>所有非 200 状态都抛同一个错误，catch 里显示「出错了」。需要区分 401 和其他错误。</p>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>修改 <code>ChatView.vue</code></strong>
+
+  <p>在 <code>send()</code> 函数里，把错误处理改成：</p>
+  <pre><span class="kw">import</span> { useRouter } <span class="kw">from</span> <span class="str">'vue-router'</span>
+
+<span class="comment">// script setup 顶部加：</span>
+<span class="kw">const</span> router = useRouter()
+
+<span class="comment">// send() 里把这一行：</span>
+<span class="kw">if</span> (!res.ok) <span class="kw">throw new</span> Error(<span class="str">'请求失败'</span>)
+
+<span class="comment">// 改成：</span>
+<span class="kw">if</span> (res.status === <span class="fn">401</span>) {
+  localStorage.removeItem(<span class="str">'token'</span>)
+  router.<span class="fn">push</span>(<span class="str">'/login'</span>)
+  <span class="kw">return</span>
+}
+<span class="kw">if</span> (!res.ok) <span class="kw">throw new</span> Error(<span class="str">'请求失败'</span>)</pre>
+
+  <p>这样 token 失效时会自动清除并跳转登录页，不再显示错误气泡。</p>
+</div>
+
+<h2>三、第二步：退出登录按钮</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>在 Header 加按钮</strong>
+
+  <p>修改 <code>ChatView.vue</code> 的 template，在 <code>.header-inner</code> 里加退出按钮：</p>
+  <pre>&lt;div <span class="kw">class</span>=<span class="str">"header-inner"</span>&gt;
+  &lt;div <span class="kw">class</span>=<span class="str">"logo"</span>&gt;
+    &lt;span <span class="kw">class</span>=<span class="str">"logo-icon"</span>&gt;✦&lt;/span&gt;
+    &lt;span <span class="kw">class</span>=<span class="str">"logo-text"</span>&gt;AI 助手&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;button <span class="kw">class</span>=<span class="str">"logout-btn"</span> <span class="fn">@click</span>=<span class="str">"logout"</span>&gt;退出登录&lt;/button&gt;
+&lt;/div&gt;</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>加 logout 函数</strong>
+
+  <pre><span class="kw">function</span> <span class="fn">logout</span>() {
+  localStorage.removeItem(<span class="str">'token'</span>)
+  router.<span class="fn">push</span>(<span class="str">'/login'</span>)
+}</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>加样式</strong>
+
+  <pre><span class="comment">/* header-inner 改成 flex 两端对齐 */</span>
+.header-inner {
+  max-width: <span class="fn">760px</span>;
+  margin: <span class="fn">0</span> auto;
+  padding: <span class="fn">0.9rem 1.5rem</span>;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;  <span class="comment">/* 新增 */</span>
+}
+
+.logout-btn {
+  font-size: <span class="fn">0.85rem</span>;
+  color: <span class="str">#6b7280</span>;
+  background: none;
+  border: <span class="fn">1px</span> solid <span class="str">#e5e7eb</span>;
+  border-radius: <span class="fn">8px</span>;
+  padding: <span class="fn">0.35rem 0.85rem</span>;
+  cursor: pointer;
+  transition: color <span class="fn">0.15s</span>, border-color <span class="fn">0.15s</span>;
+}
+
+.logout-btn:hover {
+  color: <span class="str">#ef4444</span>;
+  border-color: <span class="str">#fca5a5</span>;
+}</pre>
+</div>
+
+<h2>四、第三步（加餐）：多会话侧边栏</h2>
+
+<div class="tip">这部分代码量较多，如果时间有限可以跳过，先把前两步做完。</div>
+
+<h3>思路</h3>
+
+<p>现在 <code>sessionId</code> 是组件挂载时 <code>crypto.randomUUID()</code> 生成一次，刷新页面就丢失了。多会话需要：</p>
+
+<ol>
+  <li>用一个数组维护多个会话 <code>sessions: { id, title, messages }[]</code></li>
+  <li>左侧显示会话列表，点击切换</li>
+  <li>「新建对话」按钮创建新 session</li>
+  <li>会话标题用第一条消息的前 15 个字自动生成</li>
+</ol>
+
+<h3>数据结构</h3>
+
+<pre><span class="kw">type</span> Session = {
+  id: <span class="kw">string</span>
+  title: <span class="kw">string</span>
+  messages: Message[]
+}
+
+<span class="kw">const</span> sessions = ref&lt;Session[]&gt;([<span class="fn">newSession</span>()])
+<span class="kw">const</span> activeId = ref(sessions.value[<span class="fn">0</span>].id)
+<span class="kw">const</span> activeSession = computed(() =&gt;
+  sessions.value.<span class="fn">find</span>(s =&gt; s.id === activeId.value)!
+)
+
+<span class="kw">function</span> <span class="fn">newSession</span>(): Session {
+  <span class="kw">return</span> { id: crypto.<span class="fn">randomUUID</span>(), title: <span class="str">'新对话'</span>, messages: [] }
+}</pre>
+
+<h3>模板结构（加侧边栏）</h3>
+
+<pre>&lt;div <span class="kw">class</span>=<span class="str">"app"</span>&gt;
+  <span class="comment">&lt;!-- 侧边栏 --&gt;</span>
+  &lt;aside <span class="kw">class</span>=<span class="str">"sidebar"</span>&gt;
+    &lt;button <span class="kw">class</span>=<span class="str">"new-chat-btn"</span> <span class="fn">@click</span>=<span class="str">"createSession"</span>&gt;＋ 新建对话&lt;/button&gt;
+    &lt;div
+      <span class="kw">v-for</span>=<span class="str">"s in sessions"</span>
+      :key=<span class="str">"s.id"</span>
+      :class=<span class="str">"['session-item', { active: s.id === activeId }]"</span>
+      <span class="fn">@click</span>=<span class="str">"activeId = s.id"</span>
+    &gt;{{ s.title }}&lt;/div&gt;
+  &lt;/aside&gt;
+
+  <span class="comment">&lt;!-- 右侧聊天区域（把原来的 .layout 放这里）--&gt;</span>
+  &lt;div <span class="kw">class</span>=<span class="str">"chat-area"</span>&gt;
+    <span class="comment">&lt;!-- header / messages / footer 保持不变，但 messages 改为 activeSession.messages --&gt;</span>
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+
+<div class="warn">
+  <strong>注意</strong>：<code>send()</code> 里的 <code>messages.value</code> 全部改为 <code>activeSession.value.messages</code>，<code>sessionId</code> 改为 <code>activeId.value</code>。
+</div>
+
+<h2>五、验证清单</h2>
+
+<ol>
+  <li>手动清除 localStorage 中的 <code>token</code>，刷新聊天页 → 自动跳转登录页 ✓</li>
+  <li>登录后，点击「退出登录」→ 跳回登录页，localStorage 的 token 被清除 ✓</li>
+  <li>（加餐）新建多个对话，每个对话有独立的消息历史，切换不混淆 ✓</li>
+</ol>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：多会话数据现在只存在内存里，刷新页面就丢失了。如果要持久化到本地，你会用什么方案？</p>
+  <p><strong>Q2</strong>：token 即将过期（比如还剩 1 小时）时，如何在不打断用户操作的前提下自动续签？</p>
+  <p><strong>Q3</strong>：如果多个标签页同时打开，一个标签页退出登录后，其他标签页应该怎么处理？</p>
+</div>
+
+<h2>六、本课总结</h2>
+
+<ul>
+  <li><code>res.status === 401</code> 单独处理，清 token 并跳登录，而不是走通用错误流程</li>
+  <li>退出登录 = <code>localStorage.removeItem('token')</code> + <code>router.push('/login')</code></li>
+  <li>多会话的核心是用 <code>activeSession</code> computed 把「当前显示的数据」和「路由/点击状态」解耦</li>
+</ul>
+
+<p>完成本课后，前端已具备一个生产可用的最小鉴权+多会话体系。下一课将进入 <strong>第十五课：部署上线</strong>——把 Vue Router history 模式部署到 Render，解决刷新 404 问题，并把所有环境变量整理到位。</p>
+
+</body>
+</html>
