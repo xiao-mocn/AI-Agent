@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 1 课：AI 全栈地图</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --bg: #fafaf8;
+      --border: #e2e2dc;
+      --code-bg: #f4f4f0;
+      --success: #16a34a;
+      --warn-bg: #fffbeb;
+      --warn-border: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    /* ── 顶部导航 ── */
+    .breadcrumb {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── 标签 ── */
+    .tag {
+      display: inline-block;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 3px;
+      background: #dbeafe;
+      color: var(--accent);
+      margin-bottom: 0.9rem;
+    }
+
+    /* ── 标题 ── */
+    h1 {
+      font-size: 2.1rem;
+      font-weight: normal;
+      line-height: 1.25;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 2.8rem 0 1rem;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    strong { font-weight: bold; }
+
+    /* ── 架构图 ── */
+    .arch {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 1.5rem 0 2rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .arch-row {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .arch-row:last-child { border-bottom: none; }
+
+    .arch-num {
+      width: 56px;
+      min-width: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 300;
+      color: var(--muted);
+      background: var(--code-bg);
+      border-right: 1px solid var(--border);
+    }
+
+    .arch-body {
+      flex: 1;
+      padding: 1rem 1.25rem;
+    }
+
+    .arch-head {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .arch-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+    .badge-yours { background: #dcfce7; color: #15803d; }
+    .badge-new   { background: #fef3c7; color: #92400e; }
+
+    .arch-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── 代码 ── */
+    code {
+      font-family: 'Fira Code', Menlo, Consolas, monospace;
+    }
+
+    p code, li code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      margin: 1rem 0;
+    }
+
+    /* ── 提示框 ── */
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 0.75rem 1.1rem;
+      background: #eff6ff;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .callout.warn {
+      border-color: var(--warn-border);
+      background: var(--warn-bg);
+    }
+
+    /* ── 路径列表 ── */
+    .path-list {
+      list-style: none;
+      margin: 1rem 0 1.5rem;
+      counter-reset: path;
+    }
+
+    .path-list li {
+      counter-increment: path;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.9rem;
+    }
+    .path-list li:last-child { border-bottom: none; }
+
+    .path-list li::before {
+      content: counter(path);
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .path-week {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* ── 测验 ── */
+    .quiz {
+      margin: 1.5rem 0 2rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .quiz-header {
+      background: var(--code-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .quiz-q {
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .quiz-q:last-child { border-bottom: none; }
+
+    .quiz-question {
+      font-size: 0.92rem;
+      margin-bottom: 0.7rem;
+      line-height: 1.5;
+    }
+
+    .quiz-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .quiz-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.83rem;
+      padding: 0.35rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.12s, background 0.12s;
+    }
+
+    .quiz-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .quiz-btn.correct {
+      border-color: var(--success);
+      background: #f0fdf4;
+      color: var(--success);
+    }
+
+    .quiz-btn.wrong {
+      border-color: #dc2626;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .quiz-explain {
+      display: none;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      line-height: 1.5;
+      padding-top: 0.6rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .quiz-explain.show { display: block; }
+    .quiz-explain .correct-label { color: var(--success); font-weight: 600; }
+    .quiz-explain .wrong-label   { color: #dc2626; font-weight: 600; }
+
+    /* ── 资源区 ── */
+    .resources {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .resource-item {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      align-items: flex-start;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      transition: color 0.12s;
+    }
+    .resource-item:last-child { border-bottom: none; }
+    .resource-item:hover { color: var(--accent); }
+
+    .resource-icon {
+      font-size: 1rem;
+      min-width: 1.5rem;
+      text-align: center;
+      margin-top: 1px;
+    }
+
+    .resource-body {}
+    .resource-name { font-weight: 600; }
+    .resource-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── 教师提示 ── */
+    .teacher-note {
+      margin-top: 2rem;
+      padding: 1rem 1.1rem;
+      background: #f0fdf4;
+      border-radius: 6px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* ── 分隔线 ── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2.5rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="breadcrumb">AI 全栈工程师 › 第 1 课（共 N 课）</div>
+
+  <div class="tag">第 1 课 · 知识</div>
+  <h1>你的 AI 全栈地图</h1>
+  <p class="subtitle">理解你已经站在哪里，以及前方的路</p>
+
+  <!-- ──────────────────────────────── -->
+  <h2>你比你想象的更有优势</h2>
+
+  <p>
+    "全栈"意味着你能独立掌控一个应用的所有层。
+    你已经掌握了<strong>最难学的部分</strong>——用户界面层。
+    前端开发者转型全栈，比后端开发者转型更顺，因为你已经懂得如何从用户视角思考产品。
+  </p>
+
+  <p>
+    "AI 全栈"在这个基础上再加一层：你不只是把 UI 和 API 拼接起来，
+    还把大型语言模型（LLM）作为应用的"大脑"接进来——
+    让它处理自然语言、生成内容、做决策。
+  </p>
+
+  <!-- ──────────────────────────────── -->
+  <h2>一个独立 AI 应用的四层结构</h2>
+
+  <p>每个可上线、有 AI 能力的完整应用，都可以用这张地图来描述：</p>
+
+  <div class="arch">
+    <div class="arch-row">
+      <div class="arch-num">①</div>
+      <div class="arch-body">
+        <div class="arch-head">
+          <span class="arch-title">前端 UI</span>
+          <span class="badge badge-yours">你已掌握</span>
+        </div>
+        <div class="arch-desc">
+          Vue / React 界面。收集用户输入，向后端发请求，展示 AI 返回的结果。
+          你的 Axios 调用就在这里出发。
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-row">
+      <div class="arch-num">②</div>
+      <div class="arch-body">
+        <div class="arch-head">
+          <span class="arch-title">后端 API</span>
+          <span class="badge badge-new">需要学习</span>
+        </div>
+        <div class="arch-desc">
+          Node.js 服务。处理业务逻辑，<strong>保管 API Key</strong>，调用 LLM 和数据库。
+          它是前端和 AI 之间的安全中转站。
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-row">
+      <div class="arch-num">③</div>
+      <div class="arch-body">
+        <div class="arch-head">
+          <span class="arch-title">AI 服务（LLM）</span>
+          <span class="badge badge-new">需要学习</span>
+        </div>
+        <div class="arch-desc">
+          Claude / OpenAI 的 API。你的后端把用户的问题组装成 <code>prompt</code>，
+          发给它，它返回生成的文字。你按 token 数量付费。
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-row">
+      <div class="arch-num">④</div>
+      <div class="arch-body">
+        <div class="arch-head">
+          <span class="arch-title">数据存储</span>
+          <span class="badge badge-new">需要学习</span>
+        </div>
+        <div class="arch-desc">
+          PostgreSQL 存用户账号和对话历史（关系数据库）；
+          Vector DB 存语义搜索数据（进阶）。
+          后端负责读写，前端永远不直接碰数据库。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>为什么一定需要后端？</strong><br>
+    如果你把 <code>OPENAI_API_KEY</code> 写在前端代码里，
+    任何人打开浏览器开发者工具都能看到。
+    你的 API 额度会在几小时内被盗刷光。<br>
+    <strong>后端是 API Key 的保险箱。</strong>
+    这是 AI 应用开发第一条不能破的规则。
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>你的学习路径</h2>
+
+  <p>
+    对你而言最高效的顺序——充分利用你已有的 TypeScript 经验：
+  </p>
+
+  <ul class="path-list">
+    <li>
+      <div>
+        <strong>Node.js + TypeScript 后端基础</strong><br>
+        <span style="font-size:0.8rem;color:#6b6b6b">写 HTTP 接口，你已熟悉 TS，这一步最快</span>
+      </div>
+      <span class="path-week">第 1–2 周</span>
+    </li>
+    <li>
+      <div>
+        <strong>调用 LLM API（Claude / OpenAI）</strong><br>
+        <span style="font-size:0.8rem;color:#6b6b6b">让后端和 AI "说话"，立刻有成就感</span>
+      </div>
+      <span class="path-week">第 2–3 周</span>
+    </li>
+    <li>
+      <div>
+        <strong>数据库：PostgreSQL + Prisma</strong><br>
+        <span style="font-size:0.8rem;color:#6b6b6b">Prisma 有完整类型提示，前端感觉</span>
+      </div>
+      <span class="path-week">第 3–4 周</span>
+    </li>
+    <li>
+      <div>
+        <strong>部署上线</strong><br>
+        <span style="font-size:0.8rem;color:#6b6b6b">Railway / Vercel，给别人一个 URL</span>
+      </div>
+      <span class="path-week">第 4–5 周</span>
+    </li>
+    <li>
+      <div>
+        <strong>进阶：RAG、Tool Use、Agent</strong><br>
+        <span style="font-size:0.8rem;color:#6b6b6b">让 AI 读你的文档，自主执行操作</span>
+      </div>
+      <span class="path-week">第 6 周起</span>
+    </li>
+  </ul>
+
+  <div class="callout">
+    每天 1–2 小时，<strong>第 2 周末</strong>你就能看到一个真实运行的 AI 接口响应你的问题。
+    第 5 周，你有一个可以给别人看的完整应用。
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>练习：检验你的理解</h2>
+
+  <p>读完地图，来测一测——以下代码或操作，应该放在哪一层？</p>
+
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 四题</div>
+
+    <!-- Q1 -->
+    <div class="quiz-q" id="q1">
+      <p class="quiz-question">
+        1. <code>const apiKey = process.env.OPENAI_API_KEY</code>
+        &nbsp;— 读取 OpenAI 密钥
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q1',this,false,'前端代码打包后用户可见，密钥会泄露。')">前端</button>
+        <button class="quiz-btn" onclick="answer('q1',this,true,'正确。环境变量只存在服务器，浏览器访问不到。')">后端</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'数据库存的是持久化业务数据，不是代码变量。')">数据库</button>
+      </div>
+      <div class="quiz-explain" id="q1-explain"></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="quiz-q" id="q2">
+      <p class="quiz-question">
+        2. 用户点击"发送"按钮，把输入的文字提交出去
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q2',this,true,'正确。用户交互（点击、输入）发生在前端，前端再把数据 POST 给后端。')">前端</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'后端不感知鼠标事件，它只接收 HTTP 请求，不知道用户按了哪个按钮。')">后端</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'LLM 只接收 prompt 文本并生成回复，不参与界面交互。')">AI 服务</button>
+      </div>
+      <div class="quiz-explain" id="q2-explain"></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="quiz-q" id="q3">
+      <p class="quiz-question">
+        3. 把用户的问题 + 对话历史组合成 prompt，然后调用 Claude API
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q3',this,false,'前端直接调用 LLM 需要把 API Key 暴露在浏览器，违反安全规则。')">前端</button>
+        <button class="quiz-btn" onclick="answer('q3',this,true,'正确。组装 prompt 的业务逻辑 + LLM 调用都在后端，安全可控。')">后端</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'LLM 只负责接收 prompt 并生成文字，它不自己组装 prompt。')">AI 服务</button>
+      </div>
+      <div class="quiz-explain" id="q3-explain"></div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="quiz-q" id="q4">
+      <p class="quiz-question">
+        4. 保存用户过去 30 天的对话记录，换设备也能继续看到
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q4',this,false,'localStorage 容量有限（5MB），且绑定浏览器，换设备就丢失了。')">前端 localStorage</button>
+        <button class="quiz-btn" onclick="answer('q4',this,false,'后端内存（变量）在服务重启后清空，不能持久化。')">后端内存</button>
+        <button class="quiz-btn" onclick="answer('q4',this,true,'正确。数据库专为持久化设计，跨设备、跨会话、服务重启后数据仍在。')">数据库</button>
+      </div>
+      <div class="quiz-explain" id="q4-explain"></div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <hr>
+
+  <div class="resources">
+    <h2>本课推荐资源</h2>
+
+    <a class="resource-item" href="https://nodejs.org/en/learn/getting-started/introduction-to-nodejs" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Node.js 官方入门指南</div>
+        <div class="resource-desc">官方文档 · 覆盖事件循环、模块系统、HTTP 基础</div>
+      </div>
+    </a>
+
+    <a class="resource-item" href="https://docs.anthropic.com/en/docs/quickstart" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Claude API 快速上手</div>
+        <div class="resource-desc">Anthropic 官方文档 · 你将在第 2–3 周用到</div>
+      </div>
+    </a>
+
+    <a class="resource-item" href="https://hono.dev/docs/" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Hono 官方文档</div>
+        <div class="resource-desc">TypeScript-first 轻量后端框架 · 下节课我们用它写第一个接口</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="teacher-note">
+    <strong>有疑问吗？</strong>
+    这节课是地图，真正的代码从下节课开始。
+    如果有任何不清楚的概念——四层架构、为什么需要后端、任何术语——直接问我。
+    我是你的老师，没有蠢问题。
+  </div>
+
+  <script>
+    function answer(qid, btn, isCorrect, explanation) {
+      const container = document.getElementById(qid);
+      if (container.dataset.answered) return;
+      container.dataset.answered = '1';
+
+      container.querySelectorAll('.quiz-btn').forEach(b => { b.disabled = true; });
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+      const explainEl = document.getElementById(qid + '-explain');
+      const label = isCorrect
+        ? '<span class="correct-label">正确。</span> '
+        : '<span class="wrong-label">错误。</span> ';
+      explainEl.innerHTML = label + explanation;
+      explainEl.classList.add('show');
+    }
+  </script>
+</body>
+</html>

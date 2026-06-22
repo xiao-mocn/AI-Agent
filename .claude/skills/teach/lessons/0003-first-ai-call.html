@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 3 课：第一次真正的 AI 对话</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --bg: #fafaf8;
+      --border: #e2e2dc;
+      --code-bg: #f4f4f0;
+      --success: #16a34a;
+      --warn-bg: #fffbeb;
+      --warn-border: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    .breadcrumb {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+    }
+    .breadcrumb a { color: var(--accent); text-decoration: none; }
+
+    .tag {
+      display: inline-block;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 3px;
+      background: #fef3c7;
+      color: #92400e;
+      margin-bottom: 0.9rem;
+    }
+
+    h1 {
+      font-size: 2.1rem;
+      font-weight: normal;
+      line-height: 1.25;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 2.8rem 0 1rem;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    .steps { margin: 1.5rem 0; }
+
+    .step {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      min-width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .step-body p {
+      font-size: 0.92rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .code-block {
+      position: relative;
+      margin: 0.75rem 0;
+    }
+
+    .code-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      padding: 4px 10px;
+      border-radius: 5px 5px 0 0;
+      display: inline-block;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 0 6px 6px 6px;
+      padding: 1.1rem 1.25rem;
+      overflow-x: auto;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .code-block-simple pre { border-radius: 6px; }
+
+    code {
+      font-family: 'Fira Code', Menlo, Consolas, monospace;
+    }
+
+    p code, li code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+
+    .comment { color: #6b7280; }
+    .keyword { color: #7c3aed; }
+    .string  { color: #059669; }
+    .fn      { color: #2563eb; }
+    .type    { color: #db2777; }
+    .new-line { background: #ecfdf5; display: block; margin: 0 -1.25rem; padding: 0 1.25rem; border-left: 3px solid var(--success); }
+
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 0.75rem 1.1rem;
+      background: #eff6ff;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .callout.warn {
+      border-color: var(--warn-border);
+      background: var(--warn-bg);
+    }
+    .callout.success {
+      border-color: var(--success);
+      background: #f0fdf4;
+    }
+
+    .quiz {
+      margin: 1.5rem 0 2rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .quiz-header {
+      background: var(--code-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .quiz-q {
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .quiz-q:last-child { border-bottom: none; }
+
+    .quiz-question {
+      font-size: 0.92rem;
+      margin-bottom: 0.7rem;
+      line-height: 1.55;
+    }
+
+    .quiz-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .quiz-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.83rem;
+      padding: 0.35rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.12s;
+    }
+    .quiz-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .quiz-btn.correct { border-color: var(--success); background: #f0fdf4; color: var(--success); }
+    .quiz-btn.wrong   { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+
+    .quiz-explain {
+      display: none;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      line-height: 1.5;
+      padding-top: 0.6rem;
+      border-top: 1px dashed var(--border);
+    }
+    .quiz-explain.show { display: block; }
+    .quiz-explain .correct-label { color: var(--success); font-weight: 600; }
+    .quiz-explain .wrong-label   { color: #dc2626; font-weight: 600; }
+
+    .resources {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .resource-item {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      align-items: flex-start;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      transition: color 0.12s;
+    }
+    .resource-item:last-child { border-bottom: none; }
+    .resource-item:hover { color: var(--accent); }
+    .resource-icon { font-size: 1rem; min-width: 1.5rem; text-align: center; margin-top: 1px; }
+    .resource-name { font-weight: 600; }
+    .resource-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    .teacher-note {
+      margin-top: 2rem;
+      padding: 1rem 1.1rem;
+      background: #f0fdf4;
+      border-radius: 6px;
+      border: 1px solid #bbf7d0;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+    ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.3rem; font-size: 0.93rem; }
+  </style>
+</head>
+<body>
+
+  <div class="breadcrumb">
+    <a href="./0002-first-backend-api.html">← 第 2 课</a>
+    &nbsp;·&nbsp; AI 全栈工程师 › 第 3 课
+  </div>
+
+  <div class="tag">第 3 课 · 技能</div>
+  <h1>第一次真正的 AI 对话</h1>
+  <p class="subtitle">把假回复换成真正的 DeepSeek——10 行新代码，见证 AI 回应你</p>
+
+  <!-- ─────────────────────── -->
+  <h2>你上节课留下的伏笔</h2>
+
+  <p>
+    上节课你写了一行占位符：
+  </p>
+
+  <div class="code-block code-block-simple">
+    <pre><code>reply: <span class="string">`你说了：${message}（真实 AI 回复下节课接入）`</span></code></pre>
+  </div>
+
+  <p>
+    今天就把这行替换掉。你的服务器结构已经完整——
+    只需要在 <code>POST /api/chat</code> 里调用 DeepSeek API，
+    把 AI 的回复塞进 <code>reply</code> 字段就行了。
+  </p>
+
+  <div class="callout">
+    <strong>为什么用 openai SDK 调用 DeepSeek？</strong><br>
+    DeepSeek 完全兼容 OpenAI 的接口格式，只需要换一个 <code>baseURL</code>。
+    这意味着你学会这套写法，以后换任何兼容 OpenAI 格式的模型（包括本地模型 Ollama、其他云厂商）都只改一行配置——这是行业通行模式。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>新知识：API Key 和环境变量</h2>
+
+  <p>
+    在第一课你学过：API Key 必须放后端，不能暴露给浏览器。
+    但后端代码也不能直接写死 Key——代码会提交到 git，
+    万一仓库泄露，Key 就彻底暴露了。
+  </p>
+
+  <p>
+    标准做法是用<strong>环境变量</strong>：把 Key 写在一个只在本地存在的 <code>.env</code> 文件里，
+    通过 <code>.gitignore</code> 告诉 git"永远不要提交这个文件"。
+    代码只读取变量名，不包含 Key 的值。
+  </p>
+
+  <div class="callout">
+    <strong>类比：</strong>就像你的银行卡密码——
+    你会把密码存在脑子里，而不是写在银行卡背面。
+    <code>.env</code> 是"脑子"，代码是"银行卡"，<code>.gitignore</code> 确保密码不会跟着卡一起分享出去。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>动手：接入 DeepSeek API</h2>
+
+  <div class="callout warn">
+    <strong>前提：</strong>你需要一个 DeepSeek API Key。
+    前往 <a href="https://platform.deepseek.com/" target="_blank" style="color:var(--accent)">platform.deepseek.com</a>，
+    注册后在 API Keys 页面创建一个 Key（格式是 <code>sk-...</code>）。
+    新账号有免费额度，足够练习使用。
+  </div>
+
+  <div class="steps">
+
+    <!-- Step 1 -->
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">安装 openai SDK 和 dotenv</div>
+        <div class="code-block code-block-simple">
+          <pre><code>npm install openai dotenv</code></pre>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted)">
+          <code>openai</code> SDK 支持所有兼容 OpenAI 格式的模型，包括 DeepSeek；
+          <code>dotenv</code> 负责把 <code>.env</code> 文件里的变量加载到 Node.js 里。
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">创建 .env 文件（存放 API Key）</div>
+        <div class="code-block">
+          <div class="code-label">.env</div>
+          <pre><code>DEEPSEEK_API_KEY=sk-你的密钥粘贴在这里</code></pre>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted)">
+          把 <code>sk-你的密钥粘贴在这里</code> 替换成你从控制台复制的真实 Key。
+          注意等号两边没有空格。
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">创建 .gitignore（防止密钥泄露）</div>
+        <div class="code-block">
+          <div class="code-label">.gitignore</div>
+          <pre><code>.env
+node_modules</code></pre>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted)">
+          这两行确保 git 永远不会提交 <code>.env</code> 和 <code>node_modules</code>。
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">修改 src/index.ts</div>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.5rem">
+          绿色高亮行是新增的，其余保持不变：
+        </p>
+        <div class="code-block">
+          <div class="code-label">src/index.ts</div>
+          <pre><code><span class="new-line"><span class="keyword">import</span> <span class="string">'dotenv/config'</span>                    <span class="comment">// 加载 .env 文件</span></span>
+<span class="keyword">import</span> { serve } <span class="keyword">from</span> <span class="string">'@hono/node-server'</span>
+<span class="keyword">import</span> { Hono } <span class="keyword">from</span> <span class="string">'hono'</span>
+<span class="new-line"><span class="keyword">import</span> OpenAI <span class="keyword">from</span> <span class="string">'openai'</span>                <span class="comment">// OpenAI 兼容格式</span></span>
+
+<span class="keyword">const</span> app = <span class="keyword">new</span> <span class="type">Hono</span>()
+<span class="new-line"><span class="keyword">const</span> client = <span class="keyword">new</span> <span class="type">OpenAI</span>({</span>
+<span class="new-line">  apiKey: process.env.DEEPSEEK_API_KEY,   <span class="comment">// 读取环境变量</span></span>
+<span class="new-line">  baseURL: <span class="string">'https://api.deepseek.com'</span>,   <span class="comment">// 指向 DeepSeek 服务器</span></span>
+<span class="new-line">})</span>
+
+app.<span class="fn">get</span>(<span class="string">'/'</span>, (c) => {
+  <span class="keyword">return</span> c.<span class="fn">json</span>({ message: <span class="string">'AI 后端运行中 ✓'</span> })
+})
+
+app.<span class="fn">post</span>(<span class="string">'/api/chat'</span>, <span class="keyword">async</span> (c) => {
+  <span class="keyword">const</span> { message } = <span class="keyword">await</span> c.req.<span class="fn">json</span>()
+
+<span class="new-line">  <span class="keyword">const</span> response = <span class="keyword">await</span> client.chat.completions.<span class="fn">create</span>({</span>
+<span class="new-line">    model: <span class="string">'deepseek-chat'</span>,              <span class="comment">// DeepSeek-V3</span></span>
+<span class="new-line">    messages: [{ role: <span class="string">'user'</span>, content: message }],</span>
+<span class="new-line">  })</span>
+
+<span class="new-line">  <span class="keyword">const</span> reply = response.choices[<span class="string">0</span>].message.content ?? <span class="string">''</span></span>
+
+  <span class="keyword">return</span> c.<span class="fn">json</span>({
+<span class="new-line">    reply,</span>
+    timestamp: <span class="keyword">new</span> <span class="type">Date</span>().<span class="fn">toISOString</span>(),
+  })
+})
+
+<span class="fn">serve</span>({ fetch: app.fetch, port: <span class="string">3000</span> }, (info) => {
+  console.<span class="fn">log</span>(<span class="string">`服务器已启动：http://localhost:${info.port}`</span>)
+})</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">重新启动并测试</div>
+        <div class="code-block code-block-simple">
+          <pre><code>npx tsx src/index.ts</code></pre>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted)">
+          然后在 <code>test.http</code> 里发送请求——这次你会收到 DeepSeek 真正生成的回复。
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout success">
+    <strong>成功标志：</strong>回复里的 <code>reply</code> 字段不再是"你说了：…"的固定格式，
+    而是 DeepSeek 根据你的消息生成的真实自然语言回复。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>读懂新增的代码</h2>
+
+  <div class="callout">
+    <strong><code>new OpenAI({ apiKey, baseURL })</code></strong>：
+    <code>baseURL</code> 是关键——它让 SDK 把请求发到 DeepSeek 的服务器，而不是 OpenAI 的服务器。
+    以后换其他模型（比如本地 Ollama），只需要改这一行。
+  </div>
+
+  <div class="callout">
+    <strong><code>messages: [{ role: 'user', content: message }]</code></strong>：
+    这是 LLM API 的通行格式。<code>role</code> 只有两种值：<code>'user'</code>（用户说的）和 <code>'assistant'</code>（AI 说的）。
+    这个数组就是对话历史——下节课你会在这里放入多轮对话记录。
+  </div>
+
+  <div class="callout">
+    <strong><code>response.choices[0].message.content</code></strong>：
+    API 返回的是一个 <code>choices</code> 数组（支持同时生成多个候选回复，默认只生成 1 个）。
+    <code>.content</code> 就是 AI 生成的文字。<code>?? ''</code> 是防止内容为 null 时报错的保险写法。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>测验：巩固理解</h2>
+
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+
+    <!-- Q1 -->
+    <div class="quiz-q" id="q1">
+      <p class="quiz-question">
+        1. 如果之后想换成其他兼容 OpenAI 格式的模型（比如本地 Ollama），
+        需要改哪一行代码？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q1',this,false,'import 语句不需要改，openai SDK 本身就是通用的。')">import OpenAI from 'openai'</button>
+        <button class="quiz-btn" onclick="answer('q1',this,true,'正确。只需要把 baseURL 和 model 改成新服务商的地址和模型名，SDK 用法完全不变。')">baseURL 和 model 这两行</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'整个文件都要改是错的——这正是用 baseURL 抽象的意义：只改配置，不改业务逻辑。')">整个 index.ts 都要重写</button>
+      </div>
+      <div class="quiz-explain" id="q1-explain"></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="quiz-q" id="q2">
+      <p class="quiz-question">
+        2. <code>messages</code> 数组里 <code>role</code> 字段的两种合法值是？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q2',this,false,'human/bot 不是标准字段名，会导致 API 报错。')">human / bot</button>
+        <button class="quiz-btn" onclick="answer('q2',this,true,'正确。user 代表用户发言，assistant 代表 AI 回复——多轮对话时两者交替出现在数组里。')">user / assistant</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'input/output 不是 API 规范字段，会导致 API 报错。')">input / output</button>
+      </div>
+      <div class="quiz-explain" id="q2-explain"></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="quiz-q" id="q3">
+      <p class="quiz-question">
+        3. 为什么 <code>.env</code> 文件要加入 <code>.gitignore</code>？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q3',this,false,'格式不是原因，.env 是标准文本文件，git 完全能处理。')">因为 git 不支持这种文件格式</button>
+        <button class="quiz-btn" onclick="answer('q3',this,true,'正确。API Key 一旦进入 git 历史，即使之后删除也可能被追溯。别人拿到 Key 就能用你的账号消费。')">防止 API Key 随代码泄露，被他人消费账户</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'文件大小不是问题，.env 通常只有几行。')">因为 .env 文件太大会拖慢 git</button>
+      </div>
+      <div class="quiz-explain" id="q3-explain"></div>
+    </div>
+
+  </div>
+
+  <!-- ─────────────────────── -->
+  <hr>
+
+  <div class="callout">
+    <strong>下节课：多轮对话记忆</strong><br>
+    现在每次发消息，DeepSeek 都不记得上一句说了什么。
+    下节课你会学会把对话历史存在数组里，传给 <code>messages</code>，
+    让 AI 真正"记住"这次会话的上下文。
+  </div>
+
+  <div class="resources">
+    <h2>本课参考资源</h2>
+
+    <a class="resource-item" href="https://api-docs.deepseek.com/" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">DeepSeek · API 文档</div>
+        <div class="resource-desc">官方文档 · 模型列表、参数说明、计费规则</div>
+      </div>
+    </a>
+
+    <a class="resource-item" href="https://platform.openai.com/docs/api-reference/chat" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">OpenAI · Chat Completions API 参考</div>
+        <div class="resource-desc">DeepSeek 兼容此格式——这里有完整参数说明（temperature、max_tokens 等）</div>
+      </div>
+    </a>
+
+    <a class="resource-item" href="https://www.npmjs.com/package/dotenv" target="_blank" rel="noopener">
+      <div class="resource-icon">🔧</div>
+      <div class="resource-body">
+        <div class="resource-name">dotenv · npm</div>
+        <div class="resource-desc">环境变量管理库，Node.js 生态标配工具</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="teacher-note">
+    <strong>遇到问题了吗？</strong>
+    常见情况：Key 粘贴错了（多了空格）、<code>.env</code> 放错位置（要在项目根目录，不是 src 里）、
+    忘记在文件顶部 <code>import 'dotenv/config'</code>。
+    把终端错误信息复制过来，我帮你看。
+  </div>
+
+  <script>
+    function answer(qid, btn, isCorrect, explanation) {
+      const container = document.getElementById(qid);
+      if (container.dataset.answered) return;
+      container.dataset.answered = '1';
+      container.querySelectorAll('.quiz-btn').forEach(b => { b.disabled = true; });
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+      const el = document.getElementById(qid + '-explain');
+      const label = isCorrect
+        ? '<span class="correct-label">正确。</span> '
+        : '<span class="wrong-label">错误。</span> ';
+      el.innerHTML = label + explanation;
+      el.classList.add('show');
+    }
+  </script>
+</body>
+</html>
