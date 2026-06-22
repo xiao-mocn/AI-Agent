@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>第十三课：前端登录页面</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --bg-code: #f4f4f5;
+      --border: #e4e4e7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Georgia', serif;
+      font-size: 17px;
+      line-height: 1.75;
+      color: var(--text);
+      max-width: 680px;
+      margin: 60px auto;
+      padding: 0 24px 100px;
+      background: #fff;
+    }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; }
+    h2 { font-size: 1.2rem; font-weight: 700; margin: 2.4em 0 0.6em; }
+    h3 { font-size: 1rem; font-weight: 700; margin: 1.6em 0 0.4em; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2em; }
+    p { margin: 0.7em 0; }
+    a { color: var(--accent); }
+    code {
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 0.85em;
+      background: var(--bg-code);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 1em 0 1.4em;
+      font-size: 0.84em;
+      line-height: 1.6;
+    }
+    pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+    .kw  { color: #cba6f7; }
+    .fn  { color: #89b4fa; }
+    .str { color: #a6e3a1; }
+    .cm  { color: #6c7086; font-style: italic; }
+    .num { color: #fab387; }
+    .var { color: #cdd6f4; }
+
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 10px 16px;
+      background: #eff6ff;
+      border-radius: 0 6px 6px 0;
+      margin: 1.2em 0;
+      font-size: 0.93rem;
+    }
+    .callout.warn { border-color: var(--danger); background: #fff5f5; }
+    .callout.ok   { border-color: var(--success); background: #f0fdf4; }
+
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 1.2em 0;
+      font-size: 0.88rem;
+    }
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .flow .box {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      white-space: nowrap;
+    }
+    .flow .box.hi { background: #dbeafe; border-color: #93c5fd; }
+    .flow .arrow { color: var(--muted); }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-family: 'Menlo', monospace;
+      padding: 2px 8px;
+      border-radius: 20px;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .badge.backend  { background: #dbeafe; color: #1d4ed8; }
+    .badge.frontend { background: #dcfce7; color: #166534; }
+
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li {
+      counter-increment: step;
+      padding: 12px 0 12px 44px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 14px;
+      width: 28px; height: 28px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      font-family: 'Menlo', monospace;
+    }
+
+    .quiz { border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 2em 0; }
+    .quiz h2 { margin-top: 0; }
+    .question { margin: 1.4em 0 0.5em; font-weight: 600; }
+    .options { list-style: none; }
+    .options li {
+      margin: 6px 0;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.92rem;
+    }
+    .options li:hover { background: var(--bg-code); }
+    .options li.correct { background: #f0fdf4; border-color: var(--success); color: var(--success); font-weight: 600; }
+    .options li.wrong   { background: #fff5f5; border-color: var(--danger);  color: var(--danger); font-weight: 600; }
+    .explain { display: none; margin-top: 8px; font-size: 0.88rem; color: var(--muted); }
+    .explain.show { display: block; }
+
+    footer { margin-top: 3em; padding-top: 1.5em; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--muted); }
+    .nav-links { display: flex; gap: 2em; margin-top: 1em; }
+    .nav-links a { font-size: 0.88rem; }
+  </style>
+</head>
+<body>
+
+<h1>第十三课：前端登录页面</h1>
+<p class="subtitle">Vue Router · 登录/注册 · JWT 存储与携带</p>
+
+<h2>目标</h2>
+<p>
+  后端已经有了注册和登录接口。这节课让前端也能用：
+  做一个登录/注册页，成功后把 JWT 存进 <code>localStorage</code>，
+  之后进入聊天页时自动带上 token。
+</p>
+
+<div class="flow">
+  <div class="flow-row">
+    <div class="box hi">打开应用</div>
+    <div class="arrow">→</div>
+    <div class="box">有 token？</div>
+    <div class="arrow">→ 否 →</div>
+    <div class="box hi">登录/注册页</div>
+  </div>
+  <div class="flow-row">
+    <div class="box" style="opacity:.4">打开应用</div>
+    <div class="arrow">→</div>
+    <div class="box">有 token？</div>
+    <div class="arrow">→ 是 →</div>
+    <div class="box hi">聊天页</div>
+  </div>
+</div>
+
+<h2>第一步：安装 Vue Router <span class="badge frontend">frontend</span></h2>
+
+<pre><code><span class="cm"># 在 ai-frontend 目录下</span>
+npm install vue-router</code></pre>
+
+<h2>第二步：创建两个页面组件</h2>
+
+<p>新建 <code>src/views/LoginView.vue</code>：</p>
+
+<pre><code><span class="kw">&lt;template&gt;</span>
+  <span class="kw">&lt;div</span> class=<span class="str">"auth-wrap"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> class=<span class="str">"auth-box"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;h2&gt;</span>{{ isLogin ? '登录' : '注册' }}<span class="kw">&lt;/h2&gt;</span>
+      <span class="kw">&lt;input</span> v-model=<span class="str">"username"</span> placeholder=<span class="str">"用户名"</span> <span class="kw">/&gt;</span>
+      <span class="kw">&lt;input</span> v-model=<span class="str">"password"</span> placeholder=<span class="str">"密码"</span> type=<span class="str">"password"</span> <span class="kw">/&gt;</span>
+      <span class="kw">&lt;p</span> v-if=<span class="str">"error"</span> class=<span class="str">"error"</span><span class="kw">&gt;</span>{{ error }}<span class="kw">&lt;/p&gt;</span>
+      <span class="kw">&lt;button</span> @click=<span class="str">"submit"</span><span class="kw">&gt;</span>{{ isLogin ? '登录' : '注册' }}<span class="kw">&lt;/button&gt;</span>
+      <span class="kw">&lt;p</span> class=<span class="str">"toggle"</span> @click=<span class="str">"isLogin = !isLogin"</span><span class="kw">&gt;</span>
+        {{ isLogin ? '没有账号？去注册' : '已有账号？去登录' }}
+      <span class="kw">&lt;/p&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/template&gt;</span>
+
+<span class="kw">&lt;script setup lang="ts"&gt;</span>
+<span class="kw">import</span> { <span class="var">ref</span> } <span class="kw">from</span> <span class="str">'vue'</span>
+<span class="kw">import</span> { <span class="var">useRouter</span> } <span class="kw">from</span> <span class="str">'vue-router'</span>
+
+<span class="kw">const</span> <span class="var">API_URL</span> <span class="kw">=</span> <span class="var">import</span>.<span class="var">meta</span>.<span class="var">env</span>.<span class="var">VITE_API_URL</span> || <span class="str">'http://localhost:3000'</span>
+<span class="kw">const</span> <span class="var">router</span> <span class="kw">=</span> <span class="fn">useRouter</span>()
+<span class="kw">const</span> <span class="var">isLogin</span> <span class="kw">=</span> <span class="fn">ref</span>(<span class="kw">true</span>)
+<span class="kw">const</span> <span class="var">username</span> <span class="kw">=</span> <span class="fn">ref</span>(<span class="str">''</span>)
+<span class="kw">const</span> <span class="var">password</span> <span class="kw">=</span> <span class="fn">ref</span>(<span class="str">''</span>)
+<span class="kw">const</span> <span class="var">error</span> <span class="kw">=</span> <span class="fn">ref</span>(<span class="str">''</span>)
+
+<span class="kw">async function</span> <span class="fn">submit</span>() {
+  <span class="var">error</span>.<span class="var">value</span> <span class="kw">=</span> <span class="str">''</span>
+  <span class="kw">const</span> <span class="var">path</span> <span class="kw">=</span> <span class="var">isLogin</span>.<span class="var">value</span> ? <span class="str">'/login'</span> : <span class="str">'/register'</span>
+  <span class="kw">const</span> <span class="var">res</span> <span class="kw">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`<span class="kw">${</span><span class="var">API_URL</span><span class="kw">}</span><span class="kw">${</span><span class="var">path</span><span class="kw">}</span>`</span>, {
+    <span class="var">method</span>: <span class="str">'POST'</span>,
+    <span class="var">headers</span>: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    <span class="var">body</span>: <span class="var">JSON</span>.<span class="fn">stringify</span>({ <span class="var">username</span>: <span class="var">username</span>.<span class="var">value</span>, <span class="var">password</span>: <span class="var">password</span>.<span class="var">value</span> }),
+  })
+  <span class="kw">const</span> <span class="var">data</span> <span class="kw">=</span> <span class="kw">await</span> <span class="var">res</span>.<span class="fn">json</span>()
+  <span class="kw">if</span> (!<span class="var">res</span>.<span class="var">ok</span>) { <span class="var">error</span>.<span class="var">value</span> <span class="kw">=</span> <span class="var">data</span>.<span class="var">error</span>; <span class="kw">return</span> }
+
+  <span class="kw">if</span> (<span class="var">isLogin</span>.<span class="var">value</span>) {
+    <span class="cm">// 登录成功：存 token，跳转聊天页</span>
+    <span class="var">localStorage</span>.<span class="fn">setItem</span>(<span class="str">'token'</span>, <span class="var">data</span>.<span class="var">token</span>)
+    <span class="var">router</span>.<span class="fn">push</span>(<span class="str">'/'</span>)
+  } <span class="kw">else</span> {
+    <span class="cm">// 注册成功：切换到登录</span>
+    <span class="var">isLogin</span>.<span class="var">value</span> <span class="kw">=</span> <span class="kw">true</span>
+  }
+}
+<span class="kw">&lt;/script&gt;</span></code></pre>
+
+<h2>第三步：配置路由 <span class="badge frontend">frontend</span></h2>
+
+<p>新建 <code>src/router/index.ts</code>：</p>
+
+<pre><code><span class="kw">import</span> { <span class="fn">createRouter</span>, <span class="fn">createWebHistory</span> } <span class="kw">from</span> <span class="str">'vue-router'</span>
+<span class="kw">import</span> <span class="var">LoginView</span> <span class="kw">from</span> <span class="str">'../views/LoginView.vue'</span>
+<span class="kw">import</span> <span class="var">ChatView</span> <span class="kw">from</span> <span class="str">'../views/ChatView.vue'</span>
+
+<span class="kw">const</span> <span class="var">router</span> <span class="kw">=</span> <span class="fn">createRouter</span>({
+  <span class="var">history</span>: <span class="fn">createWebHistory</span>(),
+  <span class="var">routes</span>: [
+    { <span class="var">path</span>: <span class="str">'/'</span>, <span class="var">component</span>: <span class="var">ChatView</span> },
+    { <span class="var">path</span>: <span class="str">'/login'</span>, <span class="var">component</span>: <span class="var">LoginView</span> },
+  ],
+})
+
+<span class="cm">// 路由守卫：没有 token 就跳转登录页</span>
+<span class="var">router</span>.<span class="fn">beforeEach</span>((<span class="var">to</span>) <span class="kw">=></span> {
+  <span class="kw">const</span> <span class="var">token</span> <span class="kw">=</span> <span class="var">localStorage</span>.<span class="fn">getItem</span>(<span class="str">'token'</span>)
+  <span class="kw">if</span> (!<span class="var">token</span> && <span class="var">to</span>.<span class="var">path</span> !== <span class="str">'/login'</span>) <span class="kw">return</span> <span class="str">'/login'</span>
+})
+
+<span class="kw">export default</span> <span class="var">router</span></code></pre>
+
+<h2>第四步：把 App.vue 的聊天内容移入 ChatView <span class="badge frontend">frontend</span></h2>
+
+<p>
+  新建 <code>src/views/ChatView.vue</code>，把现有 <code>App.vue</code> 的全部内容复制进去。
+  同时把发消息时的 token 来源改为从 <code>localStorage</code> 读：
+</p>
+
+<pre><code><span class="cm">// 原来的 prompt 弹框改为直接读 localStorage</span>
+<span class="kw">const</span> <span class="var">token</span> <span class="kw">=</span> <span class="var">localStorage</span>.<span class="fn">getItem</span>(<span class="str">'token'</span>) ?? <span class="str">''</span>
+
+<span class="cm">// headers 里改用这个 token</span>
+<span class="var">Authorization</span>: <span class="str">`Bearer <span class="kw">${</span><span class="var">token</span><span class="kw">}</span>`</span></code></pre>
+
+<h2>第五步：改造 App.vue，挂载路由</h2>
+
+<p>把 <code>App.vue</code> 精简为只负责渲染当前路由页面：</p>
+
+<pre><code><span class="kw">&lt;template&gt;</span>
+  <span class="kw">&lt;RouterView /&gt;</span>
+<span class="kw">&lt;/template&gt;</span>
+
+<span class="kw">&lt;script setup lang="ts"&gt;</span>
+<span class="kw">import</span> { <span class="var">RouterView</span> } <span class="kw">from</span> <span class="str">'vue-router'</span>
+<span class="kw">&lt;/script&gt;</span></code></pre>
+
+<p>在 <code>src/main.ts</code> 里注册路由：</p>
+
+<pre><code><span class="kw">import</span> { <span class="fn">createApp</span> } <span class="kw">from</span> <span class="str">'vue'</span>
+<span class="kw">import</span> <span class="var">App</span> <span class="kw">from</span> <span class="str">'./App.vue'</span>
+<span class="kw">import</span> <span class="var">router</span> <span class="kw">from</span> <span class="str">'./router'</span>
+
+<span class="fn">createApp</span>(<span class="var">App</span>).<span class="fn">use</span>(<span class="var">router</span>).<span class="fn">mount</span>(<span class="str">'#app'</span>)</code></pre>
+
+<div class="callout ok">
+  <strong>别忘了后端的鉴权中间件：</strong>
+  上节课的中间件是用 <code>ALLOWED_TOKEN</code> 静态比对，现在要换成 JWT 校验（第十二课第四步的代码），
+  确保 <code>/register</code> 和 <code>/login</code> 不被拦截，只拦截 <code>/api/*</code>。
+</div>
+
+<!-- 小测验 -->
+<div class="quiz">
+  <h2>小测验</h2>
+  <p style="color:var(--muted);font-size:.9rem">点击选项查看解析</p>
+
+  <p class="question">1. 路由守卫 <code>beforeEach</code> 里为什么要判断 <code>to.path !== '/login'</code>？</p>
+  <ul class="options" data-answer="2">
+    <li>提升性能，减少不必要的重定向</li>
+    <li>/login 页面不需要加载 Vue Router</li>
+    <li>不判断会导致访问 /login 时无限重定向自己</li>
+    <li>这只是代码风格，不影响功能</li>
+  </ul>
+  <p class="explain">
+    没有 token 就跳转 /login，但跳转 /login 时又没有 token……如果不排除 /login，
+    守卫会无限触发重定向，浏览器报 <em>too many redirects</em> 错误。
+  </p>
+
+  <p class="question">2. JWT 存在 <code>localStorage</code> 的主要风险是什么？</p>
+  <ul class="options" data-answer="0">
+    <li>XSS 攻击可以通过恶意脚本读取 localStorage 里的 token</li>
+    <li>localStorage 有大小限制，存不下 JWT</li>
+    <li>刷新页面后 localStorage 会被清空</li>
+    <li>Safari 不支持 localStorage</li>
+  </ul>
+  <p class="explain">
+    <strong>XSS（跨站脚本）：</strong>如果页面被注入恶意脚本，攻击者可以 <code>localStorage.getItem('token')</code> 直接拿走 JWT。
+    更安全的方案是用 <code>HttpOnly Cookie</code>（JS 无法读取），但配置更复杂——当前阶段 localStorage 够用。
+  </p>
+
+  <p class="question">3. <code>createWebHistory()</code> 和 <code>createWebHashHistory()</code> 的区别是什么？</p>
+  <ul class="options" data-answer="1">
+    <li>createWebHistory 只支持现代浏览器</li>
+    <li>createWebHistory 用真实路径（/login），部署时需要服务器把所有路径指向 index.html；Hash 模式用 /#/login，不需要服务器配置</li>
+    <li>createWebHashHistory 性能更好</li>
+    <li>两者没有区别，只是命名不同</li>
+  </ul>
+  <p class="explain">
+    Render Static Site 默认已处理了 SPA fallback，<code>createWebHistory</code> 可以直接用。
+    如果部署到普通静态服务器没有配置 fallback，刷新 /login 会 404，那时才需要换 Hash 模式。
+  </p>
+</div>
+
+<h2>本节要点</h2>
+<ul style="padding-left:1.4em">
+  <li>Vue Router 的 <code>beforeEach</code> 守卫在每次跳转前运行，可以拦截未登录用户</li>
+  <li>守卫里必须排除登录页本身，防止无限重定向</li>
+  <li>JWT 存 localStorage，简单但有 XSS 风险；生产级方案用 HttpOnly Cookie</li>
+  <li>App.vue 变成纯壳（只有 <code>&lt;RouterView /&gt;</code>），页面逻辑全部放 views/ 下</li>
+</ul>
+
+<div class="callout">
+  有任何疑问，直接在对话框里问老师。
+</div>
+
+<footer>
+  <div class="nav-links">
+    <a href="0012-jwt-auth.html">← 第十二课：JWT 用户认证</a>
+  </div>
+  <p style="margin-top:1em">
+    延伸阅读：
+    <a href="https://router.vuejs.org/zh/guide/advanced/navigation-guards.html" target="_blank">
+      Vue Router — 导航守卫
+    </a>
+  </p>
+</footer>
+
+<script>
+  document.querySelectorAll('.options').forEach((ul) => {
+    const correct = parseInt(ul.dataset.answer, 10)
+    const explain = ul.nextElementSibling
+    ul.querySelectorAll('li').forEach((li, i) => {
+      li.addEventListener('click', () => {
+        ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'wrong'))
+        li.classList.add(i === correct ? 'correct' : 'wrong')
+        if (explain) explain.classList.add('show')
+      })
+    })
+  })
+</script>
+
+</body>
+</html>
