@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 8 课：部署到互联网——让别人能访问你的 AI</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --bg: #fafaf8;
+      --border: #e2e2dc;
+      --code-bg: #f4f4f0;
+      --success: #16a34a;
+      --error: #dc2626;
+      --warn-bg: #fffbeb;
+      --warn-border: #d97706;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 18px; line-height: 1.7; color: var(--text);
+      background: var(--bg); max-width: 680px; margin: 0 auto; padding: 4rem 2rem 6rem;
+    }
+    .breadcrumb { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.78rem; color: var(--muted); margin-bottom: 2.5rem; }
+    .breadcrumb a { color: var(--accent); text-decoration: none; }
+    .tag { display: inline-block; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px; background: #fef3c7; color: #92400e; margin-bottom: 0.9rem; }
+    h1 { font-size: 2.1rem; font-weight: normal; line-height: 1.25; margin-bottom: 0.4rem; }
+    .subtitle { font-style: italic; color: var(--muted); font-size: 1.05rem; margin-bottom: 3rem; }
+    h2 { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.8rem 0 1rem; }
+    p { margin-bottom: 1rem; }
+    .code-block { position: relative; margin: 0.75rem 0; }
+    .code-label { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); border: 1px solid var(--border); border-bottom: none; padding: 4px 10px; border-radius: 5px 5px 0 0; display: inline-block; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 0 6px 6px 6px; padding: 1.1rem 1.25rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.65; margin: 0; }
+    .code-block-simple pre { border-radius: 6px; }
+    code { font-family: 'Fira Code', Menlo, Consolas, monospace; }
+    p code, li code { background: var(--code-bg); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+    .comment { color: #6b7280; }
+    .keyword { color: #7c3aed; }
+    .string  { color: #059669; }
+    .fn      { color: #2563eb; }
+    .type    { color: #db2777; }
+    .new-line { background: #ecfdf5; display: block; margin: 0 -1.25rem; padding: 0 1.25rem; border-left: 3px solid var(--success); }
+    .del-line { background: #fef2f2; display: block; margin: 0 -1.25rem; padding: 0 1.25rem; border-left: 3px solid var(--error); opacity: 0.6; }
+
+    /* 架构对比 */
+    .arch-row { display: flex; gap: 0.5rem; align-items: center; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.83rem; margin: 0.4rem 0; }
+    .arch-box { border: 1px solid var(--border); border-radius: 5px; padding: 0.35rem 0.8rem; background: white; }
+    .arch-arrow { color: var(--muted); font-size: 0.9rem; }
+    .arch-box.cloud { background: #eff6ff; border-color: var(--accent); }
+
+    /* 步骤 */
+    .step { display: flex; gap: 1rem; margin-bottom: 1.8rem; align-items: flex-start; }
+    .step-num { min-width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 3px; flex-shrink: 0; }
+    .step-title { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .step-hint { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+
+    /* 环境变量表 */
+    .env-table { width: 100%; border-collapse: collapse; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.84rem; margin: 1rem 0; }
+    .env-table th { text-align: left; padding: 0.4rem 0.7rem; background: var(--code-bg); border: 1px solid var(--border); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .env-table td { padding: 0.4rem 0.7rem; border: 1px solid var(--border); vertical-align: top; }
+    .env-table code { font-size: 0.82rem; }
+
+    .callout { border-left: 3px solid var(--accent); padding: 0.75rem 1.1rem; background: #eff6ff; margin: 1.5rem 0; font-size: 0.9rem; line-height: 1.6; }
+    .callout.warn { border-color: var(--warn-border); background: var(--warn-bg); }
+    .callout.success { border-color: var(--success); background: #f0fdf4; }
+
+    .quiz { margin: 1.5rem 0 2rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .quiz-header { background: var(--code-bg); border-bottom: 1px solid var(--border); padding: 0.6rem 1.1rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .quiz-q { padding: 1rem 1.1rem; border-bottom: 1px solid var(--border); }
+    .quiz-q:last-child { border-bottom: none; }
+    .quiz-question { font-size: 0.92rem; margin-bottom: 0.7rem; line-height: 1.55; }
+    .quiz-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .quiz-btn { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.83rem; padding: 0.35rem 0.9rem; border: 1px solid var(--border); border-radius: 4px; background: white; cursor: pointer; transition: border-color 0.12s; }
+    .quiz-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .quiz-btn.correct { border-color: var(--success); background: #f0fdf4; color: var(--success); }
+    .quiz-btn.wrong   { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+    .quiz-explain { display: none; font-size: 0.83rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.5; padding-top: 0.6rem; border-top: 1px dashed var(--border); }
+    .quiz-explain.show { display: block; }
+    .quiz-explain .correct-label { color: var(--success); font-weight: 600; }
+    .quiz-explain .wrong-label   { color: #dc2626; font-weight: 600; }
+
+    .resources { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+    .resource-item { display: flex; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); align-items: flex-start; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.88rem; transition: color 0.12s; }
+    .resource-item:last-child { border-bottom: none; }
+    .resource-item:hover { color: var(--accent); }
+    .resource-icon { font-size: 1rem; min-width: 1.5rem; text-align: center; margin-top: 1px; }
+    .resource-name { font-weight: 600; }
+    .resource-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    .teacher-note { margin-top: 2rem; padding: 1rem 1.1rem; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.88rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.4rem; font-size: 0.93rem; }
+  </style>
+</head>
+<body>
+
+  <div class="breadcrumb">
+    <a href="./0007-sqlite-persistence.html">← 第 7 课</a>
+    &nbsp;·&nbsp; AI 全栈工程师 › 第 8 课
+  </div>
+
+  <div class="tag">第 8 课 · 知识 + 技能</div>
+  <h1>部署到互联网——让别人能访问你的 AI</h1>
+  <p class="subtitle">三处代码改动 + 一次 Git Push，应用上线</p>
+
+  <!-- ─────────────────────── -->
+  <h2>本课做什么</h2>
+
+  <p>
+    现在你的 AI 接口只在 <code>localhost:3000</code> 上跑。别人访问不了，换台电脑也没有。
+    这节课把它部署到 <strong>Railway</strong>——一个 PaaS（平台即服务），
+    你只管推代码，平台负责运行、重启、给你一个公开 HTTPS 域名。
+  </p>
+
+  <div class="arch-row" style="margin:1.5rem 0; flex-wrap:wrap; gap:0.4rem">
+    <div class="arch-box">你的浏览器</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box cloud">Railway（公网 HTTPS）</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">你的 Node.js 进程</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">DeepSeek API</div>
+  </div>
+
+  <div class="callout">
+    <strong>Railway vs 自己买 VPS：</strong>
+    VPS 你需要自己装 Node.js、配置进程守护（pm2）、申请 HTTPS 证书、处理重启。
+    Railway 这些全帮你做了——你只需要一个 <code>npm start</code> 脚本。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>第一步：三处代码改动</h2>
+
+  <p>在推代码之前，先让项目"告诉"Railway 怎么运行它。</p>
+
+  <div style="margin:1.5rem 0">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div style="flex:1">
+        <div class="step-title">package.json — 加 start 脚本和 engines</div>
+        <div class="step-hint">Railway 执行 <code>npm start</code> 启动服务，engines 告诉它 Node 版本要求：</div>
+        <div class="code-block">
+          <div class="code-label">package.json</div>
+          <pre><code>{
+  <span class="string">"scripts"</span>: {
+<span class="new-line">    <span class="string">"start"</span>: <span class="string">"tsx src/index.ts"</span>,</span>
+    <span class="string">"test"</span>: <span class="string">"echo \"Error: no test specified\" && exit 1"</span>
+  },
+<span class="new-line">  <span class="string">"engines"</span>: { <span class="string">"node"</span>: <span class="string">">=20"</span> },</span>
+  ...
+}</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div style="flex:1">
+        <div class="step-title">src/index.ts — PORT 改为动态读取</div>
+        <div class="step-hint">Railway 会把分配的端口放进 <code>process.env.PORT</code>，写死 3000 会导致外部访问不了：</div>
+        <div class="code-block">
+          <div class="code-label">src/index.ts — 最后几行</div>
+          <pre><code><span class="del-line"><span class="fn">serve</span>({ fetch: app.fetch, port: <span class="string">3000</span> }, (info) => {</span>
+<span class="new-line"><span class="fn">serve</span>({ fetch: app.fetch, port: <span class="type">Number</span>(process.env.PORT) || <span class="string">3000</span> }, (info) => {</span>
+  console.<span class="fn">log</span>(<span class="string">`服务器已启动：http://localhost:${info.port}`</span>)
+})</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div style="flex:1">
+        <div class="step-title">src/db.ts — 数据库路径改为可配置</div>
+        <div class="step-hint">
+          Railway 的磁盘默认是临时的，重启后文件消失。
+          通过环境变量 <code>DB_PATH</code> 指向挂载的持久化存储（稍后配置）：
+        </div>
+        <div class="code-block">
+          <div class="code-label">src/db.ts — 第一行</div>
+          <pre><code><span class="del-line"><span class="keyword">export const</span> db = <span class="keyword">new</span> <span class="type">Database</span>(<span class="string">'chat.db'</span>)</span>
+<span class="new-line"><span class="keyword">export const</span> db = <span class="keyword">new</span> <span class="type">Database</span>(process.env.DB_PATH || <span class="string">'chat.db'</span>)</span></code></pre>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p>改完后 commit 并 push 到 GitHub。</p>
+
+  <!-- ─────────────────────── -->
+  <h2>第二步：在 Railway 创建项目</h2>
+
+  <ol>
+    <li>访问 <strong>railway.app</strong>，用 GitHub 账号登录</li>
+    <li>点击 <strong>New Project → Deploy from GitHub repo</strong></li>
+    <li>选择你的仓库（<code>AI-Gent</code>），点 <strong>Deploy Now</strong></li>
+    <li>Railway 会自动检测到 Node.js 项目，开始构建</li>
+  </ol>
+
+  <div class="callout warn">
+    <strong>关于费用：</strong>Railway 注册后有 $5 赠金（Trial plan），用完需要升级到 Hobby 计划（$5/月）。
+    如果想完全免费，可以改用 <strong>Render.com</strong>（免费计划，步骤基本相同，但冷启动较慢）。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>第三步：配置环境变量</h2>
+
+  <p>
+    打开 Railway 项目 → 点击你的服务 → 左侧菜单 <strong>Variables</strong>，
+    添加以下两个变量：
+  </p>
+
+  <table class="env-table">
+    <thead><tr><th>变量名</th><th>值</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>DEEPSEEK_API_KEY</code></td>
+        <td>你的 API Key</td>
+        <td>从 .env 文件复制过来</td>
+      </tr>
+      <tr>
+        <td><code>DB_PATH</code></td>
+        <td><code>/data/chat.db</code></td>
+        <td>指向持久化 Volume（下一步配置）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>绝对不要</strong>把 .env 文件推进 git 仓库。API Key 一旦泄露，所有费用由你承担。
+    Railway 的 Variables 界面是放密钥的正确地方——它们加密存储，不会出现在代码里。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>第四步：挂载 Volume（让数据库持久化）</h2>
+
+  <p>
+    Railway 的文件系统默认在每次重启/部署后重置，<code>chat.db</code> 会丢失。
+    用 <strong>Volume</strong> 挂载一块持久化磁盘来解决：
+  </p>
+
+  <ol>
+    <li>打开你的服务 → 左侧菜单 <strong>Volumes</strong> → <strong>Create Volume</strong></li>
+    <li>Mount Path 填写 <code>/data</code></li>
+    <li>点击 Create——Railway 会自动重新部署，<code>/data</code> 目录现在是持久化的</li>
+  </ol>
+
+  <p>
+    这样 <code>/data/chat.db</code> 就不会因为重启而丢失了。
+  </p>
+
+  <!-- ─────────────────────── -->
+  <h2>第五步：获取公开 URL 并验证</h2>
+
+  <p>
+    打开服务 → <strong>Settings → Networking → Generate Domain</strong>，
+    Railway 会生成一个类似 <code>ai-gent-production.up.railway.app</code> 的域名。
+  </p>
+
+  <div class="callout success">
+    <strong>验证方法：</strong>把 test.http 里的 <code>http://localhost:3000</code>
+    换成你的 Railway 域名，发一条消息，确认能收到 AI 回复。
+    能收到就说明部署成功了。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>测验：巩固理解</h2>
+
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+
+    <!-- Q1 -->
+    <div class="quiz-q" id="q1">
+      <p class="quiz-question">
+        1. 为什么要读 <code>process.env.PORT</code> 而不是写死 3000？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q1',this,false,'3000 只是本地习惯，服务器本身不限制用 3000，问题出在 PaaS 平台分配的端口不一定是 3000。')">3000 端口在服务器上被系统占用</button>
+        <button class="quiz-btn" onclick="answer('q1',this,true,'正确。Railway 会把它分配的端口（可能是任意数字）写进 PORT 变量，进程必须监听这个端口才能接收外部流量。写死 3000 则监听的端口和平台路由的端口不一致，请求永远到不了你的服务。')">Railway 分配的端口不固定，进程必须监听平台指定的端口</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'HTTPS 是传输层加密，和 Node.js 进程监听的端口号无关，Railway 会在它自己这层处理 HTTPS。')">HTTPS 要求必须用 443 端口，不能用 3000</button>
+      </div>
+      <div class="quiz-explain" id="q1-explain"></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="quiz-q" id="q2">
+      <p class="quiz-question">
+        2. 为什么不直接把 API Key 写进代码里提交到 GitHub？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q2',this,false,'GitHub 不会过滤密钥，一旦推上去，就算后来删除，git 历史里还留着，被爬虫扫到就完了。')">GitHub 会自动检测并拒绝包含 API Key 的提交</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'TypeScript 编译不处理字符串内容，不会报错。问题完全在安全层面。')">TypeScript 编译时会把字符串变量报错</button>
+        <button class="quiz-btn" onclick="answer('q2',this,true,'正确。公开仓库会被自动扫描 API Key，即使是私有仓库，泄露的风险也不值得。正确做法是放在 .env（本地）或平台的环境变量面板（生产）。')">git 历史是公开的，泄露的 Key 会被恶意程序扫描并盗用</button>
+      </div>
+      <div class="quiz-explain" id="q2-explain"></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="quiz-q" id="q3">
+      <p class="quiz-question">
+        3. 不挂载 Volume，直接把 <code>chat.db</code> 存在默认文件系统里，会有什么后果？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q3',this,true,'正确。Railway 每次部署或重启都会用新容器替换旧容器，默认文件系统不共享，上次的 chat.db 消失，所有会话历史清零。Volume 提供的是跨容器持久化的真实磁盘。')">每次部署或重启后 chat.db 消失，会话历史全部丢失</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'SQLite 本身没问题，问题在文件系统的生命周期——容器重建时文件不会跟着转移。')">SQLite 文件格式不兼容 Linux，数据会损坏</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'并发写入是另一个问题（SQLite WAL 模式可以缓解），默认文件系统的问题是持久性，不是并发。')">多个请求同时写入同一个文件会导致数据损坏</button>
+      </div>
+      <div class="quiz-explain" id="q3-explain"></div>
+    </div>
+
+  </div>
+
+  <!-- ─────────────────────── -->
+  <hr>
+
+  <div class="callout">
+    <strong>下节课：前端界面</strong><br>
+    现在你的 AI 接口只能用 test.http 调用。下节课你会用 Vue 3 写一个简单的聊天界面——
+    输入框、发送按钮、对话气泡——让任何人打开浏览器就能直接跟你的 AI 聊天。
+  </div>
+
+  <div class="resources">
+    <h2>本课参考资源</h2>
+    <a class="resource-item" href="https://docs.railway.app/quick-start" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Railway · 快速开始文档</div>
+        <div class="resource-desc">官方文档，遇到部署问题先查这里</div>
+      </div>
+    </a>
+    <a class="resource-item" href="https://docs.railway.app/reference/volumes" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Railway · Volumes 持久化存储</div>
+        <div class="resource-desc">挂载持久化磁盘的完整说明</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="teacher-note">
+    <strong>遇到构建失败？</strong>常见原因：(1) better-sqlite3 原生模块在 Railway 的 Linux 容器里需要重新编译，通常会自动处理，但如果报错请把日志贴给我；(2) 没有找到 <code>npm start</code> 脚本，检查 package.json 是否已提交。
+  </div>
+
+  <script>
+    function answer(qid, btn, isCorrect, explanation) {
+      const container = document.getElementById(qid);
+      if (container.dataset.answered) return;
+      container.dataset.answered = '1';
+      container.querySelectorAll('.quiz-btn').forEach(b => { b.disabled = true; });
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+      const el = document.getElementById(qid + '-explain');
+      const label = isCorrect
+        ? '<span class="correct-label">正确。</span> '
+        : '<span class="wrong-label">错误。</span> ';
+      el.innerHTML = label + explanation;
+      el.classList.add('show');
+    }
+  </script>
+</body>
+</html>

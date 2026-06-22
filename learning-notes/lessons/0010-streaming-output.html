@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 10 课：流式输出——让 AI 逐字"打"出来</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --bg: #fafaf8;
+      --border: #e2e2dc;
+      --code-bg: #f4f4f0;
+      --success: #16a34a;
+      --error: #dc2626;
+      --warn-bg: #fffbeb;
+      --warn-border: #d97706;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 18px; line-height: 1.7; color: var(--text);
+      background: var(--bg); max-width: 680px; margin: 0 auto; padding: 4rem 2rem 6rem;
+    }
+    .breadcrumb { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.78rem; color: var(--muted); margin-bottom: 2.5rem; }
+    .breadcrumb a { color: var(--accent); text-decoration: none; }
+    .tag { display: inline-block; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px; background: #fef3c7; color: #92400e; margin-bottom: 0.9rem; }
+    h1 { font-size: 2.1rem; font-weight: normal; line-height: 1.25; margin-bottom: 0.4rem; }
+    .subtitle { font-style: italic; color: var(--muted); font-size: 1.05rem; margin-bottom: 3rem; }
+    h2 { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.8rem 0 1rem; }
+    p { margin-bottom: 1rem; }
+    .code-block { position: relative; margin: 0.75rem 0; }
+    .code-label { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); border: 1px solid var(--border); border-bottom: none; padding: 4px 10px; border-radius: 5px 5px 0 0; display: inline-block; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 0 6px 6px 6px; padding: 1.1rem 1.25rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.65; margin: 0; }
+    .code-block-simple pre { border-radius: 6px; }
+    code { font-family: 'Fira Code', Menlo, Consolas, monospace; }
+    p code, li code { background: var(--code-bg); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+    .comment { color: #6b7280; }
+    .keyword { color: #7c3aed; }
+    .string  { color: #059669; }
+    .fn      { color: #2563eb; }
+    .type    { color: #db2777; }
+    .new-line { background: #ecfdf5; display: block; margin: 0 -1.25rem; padding: 0 1.25rem; border-left: 3px solid var(--success); }
+    .del-line { background: #fef2f2; display: block; margin: 0 -1.25rem; padding: 0 1.25rem; border-left: 3px solid var(--error); opacity: 0.6; }
+
+    .step { display: flex; gap: 1rem; margin-bottom: 1.8rem; align-items: flex-start; }
+    .step-num { min-width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 3px; flex-shrink: 0; }
+    .step-title { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .step-hint { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.83rem; }
+    .compare-box { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .compare-title { padding: 0.5rem 0.8rem; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .compare-title.bad { background: #fef2f2; color: #991b1b; }
+    .compare-title.good { background: #f0fdf4; color: #166534; }
+    .compare-body { padding: 0.7rem 0.8rem; color: var(--muted); line-height: 1.55; }
+
+    .callout { border-left: 3px solid var(--accent); padding: 0.75rem 1.1rem; background: #eff6ff; margin: 1.5rem 0; font-size: 0.9rem; line-height: 1.6; }
+    .callout.warn { border-color: var(--warn-border); background: var(--warn-bg); }
+    .callout.success { border-color: var(--success); background: #f0fdf4; }
+
+    .quiz { margin: 1.5rem 0 2rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .quiz-header { background: var(--code-bg); border-bottom: 1px solid var(--border); padding: 0.6rem 1.1rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .quiz-q { padding: 1rem 1.1rem; border-bottom: 1px solid var(--border); }
+    .quiz-q:last-child { border-bottom: none; }
+    .quiz-question { font-size: 0.92rem; margin-bottom: 0.7rem; line-height: 1.55; }
+    .quiz-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .quiz-btn { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.83rem; padding: 0.35rem 0.9rem; border: 1px solid var(--border); border-radius: 4px; background: white; cursor: pointer; transition: border-color 0.12s; }
+    .quiz-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .quiz-btn.correct { border-color: var(--success); background: #f0fdf4; color: var(--success); }
+    .quiz-btn.wrong   { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+    .quiz-explain { display: none; font-size: 0.83rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.5; padding-top: 0.6rem; border-top: 1px dashed var(--border); }
+    .quiz-explain.show { display: block; }
+    .quiz-explain .correct-label { color: var(--success); font-weight: 600; }
+    .quiz-explain .wrong-label   { color: #dc2626; font-weight: 600; }
+
+    .resources { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+    .resource-item { display: flex; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); align-items: flex-start; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.88rem; transition: color 0.12s; }
+    .resource-item:last-child { border-bottom: none; }
+    .resource-item:hover { color: var(--accent); }
+    .resource-icon { font-size: 1rem; min-width: 1.5rem; text-align: center; margin-top: 1px; }
+    .resource-name { font-weight: 600; }
+    .resource-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    .teacher-note { margin-top: 2rem; padding: 1rem 1.1rem; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.88rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.4rem; font-size: 0.93rem; }
+  </style>
+</head>
+<body>
+
+  <div class="breadcrumb">
+    <a href="./0009-vue-chat-ui.html">← 第 9 课</a>
+    &nbsp;·&nbsp; AI 全栈工程师 › 第 10 课
+  </div>
+
+  <div class="tag">第 10 课 · 知识 + 技能</div>
+  <h1>流式输出——让 AI 逐字"打"出来</h1>
+  <p class="subtitle">用户不用等完整回复，AI 边想边显示</p>
+
+  <!-- ─────────────────────── -->
+  <h2>现在 vs 目标</h2>
+
+  <div class="compare">
+    <div class="compare-box">
+      <div class="compare-title bad">非流式（现在）</div>
+      <div class="compare-body">
+        用户发消息 → 等 5 秒 → 完整回复一下子弹出来。<br>
+        感觉像"系统在卡顿"，体验差。
+      </div>
+    </div>
+    <div class="compare-box">
+      <div class="compare-title good">流式（目标）</div>
+      <div class="compare-body">
+        用户发消息 → 第 1 个字立即出现 → 逐字追加 → 完成。<br>
+        像真人打字一样，用户更快开始阅读。
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>流式是怎么工作的</h2>
+
+  <p>
+    非流式时，DeepSeek 把整段回复一次性发回来。
+    流式时，DeepSeek 每生成一个词就发一个 <strong>chunk</strong>（数据块），
+    你的后端把这些 chunk 逐个转发给前端，前端逐个拼接到聊天界面上。
+  </p>
+
+  <div class="code-block">
+    <div class="code-label">一个 chunk 长这样</div>
+    <pre><code>{<span class="string">"choices"</span>:[{<span class="string">"delta"</span>:{<span class="string">"content"</span>:<span class="string">"闭"</span>}}]}
+{<span class="string">"choices"</span>:[{<span class="string">"delta"</span>:{<span class="string">"content"</span>:<span class="string">"包"</span>}}]}
+{<span class="string">"choices"</span>:[{<span class="string">"delta"</span>:{<span class="string">"content"</span>:<span class="string">"是"</span>}}]}
+{<span class="string">"choices"</span>:[{<span class="string">"delta"</span>:{<span class="string">"content"</span>:<span class="string">" "</span>}}]}
+{<span class="string">"choices"</span>:[{<span class="string">"finish_reason"</span>:<span class="string">"stop"</span>}]}</code></pre>
+  </div>
+
+  <p>
+    每个 chunk 只有一两个字，<strong>后端不收集完整回复</strong>——收到一个就转发一个。
+    最后一个 chunk 带 <code>finish_reason: "stop"</code>，表示说完了。
+  </p>
+
+  <div class="callout warn">
+    <strong>和之前的区别：</strong>非流式时后端用 <code>response.choices[0].message.content</code> 拿到完整文案再返回。
+    流式时后端不收集文案，只负责"管传"——后端变成一个管道，把 DeepSeek 的 chunks 原样推给前端。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>动手：三处改动</h2>
+
+  <div style="margin:1.5rem 0">
+
+    <!-- 步骤 1 -->
+    <div class="step">
+      <div class="step-num">1</div>
+      <div style="flex:1">
+        <div class="step-title">后端：把路由改成流式转发</div>
+        <div class="step-hint">改动 <code>src/index.ts</code> 里 <code>/api/chat</code> 路由的 try 块：</div>
+        <div class="code-block">
+          <div class="code-label">src/index.ts — 完整的 try 块</div>
+          <pre><code><span class="keyword">try</span> {
+  <span class="keyword">const</span> stream = <span class="keyword">await</span> client.chat.completions.<span class="fn">create</span>({
+    model: <span class="string">'deepseek-chat'</span>,
+    messages: history,
+    <span class="new-line">    stream: <span class="keyword">true</span>,  <span class="comment">// <-- 唯一新增的参数</span></span>
+  })
+
+  <span class="new-line">  <span class="comment">// 把 ReadableStream 转成 SSE 响应</span></span>
+  <span class="new-line">  <span class="keyword">let</span> fullReply = <span class="string">''</span></span>
+  <span class="new-line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">Response</span>(</span>
+  <span class="new-line">    <span class="keyword">new</span> <span class="type">ReadableStream</span>({</span>
+  <span class="new-line">      <span class="keyword">async</span> <span class="fn">start</span>(controller) {</span>
+  <span class="new-line">        <span class="keyword">for await</span> (<span class="keyword">const</span> chunk <span class="keyword">of</span> stream) {</span>
+  <span class="new-line">          <span class="keyword">const</span> delta = chunk.choices[<span class="string">0</span>]?.delta?.content</span>
+  <span class="new-line">          <span class="keyword">if</span> (delta) {</span>
+  <span class="new-line">            fullReply += delta</span>
+  <span class="new-line">            controller.<span class="fn">enqueue</span>(<span class="keyword">new</span> <span class="type">TextEncoder</span>().<span class="fn">encode</span>(<span class="string">`data: ${JSON.stringify({ delta })}\n\n`</span>))</span>
+  <span class="new-line">          }</span>
+  <span class="new-line">        }</span>
+  <span class="new-line">        <span class="comment">// 发送结束标记</span></span>
+  <span class="new-line">        controller.<span class="fn">enqueue</span>(<span class="keyword">new</span> <span class="type">TextEncoder</span>().<span class="fn">encode</span>(<span class="string">`data: [DONE]\n\n`</span>))</span>
+  <span class="new-line">        controller.<span class="fn">close</span>()</span>
+  <span class="new-line">        <span class="comment">// 写入完整回复到数据库（用于历史还原）</span></span>
+  <span class="new-line">        insertMsg.<span class="fn">run</span>(sessionId, <span class="string">'assistant'</span>, fullReply)</span>
+  <span class="new-line">      },</span>
+  <span class="new-line">    }),</span>
+  <span class="new-line">    {</span>
+  <span class="new-line">      headers: { <span class="string">'Content-Type'</span>: <span class="string">'text/event-stream'</span> },</span>
+  <span class="new-line">    }</span>
+  <span class="new-line">  )</span>
+} <span class="keyword">catch</span> (err) {</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤 2 -->
+    <div class="step">
+      <div class="step-num">2</div>
+      <div style="flex:1">
+        <div class="step-title">前端：改造 fetch 以消费流</div>
+        <div class="step-hint">改动 <code>ai-frontend/src/App.vue</code> 里的 <code>send()</code> 函数：</div>
+        <div class="code-block">
+          <div class="code-label">App.vue — 替换 fetch 部分</div>
+          <pre><code><span class="keyword">const</span> res = <span class="keyword">await</span> <span class="fn">fetch</span>(<span class="string">`${API_URL}/api/chat`</span>, {
+  method: <span class="string">'POST'</span>,
+  headers: { <span class="string">'Content-Type'</span>: <span class="string">'application/json'</span> },
+  body: <span class="type">JSON</span>.<span class="fn">stringify</span>({ message: text, sessionId }),
+})
+<span class="keyword">if</span> (!res.ok) <span class="keyword">throw new</span> <span class="type">Error</span>(<span class="string">'请求失败'</span>)
+
+<span class="new-line"><span class="comment">// 创建一个空的 assistant 消息，边读边填充</span></span>
+<span class="new-line">messages.value.<span class="fn">push</span>({ role: <span class="string">'assistant'</span>, content: <span class="string">''</span> })</span>
+<span class="new-line"><span class="keyword">const</span> lastMsg = messages.value[messages.value.length - <span class="string">1</span>]</span>
+
+<span class="new-line"><span class="keyword">const</span> reader = res.body!.<span class="fn">getReader</span>()</span>
+<span class="new-line"><span class="keyword">const</span> decoder = <span class="keyword">new</span> <span class="type">TextDecoder</span>()</span>
+<span class="new-line"><span class="keyword">while</span> (<span class="keyword">true</span>) {</span>
+<span class="new-line">  <span class="keyword">const</span> { done, value } = <span class="keyword">await</span> reader.<span class="fn">read</span>()</span>
+<span class="new-line">  <span class="keyword">if</span> (done) <span class="keyword">break</span></span>
+<span class="new-line">  <span class="keyword">const</span> text = decoder.<span class="fn">decode</span>(value)</span>
+<span class="new-line">  <span class="comment">// SSE 格式：每行一个 event</span></span>
+<span class="new-line">  <span class="keyword">const</span> lines = text.<span class="fn">split</span>(<span class="string">'\n'</span>)</span>
+<span class="new-line">  <span class="keyword">for</span> (<span class="keyword">const</span> line <span class="keyword">of</span> lines) {</span>
+<span class="new-line">    <span class="keyword">if</span> (!line.<span class="fn">startsWith</span>(<span class="string">'data: '</span>)) <span class="keyword">continue</span></span>
+<span class="new-line">    <span class="keyword">const</span> payload = line.<span class="fn">slice</span>(<span class="string">6</span>)</span>
+<span class="new-line">    <span class="keyword">if</span> (payload === <span class="string">'[DONE]'</span>) <span class="keyword">break</span></span>
+<span class="new-line">    <span class="keyword">const</span> { delta } = <span class="type">JSON</span>.<span class="fn">parse</span>(payload)</span>
+<span class="new-line">    lastMsg.content += delta  <span class="comment">// 追加到消息气泡里</span></span>
+<span class="new-line">  }</span>
+<span class="new-line">}</span></code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤 3 -->
+    <div class="step">
+      <div class="step-num">3</div>
+      <div style="flex:1">
+        <div class="step-title">验证流式效果</div>
+        <p style="font-size:0.85rem;color:var(--muted)">
+          同时启动前后端，在浏览器聊天界面里发一条长问题（比如"写一个快速排序的 TypeScript 实现"）。
+          观察回复是否在打字阶段逐字展开，而不是一次性出现。
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout success">
+    <strong>关键点：</strong>后端不再返回 <code>c.json(...)</code>，而是返回一个 <code>new Response(ReadableStream, ...)</code>。
+    因为 streaming 不匹配 Hono 的 JSON 模式，需要用 Web 标准的 Response 对象。
+    这也是为什么 CORS 中间件很重要——它对这个新 Response 同样生效。
+  </div>
+
+  <!-- ─────────────────────── -->
+  <h2>测验：巩固理解</h2>
+
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+
+    <div class="quiz-q" id="q1">
+      <p class="quiz-question">
+        1. 为什么后端不用 <code>c.json()</code> 而用 <code>new Response(ReadableStream)</code>？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q1',this,false,'流式中整个回复不是一次性拿到的——后端需要边收边推到前端，c.json 要求先有完整数据再封包发送。')">c.json 不支持 text/event-stream 的 Content-Type</button>
+        <button class="quiz-btn" onclick="answer('q1',this,true,'正确。c.json 是"一次性返回"模式，ReadableStream 是"边产边发"模式。流的本质是数据还没全部就绪就开始发送，c.json 做不到这一点。')">流需要"边产边发"的管道，ReadableStream 支持，c.json 必须等完整数据</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'Hono 完全支持 Web 标准 Response，用 ReadableStream 是刻意的选择，不是限制，c.json 本身也能设置 Content-Type。')">Hono 不支持 c.json 里放流</button>
+      </div>
+      <div class="quiz-explain" id="q1-explain"></div>
+    </div>
+
+    <div class="quiz-q" id="q2">
+      <p class="quiz-question">
+        2. 流式模式下，<code>finish_reason: "stop"</code> 在哪个位置出现？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q2',this,false,'第一个 chunk 是内容开始，finish_reason 是 AI 说完了的标记，只出现在数据流的末尾。')">第一个 chunk 里，表示准备开始输出</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'每个 chunk 都有 choices 数组，但只有最后一个 chunk 才有 finish_reason。中途的 chunk 这个字段是 null 或 undefined。')">每个 chunk 都带一个，表示该 chunk 是否完整</button>
+        <button class="quiz-btn" onclick="answer('q2',this,true,'正确。只有最后一个 chunk 带 finish_reason: "stop"，表示 AI 已经说完了，流即将关闭。')">最后一个 chunk 里，表示流结束</button>
+      </div>
+      <div class="quiz-explain" id="q2-explain"></div>
+    </div>
+
+    <div class="quiz-q" id="q3">
+      <p class="quiz-question">
+        3. 前端用 <code>res.body.getReader()</code> 而不是 <code>res.json()</code> 的原因是什么？
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q3',this,false,'getReader 是 Web Streams API 的接口，所有现代浏览器都支持，不需要额外请求不同格式。')">getReader 比 json 速度更快</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'fetch 的 res.body 返回 ReadableStream，getReader 是此 API 的标准方式。')">需要先用 getReader 才能调用 json</button>
+        <button class="quiz-btn" onclick="answer('q3',this,true,'正确。res.json 要等完整响应到达才会 resolve，那样就失去流式的意义了。getReader 可以逐个消费到达的字节，边收边显示。')">json 会等完整响应才返回，getReader 可以逐块消费</button>
+      </div>
+      <div class="quiz-explain" id="q3-explain"></div>
+    </div>
+
+  </div>
+
+  <!-- ─────────────────────── -->
+  <hr>
+
+  <div class="callout">
+    <strong>下节课：前端部署 + 双环境配置</strong><br>
+    现在后端部署在 Render 上，前端还跑在 localhost。下节课会把前端也部署上去，
+    并且学会区分"本地开发"和"生产环境"两套配置——本地调 localhost，生产调 Render 地址。
+  </div>
+
+  <div class="resources">
+    <h2>本课参考资源</h2>
+    <a class="resource-item" href="https://api-docs.deepseek.com/api/create-chat-completion" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">DeepSeek · Chat Completion 文档</div>
+        <div class="resource-desc">stream 参数和流式响应格式的官方说明</div>
+      </div>
+    </a>
+    <a class="resource-item" href="https://developer.mozilla.org/zh-CN/docs/Web/API/Streams_API" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">MDN · Streams API</div>
+        <div class="resource-desc">ReadableStream / getReader 的完整中文文档</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="teacher-note">
+    <strong>注意：</strong>流式重构后，后端不再使用 <code>c.json()</code> 返回错误。
+    如果需要返回错误（参数缺失、API Key 失效），仍然可以用 <code>c.json({ error: ... }, 400)</code>——
+    因为错误返回发生在 try 块之外，不会进入流式逻辑。
+  </div>
+
+  <script>
+    function answer(qid, btn, isCorrect, explanation) {
+      const container = document.getElementById(qid);
+      if (container.dataset.answered) return;
+      container.dataset.answered = '1';
+      container.querySelectorAll('.quiz-btn').forEach(b => { b.disabled = true; });
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+      const el = document.getElementById(qid + '-explain');
+      const label = isCorrect
+        ? '<span class="correct-label">正确。</span> '
+        : '<span class="wrong-label">错误。</span> ';
+      el.innerHTML = label + explanation;
+      el.classList.add('show');
+    }
+  </script>
+</body>
+</html>
