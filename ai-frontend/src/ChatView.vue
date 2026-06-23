@@ -211,6 +211,7 @@ body {
   transition: background 0.15s;
   flex-shrink: 0;
 }
+
 .new-chat-btn:hover {
   background: rgba(255, 255, 255, 0.14);
 }
@@ -226,10 +227,12 @@ body {
   text-overflow: ellipsis;
   transition: background 0.15s, color 0.15s;
 }
+
 .session-item:hover {
   background: rgba(255, 255, 255, 0.07);
   color: rgba(255, 255, 255, 0.85);
 }
+
 .session-item.active {
   background: rgba(255, 255, 255, 0.13);
   color: #fff;
