@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第十五课：部署上线——Render 生产部署与 history 模式 404 修复</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #667eea; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #667eea; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+
+<h1>第十五课：部署上线</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 运维/部署</p>
+
+<div class="goal">
+  <strong>本节课你会解决：</strong>
+  <ul>
+    <li>Vue Router history 模式在 Render 刷新页面报 404 的问题</li>
+    <li>前端生产环境变量（<code>VITE_API_URL</code>）确认配置正确</li>
+    <li>后端生产环境变量（<code>JWT_SECRET</code>、<code>DEEPSEEK_API_KEY</code>）整理到位</li>
+    <li>推送最新代码后触发自动部署，验证全链路上线</li>
+  </ul>
+</div>
+
+<h2>一、为什么刷新页面会 404？</h2>
+
+<p>Vue Router 使用 <code>createWebHistory</code> 时，URL 看起来像 <code>https://你的域名/login</code>。</p>
+
+<p>问题在于：浏览器刷新时，这个请求会真的发给服务器，服务器上根本没有 <code>/login</code> 这个文件，所以返回 404。</p>
+
+<p>解决方案：告诉服务器——<strong>所有路径都返回 <code>index.html</code></strong>，让前端 JS 自己处理路由。</p>
+
+<h2>二、Render 前端 Static Site：配置重写规则</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>在前端项目根目录新建 <code>public/_redirects</code> 文件</strong>
+
+  <p>Render Static Site 支持 Netlify 格式的重定向规则：</p>
+  <pre>/*    /index.html   200</pre>
+
+  <p>这一行的意思：所有路径（<code>/*</code>）都返回 <code>index.html</code>，状态码 200（不是 301 重定向）。</p>
+
+  <div class="tip">
+    <strong>文件放哪里？</strong> 放在 <code>ai-frontend/public/_redirects</code>。Vite 构建时会把 <code>public/</code> 下的文件原样复制到 <code>dist/</code>，Render 部署后会自动读取 <code>dist/_redirects</code>。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>验证文件结构</strong>
+
+  <pre>ai-frontend/
+├── public/
+│   └── _redirects        ← 新建这个文件
+├── src/
+└── vite.config.ts</pre>
+</div>
+
+<h2>三、后端环境变量清单</h2>
+
+<p>登录 Render 后端服务的 Environment 页面，确认以下变量都已配置：</p>
+
+<table>
+  <tr><th>变量名</th><th>示例值</th><th>说明</th></tr>
+  <tr><td><code>DEEPSEEK_API_KEY</code></td><td><code>sk-xxx</code></td><td>DeepSeek API 密钥</td></tr>
+  <tr><td><code>JWT_SECRET</code></td><td>随机长字符串</td><td>签名 JWT，必须保密，生产环境不能用 dev-secret</td></tr>
+  <tr><td><code>PORT</code></td><td><code>3000</code>（Render 自动注入）</td><td>通常不需要手动设置</td></tr>
+</table>
+
+<div class="warn">
+  <strong>JWT_SECRET 生产规范</strong>：不能用 <code>dev-secret</code>，要用随机生成的长字符串。可以在终端运行：
+  <pre>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</pre>
+  把输出的 64 位十六进制字符串粘贴到 Render 的 <code>JWT_SECRET</code> 环境变量里。
+</div>
+
+<h2>四、前端环境变量确认</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>Render 前端 Static Site 的 Environment 页面</strong>
+
+  <table>
+    <tr><th>变量名</th><th>示例值</th></tr>
+    <tr><td><code>VITE_API_URL</code></td><td><code>https://你的后端域名.onrender.com</code></td></tr>
+  </table>
+
+  <div class="warn">
+    <strong>关键提醒</strong>：<code>VITE_*</code> 变量是在<strong>构建时</strong>打包进 JS 的，不是运行时读取。改完环境变量后必须重新触发构建（点 Manual Deploy 或推送新代码），否则不生效。
+  </div>
+</div>
+
+<h2>五、推送代码，触发自动部署</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>推送到 main 分支</strong>
+
+  <pre>git push origin main</pre>
+
+  <p>Render 检测到 GitHub 推送后会自动触发构建和部署（约 2~5 分钟）。</p>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>观察部署日志</strong>
+
+  <p>在 Render 控制台 → Events 标签页查看构建日志，确认：</p>
+  <ul>
+    <li>后端：<code>服务器已启动：http://localhost:xxxx</code></li>
+    <li>前端：<code>dist/index.html</code> 出现在构建输出里</li>
+  </ul>
+</div>
+
+<h2>六、全链路验证清单</h2>
+
+<ol>
+  <li>访问前端域名根路径 <code>/</code> → 自动跳转 <code>/login</code> ✓</li>
+  <li>在 <code>/login</code> 直接刷新浏览器 → 不报 404，仍显示登录页 ✓</li>
+  <li>注册新用户 → 提示注册成功 ✓</li>
+  <li>登录 → 跳转到聊天页 ✓</li>
+  <li>在聊天页刷新 → 不报 404，仍显示聊天页 ✓</li>
+  <li>发送消息 → AI 正常流式回复 ✓</li>
+  <li>点击退出登录 → 跳回登录页，token 清除 ✓</li>
+  <li>手动清除 localStorage 中的 token，刷新聊天页 → 自动跳转登录页 ✓</li>
+</ol>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：现在 SQLite 数据库文件 <code>chat.db</code> 存在 Render 服务器的磁盘上，Render 每次重新部署时磁盘会重置，数据会丢失。生产环境该怎么解决这个问题？</p>
+  <p><strong>Q2</strong>：前端 <code>VITE_API_URL</code> 硬编码了后端地址，本地开发和生产环境切来切去很麻烦。有什么更优雅的方式管理多环境配置？</p>
+  <p><strong>Q3</strong>：Render 免费套餐服务 15 分钟无请求会自动休眠，第一次请求要等 30 秒以上才响应。如何解决这个冷启动问题？</p>
+</div>
+
+<h2>七、本课总结</h2>
+
+<ul>
+  <li><code>public/_redirects</code> 一行配置解决 history 模式 404 问题</li>
+  <li>生产环境 <code>JWT_SECRET</code> 必须是随机强密码，<code>VITE_*</code> 变量改完要重新构建才生效</li>
+  <li>部署后按验证清单逐项检查，确保全链路通畅</li>
+</ul>
+
+<p>完成本课后，你的 AI 应用已完整上线。下一课将进入 <strong>第十六课：数据库迁移——从 SQLite 到 PostgreSQL</strong>，解决生产环境数据持久化问题，同时学习 SQL 迁移脚本的写法。</p>
+
+</body>
+</html>
