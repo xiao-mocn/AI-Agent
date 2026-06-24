@@ -22,6 +22,7 @@
     "hono": "^4.12.25",
     "jsonwebtoken": "^9.0.3",
     "openai": "^6.43.0",
+    "pg": "^8.22.0",
     "tsx": "^4.22.4"
   },
   "devDependencies": {
@@ -29,6 +30,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.3",
+    "@types/pg": "^8.20.0",
     "typescript": "^6.0.3"
   }
 }

@@ -13,7 +13,7 @@ export default function createUserRoutes(app: Hono) {
 
     const hash = await bcrypt.hash(password, 10)
     try {
-      createUser.run(username, hash)
+      await createUser(username, hash)
       return c.json({ ok: true })
     } catch {
       return c.json({ error: '用户名已存在' }, 409)
@@ -23,7 +23,7 @@ export default function createUserRoutes(app: Hono) {
   // 登录
   app.post('/login', async (c) => {
     const { username, password } = await c.req.json()
-    const user = findUser.get(username) as any
+    const user = await findUser(username) as any
     if (!user) return c.json({ error: '用户不存在' }, 401)
 
     const ok = await bcrypt.compare(password, user.password)

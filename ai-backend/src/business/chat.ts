@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
 import OpenAI from 'openai'
 import { Hono } from 'hono'
-import { db, insertMsg, getHistory, countSession } from '../db'
+import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
 
 export default function ChatMessageRoutes(app: Hono) {
 
@@ -33,14 +33,14 @@ export default function ChatMessageRoutes(app: Hono) {
     }
 
     // 新 session → 先插入 system prompt
-    const { cnt } = countSession.get(sessionId) as { cnt: number }
-    if (cnt === 0) insertMsg.run(sessionId, 'system', SYSTEM_PROMPT)
+    const cnt = await countSession(sessionId)
+    if (cnt === 0) await insertMsg(sessionId, 'system', SYSTEM_PROMPT)
 
     // 写入 user 消息
-    insertMsg.run(sessionId, 'user', message)
+    await insertMsg(sessionId, 'user', message)
 
     // 读取完整历史
-    const history = getHistory.all(sessionId) as ChatMessage[]
+    const history = await getHistory(sessionId) as ChatMessage[]
 
     try {
       const stream = await client.chat.completions.create({
@@ -65,7 +65,7 @@ export default function ChatMessageRoutes(app: Hono) {
             controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`))
             controller.close()
             // 写入完整回复到数据库（用于历史还原）
-            insertMsg.run(sessionId, 'assistant', fullReply)
+            await insertMsg(sessionId, 'assistant', fullReply)
           },
         }),
         {
@@ -74,7 +74,7 @@ export default function ChatMessageRoutes(app: Hono) {
       )
     } catch (e) {
       // 失败时撤销刚写入的 user 消息
-      db.prepare('DELETE FROM messages WHERE session_id = ? AND role = ? ORDER BY id DESC LIMIT 1').run(sessionId, 'user')
+      await deleteLastUserMsg(sessionId)
 
       console.error('请求 DeepSeek API 失败:', e)
       return c.json({ error: '请求 DeepSeek API 失败' }, 500)

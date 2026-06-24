@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import { cors } from 'hono/cors'
 import ChatMessageRoutes from './business/chat'
 import user from './business/user'
+import { initDB } from './db'
 
 
 const app = new Hono()
@@ -42,7 +43,10 @@ user(app)
 ChatMessageRoutes(app)
 
 
-// 启动服务器，监听 3000 端口
-serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3000 }, (info) => {
-  console.log(`服务器已启动：http://localhost:${info.port}`)
-})
+// 启动前初始化数据库
+initDB().then
+  (() => {
+    serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3000 }, (info) => {
+      console.log(`服务器已启动：http://localhost:${info.port}`)
+    })
+  })

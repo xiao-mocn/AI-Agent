@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第十六课：数据库迁移——从 SQLite 到 PostgreSQL</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #667eea; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .op { color: #89dceb; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #667eea; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+
+<h1>第十六课：数据库迁移</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 数据库/架构</p>
+
+<div class="goal">
+  <strong>本节课你会实现：</strong>
+  <ul>
+    <li>理解为什么生产环境不能用 SQLite</li>
+    <li>在 Render 上创建免费的 PostgreSQL 数据库</li>
+    <li>用 <code>pg</code> 包替换 <code>better-sqlite3</code>，支持 SQLite（本地）和 PostgreSQL（生产）双模式</li>
+    <li>编写迁移脚本，把 SQLite 数据导入 PostgreSQL</li>
+    <li>配置环境变量，全链路验证通过</li>
+  </ul>
+</div>
+
+<h2>一、为什么不用 SQLite？</h2>
+
+<p>SQLite 是一个嵌入式的单文件数据库，适合开发和单用户场景。生产环境有几个致命问题：</p>
+
+<table>
+  <tr><th>特性</th><th>SQLite</th><th>PostgreSQL</th></tr>
+  <tr><td>数据持久性</td><td>存在本地磁盘，<strong>Render 部署重置即丢</strong></td><td>独立服务，部署不影响数据</td></tr>
+  <tr><td>并发写入</td><td>写锁是表级，并发差</td><td>行级锁，高并发无压力</td></tr>
+  <tr><td>网络访问</td><td>仅本地进程可读</td><td>支持远程连接</td></tr>
+  <tr><td>扩展能力</td><td>无</td><td>主从复制、连接池、备份</td></tr>
+</table>
+
+<p>简单说：SQLite 是开发工具，PostgreSQL 是生产数据库。</p>
+
+<h2>二、整体方案</h2>
+
+<p>我们不直接用 PostgreSQL 替换掉 SQLite，而是让代码同时支持两者：</p>
+
+<ul>
+  <li><strong>本地开发</strong>：继续用 SQLite，零配置，即开即用</li>
+  <li><strong>生产环境</strong>：自动切换到 PostgreSQL</li>
+</ul>
+
+<p>切换依据：<code>DATABASE_URL</code> 环境变量是否存在。有 → PostgreSQL，没有 → SQLite。</p>
+
+<h2>三、第一步：在 Render 创建 PostgreSQL 数据库</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>创建 PostgreSQL 服务</strong>
+
+  <p>Render Dashboard → <strong>New +</strong> → <strong>PostgreSQL</strong>：</p>
+  <ul>
+    <li><strong>Name</strong>：<code>ai-backend-db</code></li>
+    <li><strong>Database</strong>：<code>ai_chat</code>（自动生成也行）</li>
+    <li><strong>User</strong>：自动生成</li>
+    <li><strong>Region</strong>：和你的后端服务选同一个区域（通常是 Oregon）</li>
+    <li><strong>PostgreSQL Version</strong>：16</li>
+    <li><strong>Plan</strong>：Free（1 GB 存储，10k 行限制，够用）</li>
+  </ul>
+  <p>点击 <strong>Create Database</strong>，等待几秒创建完成。</p>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>获取连接字符串</strong>
+
+  <p>创建完成后，在 PostgreSQL Dashboard 找到 <strong>Internal Connection String</strong>，格式类似：</p>
+  <pre>postgresql://ai_chat_user:xxxxx@dpg-xxxxx.oregon-postgres.render.com/ai_chat</pre>
+
+  <div class="warn">
+    <strong>Internal vs External</strong>：同一个 Region 的服务之间用 <strong>Internal</strong> 地址（走 Render 内部网络，更快更安全）。外部工具连接才用 External。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>配置到后端环境变量</strong>
+
+  <p>在你的后端 Web Service → <strong>Environment</strong> → 添加：</p>
+  <table>
+    <tr><th>变量名</th><th>值</th></tr>
+    <tr><td><code>DATABASE_URL</code></td><td>上一步的 Internal Connection String</td></tr>
+  </table>
+  <p>保存后 Render 会自动重新部署。</p>
+</div>
+
+<h2>四、第二步：安装 pg 并改造 db.ts</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装依赖</strong>
+
+  <pre>cd ai-backend
+npm install pg
+npm install -D @types/pg</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>改造 <code>db.ts</code> 支持双模式</strong>
+
+  <p>核心思路：用一个 <code>isPG</code> 标志判断当前用哪套 API，把 SQLite 同步写法改成 <code>async/await</code>。</p>
+
+  <pre><span class="kw">import</span> Database <span class="kw">from</span> <span class="str">'better-sqlite3'</span>
+<span class="kw">import</span> { Pool } <span class="kw">from</span> <span class="str">'pg'</span>
+
+<span class="comment">// 判断是否使用 PostgreSQL</span>
+<span class="kw">const</span> DATABASE_URL = process.env.DATABASE_URL
+<span class="kw">export const</span> isPG = !!DATABASE_URL
+
+<span class="comment">// — PG 连接池 —</span>
+<span class="kw">let</span> pool: Pool
+<span class="kw">if</span> (isPG) {
+  pool = <span class="kw">new</span> Pool({ connectionString: DATABASE_URL })
+}
+
+<span class="comment">// — SQLite 连接 —</span>
+<span class="kw">const</span> db = <span class="kw">new</span> Database(process.env.DB_PATH || <span class="str">'chat.db'</span>)
+db.pragma(<span class="str">'journal_mode = WAL'</span>)
+
+<span class="comment">// — 建表（两个数据库都走）—</span>
+<span class="kw">if</span> (isPG) {
+  <span class="kw">await</span> pool.query(<span class="str">`
+    CREATE TABLE IF NOT EXISTS users (
+      id       SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
+    )
+  `</span>)
+  <span class="kw">await</span> pool.query(<span class="str">`
+    CREATE TABLE IF NOT EXISTS messages (
+      id         SERIAL PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      role       TEXT NOT NULL,
+      content    TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `</span>)
+} <span class="kw">else</span> {
+  db.exec(<span class="str">`
+    CREATE TABLE IF NOT EXISTS messages (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT    NOT NULL,
+      role       TEXT    NOT NULL,
+      content    TEXT    NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `</span>)
+  db.exec(<span class="str">`
+    CREATE TABLE IF NOT EXISTS users (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT    UNIQUE NOT NULL,
+      password TEXT    NOT NULL
+    )
+  `</span>)
+}</pre>
+
+  <div class="tip">
+    PostgreSQL 用 <code>SERIAL</code> 代替 SQLite 的 <code>AUTOINCREMENT</code>，参数占位符用 <code>$1, $2</code> 代替 <code>?</code>。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>改造查询函数</strong>
+
+  <p>把原来同步的 <code>db.prepare(...).run()</code> / <code>.get()</code> / <code>.all()</code> 统一改成异步函数：</p>
+
+  <pre><span class="comment">// ===== 用户相关 =====</span>
+
+<span class="kw">export async function</span> <span class="fn">createUser</span>(username: <span class="ty">string</span>, password: <span class="ty">string</span>) {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">await</span> pool.query(<span class="str">'INSERT INTO users (username, password) VALUES ($1, $2)'</span>, [username, password])
+  } <span class="kw">else</span> {
+    db.prepare(<span class="str">'INSERT INTO users (username, password) VALUES (?, ?)'</span>).run(username, password)
+  }
+}
+
+<span class="kw">export async function</span> <span class="fn">findUser</span>(username: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">any</span>&gt; {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">const</span> { rows } = <span class="kw">await</span> pool.query(<span class="str">'SELECT * FROM users WHERE username = $1'</span>, [username])
+    <span class="kw">return</span> rows[<span class="fn">0</span>] || <span class="kw">null</span>
+  }
+  <span class="kw">return</span> db.prepare(<span class="str">'SELECT * FROM users WHERE username = ?'</span>).get(username) || <span class="kw">null</span>
+}
+
+<span class="comment">// ===== 消息相关 =====</span>
+
+<span class="kw">export async function</span> <span class="fn">insertMsg</span>(sessionId: <span class="ty">string</span>, role: <span class="ty">string</span>, content: <span class="ty">string</span>) {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">await</span> pool.query(<span class="str">'INSERT INTO messages (session_id, role, content) VALUES ($1, $2, $3)'</span>, [sessionId, role, content])
+  } <span class="kw">else</span> {
+    db.prepare(<span class="str">'INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)'</span>).run(sessionId, role, content)
+  }
+}
+
+<span class="kw">export async function</span> <span class="fn">getHistory</span>(sessionId: <span class="ty">string</span>) {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">const</span> { rows } = <span class="kw">await</span> pool.query(<span class="str">'SELECT role, content FROM messages WHERE session_id = $1 ORDER BY id ASC'</span>, [sessionId])
+    <span class="kw">return</span> rows
+  }
+  <span class="kw">return</span> db.prepare(<span class="str">'SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC'</span>).all(sessionId)
+}
+
+<span class="kw">export async function</span> <span class="fn">countSession</span>(sessionId: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">number</span>&gt; {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">const</span> { rows } = <span class="kw">await</span> pool.query(<span class="str">'SELECT COUNT(*) AS cnt FROM messages WHERE session_id = $1'</span>, [sessionId])
+    <span class="kw">return</span> Number(rows[<span class="fn">0</span>].cnt)
+  }
+  <span class="kw">const</span> { cnt } = db.prepare(<span class="str">'SELECT COUNT(*) AS cnt FROM messages WHERE session_id = ?'</span>).get(sessionId) <span class="kw">as any</span>
+  <span class="kw">return</span> cnt
+}
+
+<span class="comment">// PG 专用：删除 user 消息（出错回滚用）</span>
+<span class="kw">export async function</span> <span class="fn">deleteLastUserMsg</span>(sessionId: <span class="ty">string</span>) {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">await</span> pool.query(<span class="str">'DELETE FROM messages WHERE session_id = $1 AND role = $2 AND id = (SELECT MAX(id) FROM messages WHERE session_id = $1 AND role = $2)'</span>, [sessionId, <span class="str">'user'</span>])
+  } <span class="kw">else</span> {
+    db.prepare(<span class="str">'DELETE FROM messages WHERE session_id = ? AND role = ? ORDER BY id DESC LIMIT 1'</span>).run(sessionId, <span class="str">'user'</span>)
+  }
+}</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span><strong>给 <code>db.ts</code> 加上顶层 await</strong>
+
+  <p>由于建表变成了异步，需要让 <code>db.ts</code> 导出初始化函数，而不是在模块顶层执行：</p>
+
+  <pre><span class="comment">// db.ts 底部导出初始化函数</span>
+<span class="kw">export async function</span> <span class="fn">initDB</span>() {
+  <span class="kw">if</span> (isPG) {
+    <span class="kw">await</span> pool.query(<span class="str">`
+      CREATE TABLE IF NOT EXISTS users (
+        id       SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+      )
+    `</span>)
+    <span class="kw">await</span> pool.query(<span class="str">`
+      CREATE TABLE IF NOT EXISTS messages (
+        id         SERIAL PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        role       TEXT NOT NULL,
+        content    TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `</span>)
+  } <span class="kw">else</span> {
+    db.exec(<span class="str">`
+      CREATE TABLE IF NOT EXISTS messages (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT    NOT NULL,
+        role       TEXT    NOT NULL,
+        content    TEXT    NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `</span>)
+    db.exec(<span class="str">`
+      CREATE TABLE IF NOT EXISTS users (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT    UNIQUE NOT NULL,
+        password TEXT    NOT NULL
+      )
+    `</span>)
+  }
+}</pre>
+</div>
+
+<h2>五、第三步：改造业务代码</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong><code>src/index.ts</code></strong>
+
+  <p>在服务启动前，先初始化数据库：</p>
+
+  <pre><span class="kw">import</span> { initDB } <span class="kw">from</span> <span class="str">'./db'</span>
+
+<span class="comment">// 启动前初始化数据库</span>
+<span class="fn">initDB</span>().<span class="fn">then</span>(() =&gt; {
+  <span class="fn">serve</span>({ <span class="kw">fetch</span>: app.fetch, port: Number(process.env.PORT) || <span class="fn">3000</span> }, (info) =&gt; {
+    console.log(<span class="str">`服务器已启动：http://localhost:${info.port}`</span>)
+  })
+})</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong><code>user.ts</code></strong>
+
+  <p>把所有 <code>createUser.run(...)</code>、<code>findUser.get(...)</code> 改为 <code>await createUser(...)</code>、<code>await findUser(...)</code>，因为现在它们是异步函数。</p>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong><code>chat.ts</code></strong>
+
+  <p>同理，把同步调用改成 <code>await</code>：</p>
+  <pre><span class="comment">// 改前</span>
+<span class="kw">const</span> { cnt } = countSession.get(sessionId) <span class="kw">as</span> { cnt: number }
+insertMsg.run(sessionId, <span class="str">'system'</span>, SYSTEM_PROMPT)
+
+<span class="comment">// 改后</span>
+<span class="kw">const</span> cnt = <span class="kw">await</span> <span class="fn">countSession</span>(sessionId)
+<span class="kw">if</span> (cnt === <span class="fn">0</span>) <span class="kw">await</span> <span class="fn">insertMsg</span>(sessionId, <span class="str">'system'</span>, SYSTEM_PROMPT)
+
+<span class="kw">await</span> <span class="fn">insertMsg</span>(sessionId, <span class="str">'user'</span>, message)
+<span class="kw">const</span> history = <span class="kw">await</span> <span class="fn">getHistory</span>(sessionId)</pre>
+
+  <p>以及错误回滚处：</p>
+  <pre><span class="comment">// 改前</span>
+db.prepare(<span class="str">'DELETE FROM messages WHERE ...'</span>).run(sessionId, <span class="str">'user'</span>)
+
+<span class="comment">// 改后</span>
+<span class="kw">await</span> <span class="fn">deleteLastUserMsg</span>(sessionId)</pre>
+</div>
+
+<h2>六、第四步：迁移数据</h2>
+
+<p>如果你已经在 SQLite 里有用户和数据，需要迁移到 PostgreSQL。可以写一个迁移脚本：</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>创建 <code>src/migrate.ts</code></strong>
+
+  <pre><span class="kw">import</span> Database <span class="kw">from</span> <span class="str">'better-sqlite3'</span>
+<span class="kw">import</span> { Pool } <span class="kw">from</span> <span class="str">'pg'</span>
+
+<span class="comment">// 连接两边</span>
+<span class="kw">const</span> sqlite = <span class="kw">new</span> Database(<span class="str">'chat.db'</span>)
+<span class="kw">const</span> pg = <span class="kw">new</span> Pool({ connectionString: process.env.DATABASE_URL })
+
+<span class="kw">async function</span> <span class="fn">migrate</span>() {
+  console.log(<span class="str">'开始迁移...'</span>)
+
+  <span class="comment">// 建表</span>
+  <span class="kw">await</span> pg.query(<span class="str">`
+    CREATE TABLE IF NOT EXISTS users (
+      id       SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
+    )
+  `</span>)
+  <span class="kw">await</span> pg.query(<span class="str">`
+    CREATE TABLE IF NOT EXISTS messages (
+      id         SERIAL PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      role       TEXT NOT NULL,
+      content    TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `</span>)
+
+  <span class="comment">// 迁移 users</span>
+  <span class="kw">const</span> users = sqlite.prepare(<span class="str">'SELECT * FROM users'</span>).all()
+  <span class="kw">for</span> (<span class="kw">const</span> u <span class="kw">of</span> users) {
+    <span class="kw">await</span> pg.query(<span class="str">'INSERT INTO users (username, password) VALUES ($1, $2) ON CONFLICT DO NOTHING'</span>, [u.username, u.password])
+  }
+  console.log(<span class="str">`用户迁移完成：${users.length} 条`</span>)
+
+  <span class="comment">// 迁移 messages</span>
+  <span class="kw">const</span> messages = sqlite.prepare(<span class="str">'SELECT * FROM messages'</span>).all()
+  <span class="kw">for</span> (<span class="kw">const</span> m <span class="kw">of</span> messages) {
+    <span class="kw">await</span> pg.query(<span class="str">'INSERT INTO messages (session_id, role, content) VALUES ($1, $2, $3)'</span>, [m.session_id, m.role, m.content])
+  }
+  console.log(<span class="str">`消息迁移完成：${messages.length} 条`</span>)
+
+  <span class="kw">await</span> pg.end()
+  console.log(<span class="str">'迁移完成 ✅'</span>)
+}
+
+<span class="fn">migrate</span>().<span class="fn">catch</span>(console.error)</pre>
+
+  <div class="warn">
+    迁移脚本在本地运行，需要本地能连上 Render PostgreSQL。修改后端环境变量后重新部署会自动触发迁移。
+  </div>
+</div>
+
+<h2>七、验证清单</h2>
+
+<ol>
+  <li>本地运行 <code>npm start</code>，不设 <code>DATABASE_URL</code> → 仍用 SQLite，登录/聊天正常 ✓</li>
+  <li>部署后 Render 后端有 <code>DATABASE_URL</code> → 自动使用 PostgreSQL ✓</li>
+  <li>注册新用户 → 数据写入 PostgreSQL ✓</li>
+  <li>重新部署 → 用户数据还在，不会丢失 ✓</li>
+  <li>发送聊天消息 → AI 正常回复 ✓</li>
+  <li>查看 Render PostgreSQL Dashboard 的数据行数 → 确认数据写入 ✓</li>
+</ol>
+
+<h2>八、SQLite vs PostgreSQL SQL 差异总结</h2>
+
+<table>
+  <tr><th>功能</th><th>SQLite</th><th>PostgreSQL</th></tr>
+  <tr><td>自增主键</td><td><code>INTEGER PRIMARY KEY AUTOINCREMENT</code></td><td><code>SERIAL PRIMARY KEY</code></td></tr>
+  <tr><td>参数占位符</td><td><code>?</code></td><td><code>$1, $2, $3</code></td></tr>
+  <tr><td>当前时间</td><td><code>CURRENT_TIMESTAMP</code>（DATETIME 类型）</td><td><code>CURRENT_TIMESTAMP</code>（TIMESTAMP 类型）</td></tr>
+  <tr><td>时间类型</td><td><code>DATETIME</code></td><td><code>TIMESTAMP</code> 或 <code>TIMESTAMPTZ</code></td></tr>
+  <tr><td>API 风格</td><td>同步（<code>.run()/.get()/.all()</code>）</td><td>异步（<code>await pool.query()</code>）</td></tr>
+</table>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：本章我们用 <code>pg</code> + 裸 SQL 迁移到 PostgreSQL。如果改用 Prisma ORM，有什么优劣？</p>
+  <p><strong>Q2</strong>：现在 <code>db.ts</code> 里每个函数都有 <code>if (isPG) ... else ...</code> 分支。有没有更好的设计模式来消除重复？</p>
+  <p><strong>Q3</strong>：Render 免费 PostgreSQL 只有 10,000 行限制。应用数据量大了以后应该怎么做？</p>
+</div>
+
+<h2>九、本课总结</h2>
+
+<ul>
+  <li>SQLite 适合开发测试，生产环境必须用 PostgreSQL 这类独立数据库</li>
+  <li>Render 自带 PostgreSQL，创建即用</li>
+  <li>通过 <code>DATABASE_URL</code> 环境变量，实现本地 SQLite / 生产 PostgreSQL 双模式</li>
+  <li>SQLite 和 PostgreSQL 在 SQL 语法和 API 风格上有区别，迁移时需逐项处理</li>
+  <li>迁移脚本可以帮你把已有数据从 SQLite 导入 PostgreSQL</li>
+</ul>
+
+<p>完成本课后，你的 AI 应用有了生产级的数据持久化能力。下一课将进入 <strong>第十七课：XSS 与 CSRF 防护</strong>——学习 Web 安全基础知识，给你的应用加上安全防护。</p>
+
+</body>
+</html>
