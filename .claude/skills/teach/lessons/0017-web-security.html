@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第十七课：Web 安全基础——XSS 与 CSRF 防护</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #ef4444; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #ef4444; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .attack { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .defend { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第十七课：Web 安全基础</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 安全</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>XSS（跨站脚本攻击）的原理和危害</li>
+    <li>Vue 默认如何防 XSS，以及哪些写法会打破防护</li>
+    <li>CSRF（跨站请求伪造）的原理，以及为什么 JWT Bearer Token 天然免疫</li>
+    <li>给 Hono 后端添加安全响应头（CSP、X-Frame-Options 等）</li>
+    <li>CORS 与安全的关系</li>
+  </ul>
+</div>
+
+<h2>一、XSS——跨站脚本攻击</h2>
+
+<h3>攻击原理</h3>
+
+<p>XSS 的核心思路：攻击者把一段 <strong>恶意 JavaScript</strong> 注入到网页里，让其他用户的浏览器执行它。</p>
+
+<div class="attack">
+  <strong>假设场景</strong>：用户在聊天框输入了这段内容，然后你的前端用 <code>innerHTML</code> 显示它：
+  <pre>&lt;img src=x onerror="document.cookie // 窃取 Cookie，发给攻击者服务器"&gt;</pre>
+  浏览器渲染这段 HTML 时，图片加载失败，<code>onerror</code> 被执行——攻击者拿到了受害者的 Cookie。
+</div>
+
+<h3>三种 XSS 类型</h3>
+
+<table>
+  <tr><th>类型</th><th>来源</th><th>典型场景</th></tr>
+  <tr><td>存储型（Stored）</td><td>数据库</td><td>恶意内容存入数据库，其他用户读取时被执行——<strong>最危险</strong></td></tr>
+  <tr><td>反射型（Reflected）</td><td>URL 参数</td><td>恶意链接诱导用户点击，参数被直接渲染到页面</td></tr>
+  <tr><td>DOM 型</td><td>前端 JS</td><td>前端读取 URL hash 等不可信来源，直接写入 DOM</td></tr>
+</table>
+
+<h3>Vue 如何防 XSS</h3>
+
+<p>好消息：<strong>Vue 默认是安全的</strong>。双花括号插值会自动 HTML 转义：</p>
+
+<pre><span class="comment">&lt;!-- 安全：Vue 会把 &lt;script&gt; 转义成 &amp;lt;script&amp;gt;，不会执行 --&gt;</span>
+&lt;p&gt;{{ message }}&lt;/p&gt;</pre>
+
+<div class="danger">
+  <strong>危险写法：<code>v-html</code></strong>
+
+  <pre><span class="comment">&lt;!-- 危险：v-html 直接插入 HTML，XSS 风险！ --&gt;</span>
+&lt;div v-html="aiReply"&gt;&lt;/div&gt;</pre>
+
+  如果 <code>aiReply</code> 来自 AI 模型或用户输入，攻击者可以让 AI 回复一段含 <code>&lt;script&gt;</code> 的内容。
+</div>
+
+<h3>需要渲染 Markdown 怎么办？</h3>
+
+<p>很多 AI 聊天应用需要渲染 Markdown（代码块、加粗等）。正确做法是先解析 Markdown，再用 <strong>DOMPurify</strong> 净化 HTML：</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装依赖</strong>
+  <pre>cd ai-frontend
+npm install marked dompurify
+npm install -D @types/dompurify</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>在组件中安全渲染</strong>
+  <pre><span class="comment">&lt;!-- MessageBubble.vue --&gt;</span>
+&lt;template&gt;
+  &lt;div v-html="safeHtml"&gt;&lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script setup lang="ts"&gt;
+<span class="kw">import</span> { computed } <span class="kw">from</span> <span class="str">'vue'</span>
+<span class="kw">import</span> { marked } <span class="kw">from</span> <span class="str">'marked'</span>
+<span class="kw">import</span> DOMPurify <span class="kw">from</span> <span class="str">'dompurify'</span>
+
+<span class="kw">const</span> props = defineProps&lt;{ content: <span class="ty">string</span> }&gt;()
+
+<span class="comment">// marked 解析 Markdown → HTML，DOMPurify 过滤危险标签</span>
+<span class="kw">const</span> safeHtml = computed(() =&gt;
+  DOMPurify.sanitize(marked.parse(props.content) <span class="kw">as</span> <span class="ty">string</span>)
+)
+&lt;/script&gt;</pre>
+
+  <div class="tip">
+    DOMPurify 会移除 <code>&lt;script&gt;</code>、<code>onerror</code>、<code>javascript:</code> 等危险内容，只保留安全的 HTML 标签。
+  </div>
+</div>
+
+<h2>二、CSRF——跨站请求伪造</h2>
+
+<h3>攻击原理</h3>
+
+<div class="attack">
+  <strong>经典场景（基于 Cookie）</strong>：
+  <ol>
+    <li>用户已登录 bank.com，浏览器有 <code>session=abc</code> Cookie</li>
+    <li>用户访问了恶意网站 evil.com</li>
+    <li>evil.com 的页面里有：<code>&lt;img src="https://bank.com/transfer?to=attacker&amp;amount=10000"&gt;</code></li>
+    <li>浏览器自动带上 Cookie 发出请求——转账成功，受害者毫不知情</li>
+  </ol>
+</div>
+
+<h3>为什么 JWT Bearer Token 天然免疫 CSRF？</h3>
+
+<div class="defend">
+  关键区别在于：<strong>浏览器不会自动携带 Authorization 头</strong>。
+
+  <ul>
+    <li>Cookie：浏览器跨站请求时<strong>自动附带</strong>，这是 CSRF 的根源</li>
+    <li>Bearer Token：存在 <code>localStorage</code> 或 <code>sessionStorage</code>，只有 JS 代码<strong>主动读取</strong>后放进 <code>Authorization: Bearer xxx</code> 头才会发送</li>
+  </ul>
+
+  evil.com 的页面无法读取你 localStorage 里的 Token（受同源策略保护），所以伪造请求不带 Token，后端验证失败，攻击无效。
+</div>
+
+<p>我们的应用已经用了 JWT Bearer Token，CSRF 这关已经过了。</p>
+
+<div class="warn">
+  <strong>如果你改用 Cookie 存 Token</strong>（比如 HttpOnly Cookie），就需要额外加 CSRF 防护：同步令牌（CSRF Token）或 SameSite Cookie 属性。
+</div>
+
+<h2>三、给 Hono 添加安全响应头</h2>
+
+<p>即使 XSS 和 CSRF 已有基础防护，还应该加上 HTTP 安全头，作为额外防线。</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装 Hono 安全中间件</strong>
+
+  <p>Hono 内置了 <code>secureHeaders</code> 中间件，一行搞定常用安全头：</p>
+
+  <pre><span class="comment">// 已内置，不需要额外安装</span>
+<span class="kw">import</span> { secureHeaders } <span class="kw">from</span> <span class="str">'hono/secure-headers'</span></pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>在 <code>index.ts</code> 中启用</strong>
+
+  <pre><span class="kw">import</span> { Hono } <span class="kw">from</span> <span class="str">'hono'</span>
+<span class="kw">import</span> { secureHeaders } <span class="kw">from</span> <span class="str">'hono/secure-headers'</span>
+<span class="kw">import</span> { cors } <span class="kw">from</span> <span class="str">'hono/cors'</span>
+
+<span class="kw">const</span> app = <span class="kw">new</span> Hono()
+
+<span class="comment">// 安全头（放在 cors 之前）</span>
+app.use(<span class="str">'*'</span>, secureHeaders())
+
+<span class="comment">// CORS 配置（限制允许的来源）</span>
+app.use(<span class="str">'/api/*'</span>, cors({
+  origin: process.env.FRONTEND_URL || <span class="str">'http://localhost:5173'</span>,
+  allowMethods: [<span class="str">'GET'</span>, <span class="str">'POST'</span>, <span class="str">'OPTIONS'</span>],
+  allowHeaders: [<span class="str">'Content-Type'</span>, <span class="str">'Authorization'</span>],
+}))</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>secureHeaders 默认添加的响应头</strong>
+
+  <table>
+    <tr><th>响应头</th><th>作用</th></tr>
+    <tr><td><code>X-Content-Type-Options: nosniff</code></td><td>禁止浏览器猜测 MIME 类型，防止脚本伪装成图片</td></tr>
+    <tr><td><code>X-Frame-Options: SAMEORIGIN</code></td><td>禁止页面被嵌入 iframe，防止点击劫持</td></tr>
+    <tr><td><code>Referrer-Policy: no-referrer</code></td><td>跨站请求不泄露来源 URL</td></tr>
+    <tr><td><code>Strict-Transport-Security</code></td><td>强制 HTTPS（生产环境生效）</td></tr>
+    <tr><td><code>X-DNS-Prefetch-Control: off</code></td><td>关闭 DNS 预解析，防止信息泄露</td></tr>
+  </table>
+</div>
+
+<h2>四、CORS 与安全</h2>
+
+<p>CORS 不是安全防护，而是浏览器的访问控制机制。理解两个关键点：</p>
+
+<ul>
+  <li><strong>CORS 只约束浏览器</strong>：curl、Postman、服务器端请求完全不受 CORS 影响</li>
+  <li><strong>允许的 origin 要精确</strong>：生产环境不要用 <code>origin: '*'</code>，否则任何网站都能调用你的 API</li>
+</ul>
+
+<pre><span class="comment">// 不安全：允许所有来源</span>
+cors({ origin: <span class="str">'*'</span> })
+
+<span class="comment">// 安全：只允许自己的前端域名</span>
+cors({ origin: <span class="str">'https://your-app.onrender.com'</span> })</pre>
+
+<div class="tip">
+  生产和本地开发的 origin 不同，可以通过环境变量控制：<br/>
+  Render 后端添加环境变量 <code>FRONTEND_URL=https://your-frontend.onrender.com</code>
+</div>
+
+<h2>五、Content Security Policy（CSP）</h2>
+
+<p>CSP 是最强的 XSS 防线——告诉浏览器哪些来源的脚本、样式可以加载，直接从根上阻止注入脚本执行。</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>通过 secureHeaders 自定义 CSP</strong>
+
+  <pre>app.use(<span class="str">'*'</span>, secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: [<span class="str">"'self'"</span>],
+    scriptSrc: [<span class="str">"'self'"</span>],
+    styleSrc: [<span class="str">"'self'"</span>, <span class="str">"'unsafe-inline'"</span>],  <span class="comment">// 内联样式必须允许</span>
+    imgSrc: [<span class="str">"'self'"</span>, <span class="str">'data:'</span>],
+    connectSrc: [<span class="str">"'self'"</span>, <span class="str">'https://api.deepseek.com'</span>],
+  }
+}))</pre>
+
+  <div class="warn">
+    CSP 可能会阻断正常功能（比如 Vue 开发模式的 eval）。建议先在 Report-Only 模式下测试，确认无误再开启强制模式。
+  </div>
+</div>
+
+<h2>六、本课实践：给项目加上安全头</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>修改 <code>ai-backend/src/index.ts</code></strong>
+
+  <p>在现有 cors 中间件之前加上 secureHeaders：</p>
+
+  <pre><span class="kw">import</span> { secureHeaders } <span class="kw">from</span> <span class="str">'hono/secure-headers'</span>
+
+<span class="comment">// 在所有路由之前注册</span>
+app.use(<span class="str">'*'</span>, secureHeaders())
+
+<span class="comment">// CORS 限制为精确的前端域名</span>
+<span class="kw">const</span> ALLOWED_ORIGIN = process.env.FRONTEND_URL || <span class="str">'http://localhost:5173'</span>
+app.use(<span class="str">'*'</span>, cors({
+  origin: ALLOWED_ORIGIN,
+  allowHeaders: [<span class="str">'Content-Type'</span>, <span class="str">'Authorization'</span>],
+  allowMethods: [<span class="str">'GET'</span>, <span class="str">'POST'</span>, <span class="str">'OPTIONS'</span>],
+}))</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>在 Render 后端添加环境变量</strong>
+
+  <table>
+    <tr><th>变量名</th><th>值</th></tr>
+    <tr><td><code>FRONTEND_URL</code></td><td>你的前端 Render 地址，如 <code>https://ai-frontend.onrender.com</code></td></tr>
+  </table>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>验证安全头已生效</strong>
+
+  <p>部署后，用浏览器 DevTools → Network → 点击任意 API 请求 → 查看 Response Headers，应该看到：</p>
+  <pre>x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+referrer-policy: no-referrer</pre>
+</div>
+
+<h2>七、安全检查清单</h2>
+
+<ol>
+  <li>前端 <strong>不用 <code>v-html</code></strong> 渲染用户输入或 AI 回复（或配合 DOMPurify 使用）✓</li>
+  <li>认证使用 <strong>JWT Bearer Token</strong>，不用 Cookie，天然免疫 CSRF ✓</li>
+  <li>后端已配置 <strong>secureHeaders</strong> 中间件 ✓</li>
+  <li>CORS <strong>origin 精确指定</strong>，不使用 <code>'*'</code> ✓</li>
+  <li>生产 API 走 <strong>HTTPS</strong>（Render 自动配置）✓</li>
+  <li>密码使用 <strong>bcrypt</strong> 哈希存储，不存明文 ✓</li>
+</ol>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果我们把 JWT 改成存在 <code>HttpOnly Cookie</code> 里（这样 JS 读不到，更安全），需要额外加哪些 CSRF 防护措施？</p>
+  <p><strong>Q2</strong>：用户注册时提交的 <code>username</code> 字段，后端需要做哪些校验？从安全和用户体验两个角度说。</p>
+  <p><strong>Q3</strong>：为什么生产环境 API 密钥（<code>DEEPSEEK_API_KEY</code>）绝对不能写在前端代码里？攻击者能怎么利用它？</p>
+</div>
+
+<h2>八、本课总结</h2>
+
+<ul>
+  <li>XSS 通过注入脚本攻击用户浏览器；Vue 默认安全，避免 <code>v-html</code>，渲染 Markdown 用 DOMPurify</li>
+  <li>CSRF 利用浏览器自动携带 Cookie 发起伪造请求；JWT Bearer Token 不被浏览器自动携带，天然免疫</li>
+  <li>secureHeaders 中间件一行代码加上多个安全响应头</li>
+  <li>CORS origin 精确配置，防止其他网站随意调用你的 API</li>
+  <li>安全是纵深防御，不是一道墙，而是多层叠加</li>
+</ul>
+
+<p>下一课将进入 <strong>第十八课：速率限制与 API 保护</strong>——防止接口被恶意滥用，给 DeepSeek 调用加上限流保护。</p>
+
+</body>
+</html>
