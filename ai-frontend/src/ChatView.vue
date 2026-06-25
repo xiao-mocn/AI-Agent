@@ -122,6 +122,13 @@ async function send() {
       return
     }
 
+    if (res.status === 429) {
+      // 从响应头读出还需等多少秒
+      const retryAfter = res.headers.get('Retry-After')
+      const seconds = retryAfter ? parseInt(retryAfter) : 60
+      throw new Error(`请求太频繁，请 ${seconds} 秒后再试`)
+    }
+
     if (!res.ok) throw new Error('请求失败')
 
     activeSession.value.messages.push({ role: 'assistant', content: '' })

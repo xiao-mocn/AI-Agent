@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken'
 import OpenAI from 'openai'
 import { Hono } from 'hono'
 import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
