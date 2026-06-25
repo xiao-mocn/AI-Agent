@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { serve } from '@hono/node-server'
+import { secureHeaders } from 'hono/secure-headers'
 import { Hono } from 'hono'
 import jwt from 'jsonwebtoken'
 import { cors } from 'hono/cors'
@@ -10,15 +11,18 @@ import { initDB } from './db'
 
 const app = new Hono()
 // 允许跨域请求
-app.use(cors())
+app.use('*', secureHeaders())
 
-// 添加中间件,
-const ALLOWED_TOKEN = process.env.ALLOWED_TOKEN
+// CORS 配置（限制允许的来源）
+app.use('/api/*', cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}))
+
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
 
 app.use('/api/*', async (c, next) => {
-  // 如果没有配置Token，则放行。（开发环境）
-  if (!ALLOWED_TOKEN) return next()
   // 检查请求头是否包含 Authorization 字段
   const authHeader = c.req.header('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
