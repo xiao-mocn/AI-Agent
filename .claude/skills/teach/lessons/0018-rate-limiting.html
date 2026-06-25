@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第十八课：速率限制与 API 保护</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #f59e0b; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #f59e0b; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .scenario { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .flow { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第十八课：速率限制与 API 保护</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 安全 · 后端</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么 AI 接口必须加速率限制，不加会出什么问题</li>
+    <li>令牌桶 vs 滑动窗口——两种限流算法的核心思路</li>
+    <li>用 <code>hono-rate-limiter</code> 给后端接口加限流</li>
+    <li>基于 IP 限流（匿名用户）和基于用户 ID 限流（登录用户）</li>
+    <li>前端优雅处理 429 响应</li>
+    <li>内存存储 vs Redis 存储的取舍</li>
+  </ul>
+</div>
+
+<h2>一、为什么 AI 接口必须限流</h2>
+
+<div class="scenario">
+  <strong>不加限流会发生什么？</strong>
+  <ol>
+    <li>恶意用户写个脚本，每秒发 100 条消息 → DeepSeek API 费用爆炸，账单全由你承担</li>
+    <li>某个 bug 导致前端无限重试 → 服务器被自己的代码打垮</li>
+    <li>爬虫批量抓取对话 → 数据泄露、资源耗尽</li>
+    <li>一个用户占满所有并发 → 其他用户无法使用</li>
+  </ol>
+</div>
+
+<p>速率限制（Rate Limiting）就是<strong>控制单个来源在单位时间内能发多少请求</strong>，超出就返回 <code>429 Too Many Requests</code>。</p>
+
+<h2>二、两种核心算法</h2>
+
+<h3>固定窗口（Fixed Window）</h3>
+<p>每个时间窗口（如每分钟）内最多允许 N 次请求。实现最简单，但有"边界突刺"问题：窗口切换瞬间可能涌入 2N 次请求。</p>
+
+<h3>滑动窗口（Sliding Window）</h3>
+<p>时间窗口随当前时刻滑动，更精确，没有边界突刺。<code>hono-rate-limiter</code> 默认用固定窗口，对我们的场景已经足够。</p>
+
+<table>
+  <tr><th>算法</th><th>优点</th><th>缺点</th></tr>
+  <tr><td>固定窗口</td><td>实现简单、内存低</td><td>边界突刺</td></tr>
+  <tr><td>滑动窗口</td><td>更平滑、精确</td><td>内存稍高</td></tr>
+  <tr><td>令牌桶</td><td>允许短时突发，长期平均</td><td>实现复杂</td></tr>
+</table>
+
+<h2>三、安装与基础配置</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装依赖</strong>
+
+  <pre>cd ai-backend
+npm install hono-rate-limiter</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>在 <code>index.ts</code> 中引入</strong>
+
+  <pre><span class="kw">import</span> { rateLimiter } <span class="kw">from</span> <span class="str">'hono-rate-limiter'</span></pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>最简单的用法——全局限流</strong>
+
+  <pre><span class="comment">// 所有 /api/* 接口：每个 IP 每分钟最多 60 次请求</span>
+app.use(<span class="str">'/api/*'</span>, rateLimiter({
+  windowMs: <span class="num">60</span> * <span class="num">1000</span>,   <span class="comment">// 时间窗口：1 分钟</span>
+  limit: <span class="num">60</span>,              <span class="comment">// 最多 60 次</span>
+  keyGenerator: (c) => c.req.header(<span class="str">'x-forwarded-for'</span>) ?? <span class="str">'unknown'</span>,
+  standardHeaders: <span class="str">'draft-6'</span>,  <span class="comment">// 返回 RateLimit-* 响应头</span>
+}))</pre>
+
+  <div class="tip">
+    <code>keyGenerator</code> 决定"按什么维度计数"。这里用 IP 地址——同一 IP 共享配额。
+  </div>
+</div>
+
+<h2>四、对 AI 聊天接口精细限流</h2>
+
+<p>AI 调用比普通接口贵得多，应该单独设更严格的限制。</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>按用户 ID 限流（已登录用户）</strong>
+
+  <p>用 IP 限流有个问题：多人共用同一网络（公司、学校）会共享配额。对已登录用户，应该按 JWT 里的用户 ID 来计数：</p>
+
+  <pre><span class="kw">import</span> jwt <span class="kw">from</span> <span class="str">'jsonwebtoken'</span>
+
+<span class="kw">const</span> chatLimiter = rateLimiter({
+  windowMs: <span class="num">60</span> * <span class="num">1000</span>,   <span class="comment">// 1 分钟</span>
+  limit: <span class="num">10</span>,             <span class="comment">// AI 接口每分钟最多 10 次</span>
+  keyGenerator: (c) => {
+    <span class="kw">const</span> authHeader = c.req.header(<span class="str">'Authorization'</span>)
+    <span class="kw">if</span> (authHeader?.startsWith(<span class="str">'Bearer '</span>)) {
+      <span class="kw">try</span> {
+        <span class="kw">const</span> payload = jwt.verify(
+          authHeader.slice(<span class="num">7</span>),
+          process.env.JWT_SECRET ?? <span class="str">'dev-secret'</span>
+        ) <span class="kw">as</span> { userId: <span class="ty">number</span> }
+        <span class="kw">return</span> <span class="str">`user:<span class="fn">${payload.userId}</span>`</span>
+      } <span class="kw">catch</span> {
+        <span class="comment">// token 无效，退回 IP</span>
+      }
+    }
+    <span class="kw">return</span> c.req.header(<span class="str">'x-forwarded-for'</span>) ?? <span class="str">'unknown'</span>
+  },
+  standardHeaders: <span class="str">'draft-6'</span>,
+})</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>只把 chatLimiter 挂到 AI 路由上</strong>
+
+  <p>在 <code>ai-backend/src/business/chat.ts</code> 里，或者在 <code>index.ts</code> 里精确匹配路由：</p>
+
+  <pre><span class="comment">// 只对聊天接口限流，其他接口不影响</span>
+app.use(<span class="str">'/api/chat/*'</span>, chatLimiter)</pre>
+
+  <div class="tip">
+    中间件注册顺序很重要：limiter 要在 JWT 验证之后，否则未登录请求都走 IP 计数。但如果你想在鉴权前就拦截恶意 IP，也可以放在前面——看业务需求。
+  </div>
+</div>
+
+<h2>五、前端处理 429 响应</h2>
+
+<p>被限流时后端返回 HTTP 429，前端需要优雅提示，而不是让用户看到一个报错。</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>在 fetch 封装里统一处理</strong>
+
+  <p>找到前端发送聊天请求的地方（通常是 <code>useChat.ts</code> 或 API 封装），加上 429 判断：</p>
+
+  <pre><span class="kw">const</span> res = <span class="kw">await</span> fetch(<span class="str">'/api/chat/send'</span>, { ... })
+
+<span class="kw">if</span> (res.status === <span class="num">429</span>) {
+  <span class="comment">// 从响应头读出还需等多少秒</span>
+  <span class="kw">const</span> retryAfter = res.headers.get(<span class="str">'Retry-After'</span>)
+  <span class="kw">const</span> seconds = retryAfter ? parseInt(retryAfter) : <span class="num">60</span>
+  <span class="kw">throw new</span> Error(<span class="str">`请求太频繁，请 <span class="fn">${seconds}</span> 秒后再试`</span>)
+}
+
+<span class="kw">if</span> (!res.ok) {
+  <span class="kw">const</span> data = <span class="kw">await</span> res.json()
+  <span class="kw">throw new</span> Error(data.error ?? <span class="str">'请求失败'</span>)
+}</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>在 UI 上显示友好提示</strong>
+
+  <pre><span class="comment">&lt;!-- 在聊天界面加上限流提示 --&gt;</span>
+&lt;div v-if="rateLimitError" class="rate-limit-tip"&gt;
+  ⏳ {{ rateLimitError }}
+&lt;/div&gt;</pre>
+
+  <pre><span class="kw">const</span> rateLimitError = ref&lt;<span class="ty">string</span> | <span class="ty">null</span>&gt;(<span class="kw">null</span>)
+
+<span class="kw">try</span> {
+  rateLimitError.value = <span class="kw">null</span>
+  <span class="kw">await</span> sendMessage(input.value)
+} <span class="kw">catch</span> (e) {
+  <span class="kw">if</span> (e <span class="kw">instanceof</span> Error && e.message.includes(<span class="str">'请求太频繁'</span>)) {
+    rateLimitError.value = e.message
+  }
+}</pre>
+</div>
+
+<h2>六、429 响应头说明</h2>
+
+<p><code>standardHeaders: 'draft-6'</code> 会自动在响应里加上标准限流头：</p>
+
+<table>
+  <tr><th>响应头</th><th>含义</th></tr>
+  <tr><td><code>RateLimit-Limit</code></td><td>当前窗口允许的最大次数</td></tr>
+  <tr><td><code>RateLimit-Remaining</code></td><td>当前窗口剩余次数</td></tr>
+  <tr><td><code>RateLimit-Reset</code></td><td>窗口重置的时间戳</td></tr>
+  <tr><td><code>Retry-After</code></td><td>被限流后需要等待的秒数（429 时才有）</td></tr>
+</table>
+
+<h2>七、内存存储 vs Redis（生产考量）</h2>
+
+<p><code>hono-rate-limiter</code> 默认把计数存在<strong>内存</strong>里，有两个局限：</p>
+
+<ul>
+  <li>服务重启后计数清零</li>
+  <li>多实例（水平扩展）时各自独立计数，限流形同虚设</li>
+</ul>
+
+<div class="flow">
+  <strong>单实例部署（Render 免费套餐）</strong>：内存存储完全够用<br/>
+  <strong>多实例 / 高可用</strong>：需要换成 Redis 存储（<code>@hono-rate-limiter/redis</code>）
+</div>
+
+<div class="tip">
+  目前我们在 Render 单实例部署，内存存储没问题。等业务增长需要多实例时再迁移 Redis——这是典型的"够用就好，不过早优化"原则。
+</div>
+
+<h2>八、本课实践：给项目加上限流</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装依赖</strong>
+  <pre>cd ai-backend
+npm install hono-rate-limiter</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>修改 <code>ai-backend/src/index.ts</code></strong>
+
+  <p>在 JWT 验证中间件之前加全局 IP 限流，AI 路由再加一层用户级精细限流：</p>
+
+  <pre><span class="kw">import</span> { rateLimiter } <span class="kw">from</span> <span class="str">'hono-rate-limiter'</span>
+
+<span class="comment">// 全局限流：每 IP 每分钟 60 次（在 JWT 验证之前注册）</span>
+app.use(<span class="str">'/api/*'</span>, rateLimiter({
+  windowMs: <span class="num">60</span> * <span class="num">1000</span>,
+  limit: <span class="num">60</span>,
+  keyGenerator: (c) => c.req.header(<span class="str">'x-forwarded-for'</span>) ?? <span class="str">'unknown'</span>,
+  standardHeaders: <span class="str">'draft-6'</span>,
+}))
+
+<span class="comment">// AI 接口精细限流：按用户 ID，每分钟 10 次</span>
+app.use(<span class="str">'/api/chat/*'</span>, rateLimiter({
+  windowMs: <span class="num">60</span> * <span class="num">1000</span>,
+  limit: <span class="num">10</span>,
+  keyGenerator: (c) => {
+    <span class="kw">const</span> auth = c.req.header(<span class="str">'Authorization'</span>)
+    <span class="kw">if</span> (auth?.startsWith(<span class="str">'Bearer '</span>)) {
+      <span class="kw">try</span> {
+        <span class="kw">const</span> payload = jwt.verify(auth.slice(<span class="num">7</span>), JWT_SECRET) <span class="kw">as</span> { userId: <span class="ty">number</span> }
+        <span class="kw">return</span> <span class="str">`user:<span class="fn">${payload.userId}</span>`</span>
+      } <span class="kw">catch</span> {}
+    }
+    <span class="kw">return</span> c.req.header(<span class="str">'x-forwarded-for'</span>) ?? <span class="str">'unknown'</span>
+  },
+  standardHeaders: <span class="str">'draft-6'</span>,
+}))</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>验证限流生效</strong>
+
+  <p>用 curl 快速发 11 次请求，第 11 次应该拿到 429：</p>
+  <pre><span class="comment"># 先登录拿 token（替换为你的账号）</span>
+TOKEN=$(curl -s -X POST http://localhost:3000/api/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"123456"}' | jq -r .token)
+
+<span class="comment"># 循环发 12 次聊天请求</span>
+<span class="kw">for</span> i in $(seq 1 12); <span class="kw">do</span>
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST http://localhost:3000/api/chat/send \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"message":"test","sessionId":1}')
+  echo "请求 $i: $STATUS"
+<span class="kw">done</span></pre>
+
+  <p>期望输出：前 10 次返回 <code>200</code>，第 11 次起返回 <code>429</code>。</p>
+</div>
+
+<h2>九、安全检查清单（更新）</h2>
+
+<ol>
+  <li>前端不用 <code>v-html</code> 渲染用户输入或 AI 回复 ✓</li>
+  <li>认证使用 JWT Bearer Token，天然免疫 CSRF ✓</li>
+  <li>后端已配置 secureHeaders 中间件 ✓</li>
+  <li>CORS origin 精确指定，不使用 <code>'*'</code> ✓</li>
+  <li>全局 API 限流（每 IP 每分钟 60 次）✓ <strong>← 本课新增</strong></li>
+  <li>AI 接口精细限流（每用户每分钟 10 次）✓ <strong>← 本课新增</strong></li>
+  <li>前端优雅处理 429 响应 ✓ <strong>← 本课新增</strong></li>
+</ol>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果攻击者用 100 个不同 IP 的代理服务器绕过 IP 限流，你还能加什么维度来防护？</p>
+  <p><strong>Q2</strong>：假设你的应用要支持 VIP 用户（更高配额，每分钟 50 次），普通用户 10 次，如何修改 <code>keyGenerator</code> 和 <code>limit</code> 来实现？</p>
+  <p><strong>Q3</strong>：为什么服务重启后内存里的限流计数清零不是严重问题（对于我们现在的场景）？什么情况下变成严重问题？</p>
+</div>
+
+<h2>十、本课总结</h2>
+
+<ul>
+  <li>AI 接口必须限流，否则面临费用爆炸和服务被打垮的风险</li>
+  <li><code>hono-rate-limiter</code> 一行代码加限流，<code>keyGenerator</code> 控制按什么维度计数</li>
+  <li>全局按 IP 限流 + AI 接口按用户 ID 精细限流，两层防护</li>
+  <li>前端统一处理 429，展示友好的"请稍后再试"提示</li>
+  <li>单实例用内存存储，多实例扩展时再换 Redis</li>
+</ul>
+
+<p>下一课将进入 <strong>第十九课：输入验证与错误处理规范</strong>——用 Zod 统一校验请求体，让错误信息既安全又清晰。</p>
+
+</body>
+</html>
