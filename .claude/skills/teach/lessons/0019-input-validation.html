@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第十九课：输入验证与错误处理规范（Zod）</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #10b981; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #10b981; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第十九课：输入验证与错误处理规范</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 后端 · 工程质量</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么后端必须独立做输入验证，不能依赖前端</li>
+    <li>Zod：TypeScript-first 的 Schema 验证库，一次声明同时获得类型 + 运行时校验</li>
+    <li>用 <code>safeParse</code> 安全解析请求体，返回有意义的错误信息</li>
+    <li>统一错误响应格式，区分客户端错误（4xx）和服务器错误（5xx）</li>
+    <li>给 <code>/login</code>、<code>/register</code>、<code>/api/chat</code> 接口加上 Zod 校验</li>
+  </ul>
+</div>
+
+<h2>一、为什么后端必须独立做输入验证</h2>
+
+<div class="bad">
+  <strong>没有后端验证时会发生什么？</strong>
+  <ul>
+    <li>用户名传空字符串 <code>""</code> → 数据库里存了一个空用户名，后续查询逻辑全乱</li>
+    <li>密码传 <code>null</code> → bcrypt 比较 null 和哈希，可能抛异常，500 错误泄露堆栈信息</li>
+    <li>message 传 10 万字的字符串 → DeepSeek API 返回 400 或账单飙升</li>
+    <li>sessionId 传 <code>"haha"</code> → SQL 查询拿到 NaN，数据库查出意外结果</li>
+  </ul>
+</div>
+
+<p>关键原则：<strong>前端校验是用户体验层，后端校验是安全层</strong>。任何人都能绕过前端直接发 HTTP 请求，后端必须假设所有输入都是不可信的。</p>
+
+<h2>二、Zod 是什么</h2>
+
+<p>Zod 是 TypeScript 生态最流行的 Schema 验证库。它的核心优势：</p>
+
+<ul>
+  <li><strong>一次声明，双重收益</strong>：写一个 Schema，既能运行时校验，又能自动推导出 TypeScript 类型，无需手写 interface</li>
+  <li><strong>链式 API</strong>：<code>z.string().min(3).max(30).regex(...)</code>，读起来就是规则说明</li>
+  <li><strong>类型安全的解析结果</strong>：<code>safeParse</code> 返回 <code>{ success: true, data: T }</code> 或 <code>{ success: false, error }</code>，强制你处理错误</li>
+  <li><strong>丰富的错误信息</strong>：每条错误规则都能自定义中文提示</li>
+</ul>
+
+<h2>三、Zod 基础用法</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装</strong>
+
+  <pre>cd ai-backend
+npm install zod</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>定义 Schema 并推导类型</strong>
+
+  <pre><span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>
+
+<span class="comment">// 定义 Schema</span>
+<span class="kw">const</span> LoginSchema = z.object({
+  username: z.string().min(<span class="num">1</span>, <span class="str">'用户名不能为空'</span>),
+  password: z.string().min(<span class="num">6</span>, <span class="str">'密码至少 6 位'</span>),
+})
+
+<span class="comment">// 自动推导 TypeScript 类型，无需手写 interface</span>
+<span class="kw">type</span> <span class="ty">LoginInput</span> = z.infer&lt;<span class="kw">typeof</span> LoginSchema&gt;
+<span class="comment">// 等价于：{ username: string; password: string }</span></pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>safeParse vs parse</strong>
+
+  <table>
+    <tr><th>方法</th><th>成功</th><th>失败</th><th>适用场景</th></tr>
+    <tr><td><code>parse(data)</code></td><td>返回解析后的数据</td><td><strong>抛出异常</strong></td><td>失败必须中断的场景</td></tr>
+    <tr><td><code>safeParse(data)</code></td><td><code>{ success: true, data }</code></td><td><code>{ success: false, error }</code></td><td>HTTP 接口——失败应该返回 400，不是 500</td></tr>
+  </table>
+
+  <pre><span class="kw">const</span> result = LoginSchema.safeParse(body)
+
+<span class="kw">if</span> (!result.success) {
+  <span class="comment">// result.error.issues 是错误列表，取第一条给用户看</span>
+  <span class="kw">return</span> c.json({ error: result.error.issues[<span class="num">0</span>].message }, <span class="num">400</span>)
+}
+
+<span class="comment">// result.data 是类型安全的，TypeScript 知道它的形状</span>
+<span class="kw">const</span> { username, password } = result.data</pre>
+</div>
+
+<h2>四、常用 Zod 规则速查</h2>
+
+<table>
+  <tr><th>规则</th><th>作用</th></tr>
+  <tr><td><code>z.string()</code></td><td>必须是字符串</td></tr>
+  <tr><td><code>.min(n, '提示')</code></td><td>最少 n 个字符</td></tr>
+  <tr><td><code>.max(n, '提示')</code></td><td>最多 n 个字符</td></tr>
+  <tr><td><code>.regex(/pattern/, '提示')</code></td><td>匹配正则</td></tr>
+  <tr><td><code>.trim()</code></td><td>去掉首尾空格后再校验</td></tr>
+  <tr><td><code>z.number().int().positive()</code></td><td>正整数</td></tr>
+  <tr><td><code>z.enum(['a', 'b'])</code></td><td>枚举值</td></tr>
+  <tr><td><code>.optional()</code></td><td>字段可选</td></tr>
+  <tr><td><code>.default(value)</code></td><td>缺省时用默认值</td></tr>
+</table>
+
+<h2>五、实践：给现有接口加 Zod 校验</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>新建 Schema 文件</strong>
+
+  <p>集中管理所有 Schema，放在 <code>ai-backend/src/schemas.ts</code>：</p>
+
+  <pre><span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>
+
+<span class="kw">export const</span> RegisterSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(<span class="num">3</span>, <span class="str">'用户名至少 3 位'</span>)
+    .max(<span class="num">30</span>, <span class="str">'用户名最多 30 位'</span>)
+    .regex(<span class="str">/^[a-zA-Z0-9_]+$/</span>, <span class="str">'用户名只能包含字母、数字和下划线'</span>),
+  password: z
+    .string()
+    .min(<span class="num">6</span>, <span class="str">'密码至少 6 位'</span>)
+    .max(<span class="num">72</span>, <span class="str">'密码最多 72 位'</span>),   <span class="comment">// bcrypt 只处理前 72 字节</span>
+})
+
+<span class="kw">export const</span> LoginSchema = z.object({
+  username: z.string().min(<span class="num">1</span>, <span class="str">'请输入用户名'</span>),
+  password: z.string().min(<span class="num">1</span>, <span class="str">'请输入密码'</span>),
+})
+
+<span class="kw">export const</span> ChatSchema = z.object({
+  message: z
+    .string()
+    .min(<span class="num">1</span>, <span class="str">'消息不能为空'</span>)
+    .max(<span class="num">4000</span>, <span class="str">'消息最多 4000 字'</span>),
+  sessionId: z.number().int().positive(<span class="str">'sessionId 必须是正整数'</span>),
+})</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>修改 <code>user.ts</code>——注册和登录接口</strong>
+
+  <pre><span class="kw">import</span> { RegisterSchema, LoginSchema } <span class="kw">from</span> <span class="str">'../schemas'</span>
+
+<span class="comment">// 注册</span>
+app.post(<span class="str">'/register'</span>, <span class="kw">async</span> (c) => {
+  <span class="kw">const</span> body = <span class="kw">await</span> c.req.json()
+  <span class="kw">const</span> result = RegisterSchema.safeParse(body)
+  <span class="kw">if</span> (!result.success) {
+    <span class="kw">return</span> c.json({ error: result.error.issues[<span class="num">0</span>].message }, <span class="num">400</span>)
+  }
+  <span class="kw">const</span> { username, password } = result.data
+  <span class="comment">// ... 原有的 bcrypt + createUser 逻辑不变</span>
+})
+
+<span class="comment">// 登录</span>
+app.post(<span class="str">'/login'</span>, <span class="kw">async</span> (c) => {
+  <span class="kw">const</span> body = <span class="kw">await</span> c.req.json()
+  <span class="kw">const</span> result = LoginSchema.safeParse(body)
+  <span class="kw">if</span> (!result.success) {
+    <span class="kw">return</span> c.json({ error: result.error.issues[<span class="num">0</span>].message }, <span class="num">400</span>)
+  }
+  <span class="kw">const</span> { username, password } = result.data
+  <span class="comment">// ... 原有的 findUser + bcrypt.compare 逻辑不变</span>
+})</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>修改 <code>chat.ts</code>——聊天接口</strong>
+
+  <pre><span class="kw">import</span> { ChatSchema } <span class="kw">from</span> <span class="str">'../schemas'</span>
+
+app.post(<span class="str">'/api/chat'</span>, <span class="kw">async</span> (c) => {
+  <span class="kw">const</span> body = <span class="kw">await</span> c.req.json()
+  <span class="kw">const</span> result = ChatSchema.safeParse(body)
+  <span class="kw">if</span> (!result.success) {
+    <span class="kw">return</span> c.json({ error: result.error.issues[<span class="num">0</span>].message }, <span class="num">400</span>)
+  }
+  <span class="kw">const</span> { message, sessionId } = result.data
+  <span class="comment">// ... 原有的 AI 调用逻辑不变</span>
+})</pre>
+</div>
+
+<h2>六、统一错误响应格式</h2>
+
+<p>目前我们的错误响应格式不统一——有时是 <code>{ error: '...' }</code>，有时是其他结构。建立一个约定：</p>
+
+<div class="good">
+  <strong>统一格式（在整个项目中坚持）</strong>：
+  <pre><span class="comment">// 所有错误响应统一用这个结构</span>
+{ <span class="str">"error"</span>: <span class="str">"对用户友好的错误描述"</span> }
+
+<span class="comment">// 4xx：客户端传了错误的东西，错误信息可以暴露给用户</span>
+c.json({ error: <span class="str">'用户名至少 3 位'</span> }, <span class="num">400</span>)
+
+<span class="comment">// 5xx：服务器内部错误，绝对不暴露堆栈或内部信息</span>
+c.json({ error: <span class="str">'服务器内部错误，请稍后重试'</span> }, <span class="num">500</span>)</pre>
+</div>
+
+<div class="danger">
+  <strong>绝对不要这样做：</strong>
+  <pre><span class="comment">// 把异常堆栈或数据库错误暴露给客户端</span>
+} <span class="kw">catch</span> (e) {
+  <span class="kw">return</span> c.json({ error: e.message }, <span class="num">500</span>)  <span class="comment">// ❌ 可能泄露内部信息</span>
+}</pre>
+
+  正确做法：捕获异常后<strong>记录日志</strong>（下一课学习），返回通用错误消息给用户。
+</div>
+
+<h2>七、Hono 全局错误处理</h2>
+
+<p>除了每个路由单独处理错误，还可以在 <code>index.ts</code> 注册全局错误处理器，作为最后一道防线：</p>
+
+<div class="step">
+  <span class="step-num">1</span><strong>注册全局 onError</strong>
+
+  <pre><span class="comment">// index.ts — 放在所有路由注册之后</span>
+app.onError((err, c) => {
+  console.error(<span class="str">'[未处理异常]'</span>, err)
+  <span class="kw">return</span> c.json({ error: <span class="str">'服务器内部错误，请稍后重试'</span> }, <span class="num">500</span>)
+})</pre>
+
+  <div class="tip">
+    这会捕获所有路由里<strong>没有被 try/catch 处理的异常</strong>，防止 Hono 默认的 500 响应暴露堆栈信息。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>注册 404 处理</strong>
+
+  <pre>app.notFound((c) => {
+  <span class="kw">return</span> c.json({ error: <span class="str">'接口不存在'</span> }, <span class="num">404</span>)
+})</pre>
+</div>
+
+<h2>八、JSON 解析失败的边界情况</h2>
+
+<p>如果客户端发来的不是合法 JSON（如空 body），<code>c.req.json()</code> 会抛异常。需要在 Zod 校验之前保护：</p>
+
+<pre><span class="kw">let</span> body: unknown
+<span class="kw">try</span> {
+  body = <span class="kw">await</span> c.req.json()
+} <span class="kw">catch</span> {
+  <span class="kw">return</span> c.json({ error: <span class="str">'请求体必须是合法的 JSON'</span> }, <span class="num">400</span>)
+}
+
+<span class="kw">const</span> result = LoginSchema.safeParse(body)</pre>
+
+<div class="tip">
+  注意 <code>body</code> 声明为 <code>unknown</code> 类型——这是刻意的。<code>unknown</code> 强制你在使用前先做类型收窄（通过 Zod 的 safeParse），TypeScript 不允许你直接访问 <code>unknown</code> 类型的属性。
+</div>
+
+<h2>九、本课总结</h2>
+
+<ul>
+  <li>后端必须独立做输入验证，不信任任何外部输入，前端校验只是体验层</li>
+  <li>Zod 的 <code>z.object().safeParse()</code> 是 HTTP 接口里的最佳实践——失败返回 400，不抛异常</li>
+  <li>Schema 集中管理，类型自动推导（<code>z.infer&lt;typeof Schema&gt;</code>）</li>
+  <li>错误响应统一格式：<code>{ error: string }</code>；5xx 不暴露内部信息</li>
+  <li>用 <code>app.onError</code> 和 <code>app.notFound</code> 兜底未处理的异常和路由缺失</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：<code>z.string().min(1)</code> 能防住空字符串 <code>""</code>，但能防住 <code>"   "</code>（纯空格）吗？如何修改 Schema 让它也被拒绝？</p>
+  <p><strong>Q2</strong>：注册时 <code>password</code> 最多 72 位的限制是从哪里来的？如果用户传了 100 位密码，不加这个限制会发生什么？</p>
+  <p><strong>Q3</strong>：为什么 <code>app.onError</code> 处理器里只能 <code>console.error(err)</code> 而不能把 <code>err.message</code> 返回给客户端？在什么情况下可以例外？</p>
+</div>
+
+<p>下一课将进入 <strong>第二十课：结构化日志与可观测性</strong>——用 <code>pino</code> 记录结构化 JSON 日志，让后端在生产环境中不再是黑盒，快速定位问题根因。</p>
+
+</body>
+</html>
