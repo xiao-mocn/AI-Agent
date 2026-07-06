@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十一课：优雅关闭与健康检查</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十一课：优雅关闭与健康检查</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 后端 · 工程质量</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么直接 <code>kill</code> 掉进程会丢请求、丢数据</li>
+    <li><code>SIGTERM</code> / <code>SIGINT</code> 信号是什么，容器编排系统怎么用它们</li>
+    <li>优雅关闭三部曲：停止接新请求 → 等在途请求做完 → 关数据库连接</li>
+    <li>健康检查的两种语义：<strong>存活（liveness）</strong>和<strong>就绪（readiness）</strong>的区别</li>
+    <li>给项目加上 <code>/health</code> 和 <code>/ready</code> 两个接口</li>
+  </ul>
+</div>
+
+<h2>一、直接杀掉进程会发生什么</h2>
+
+<p>目前项目的启动方式是 <code>serve({ fetch: app.fetch, port }, ...)</code>，进程会一直跑到被杀死为止。想象一下部署时的场景：你要发布新版本，Railway/Render 之类的平台会给旧进程发一个"该停了"的信号，然后启动新进程。如果旧进程收到信号后立刻退出：</p>
+
+<div class="bad">
+  <ul>
+    <li>正在处理的 HTTP 请求（比如某个用户的 <code>/api/chat</code> 请求还在等 DeepSeek 返回）会被<strong>硬中断</strong>，用户收到连接重置错误</li>
+    <li>PostgreSQL 连接池里还有未提交的查询，连接被粗暴掐断，可能留下半吊子的事务状态</li>
+    <li>如果你的负载均衡器还没来得及把这个实例摘出流量池，新请求可能继续被转发到一个已经死掉的进程</li>
+  </ul>
+</div>
+
+<p>这些问题平时几乎不会被注意到，因为本地开发时你是 <code>Ctrl+C</code> 手动停，连接数为零。但生产环境每次发布都在发生，只是没人把它和"某几个用户偶尔请求失败"联系起来。</p>
+
+<h2>二、SIGTERM 与 SIGINT：进程收到的"退出通知"</h2>
+
+<p>Node.js 进程可以监听系统发来的信号：</p>
+
+<ul>
+  <li><code>SIGINT</code>：你在终端按 <code>Ctrl+C</code> 时发的信号</li>
+  <li><code>SIGTERM</code>：容器编排系统（Docker、Kubernetes、大多数 PaaS）在"温和地"要求进程退出时发的信号——这是它们的标准做法，不是直接 <code>kill -9</code></li>
+</ul>
+
+<div class="tip">
+  容器平台的典型流程是：先发 <code>SIGTERM</code>，给进程一个"宽限期"（Kubernetes 默认 30 秒）自行清理退出；如果超时还没退出，才会发 <code>SIGKILL</code> 强制杀死——这个信号无法被监听或拦截，所以你必须在宽限期内完成清理。
+</div>
+
+<p>默认情况下 Node.js 收到 <code>SIGTERM</code> 会直接退出，不会给你机会做清理。要拿到这个"宽限期"，得自己监听信号。</p>
+
+<h2>三、优雅关闭三部曲</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>监听信号，停止接新请求</strong>
+
+  <p><code>@hono/node-server</code> 的 <code>serve()</code> 返回一个原生 <code>http.Server</code> 实例，调用它的 <code>.close()</code> 会停止接受新连接，但等在途连接处理完再回调：</p>
+
+  <pre><span class="comment">// index.ts</span>
+<span class="kw">const</span> server = serve({ fetch: app.fetch, port }, (info) => {
+  logger.info(<span class="str">`服务器已启动：http://localhost:${info.port}`</span>)
+})
+
+<span class="kw">function</span> <span class="fn">shutdown</span>(signal: <span class="ty">string</span>) {
+  logger.info({ signal }, <span class="str">'收到退出信号，开始优雅关闭'</span>)
+
+  server.close(<span class="kw">async</span> () => {
+    logger.info(<span class="str">'HTTP 服务器已停止接受新连接'</span>)
+    <span class="comment">// 第二步会在这里加：关闭数据库连接</span>
+    process.exit(<span class="num">0</span>)
+  })
+
+  <span class="comment">// 兜底：如果 10 秒内还没关完（比如有请求卡死），强制退出</span>
+  setTimeout(() => {
+    logger.error(<span class="str">'优雅关闭超时，强制退出'</span>)
+    process.exit(<span class="num">1</span>)
+  }, <span class="num">10_000</span>).unref()
+}
+
+process.on(<span class="str">'SIGTERM'</span>, () => shutdown(<span class="str">'SIGTERM'</span>))
+process.on(<span class="str">'SIGINT'</span>, () => shutdown(<span class="str">'SIGINT'</span>))</pre>
+
+  <div class="warn">
+    一定要加超时兜底。<code>server.close()</code> 的回调只有在所有连接都结束后才会触发——如果某个请求因为 bug 永远不会结束（比如卡住的流式响应），进程就会永远挂着，白白占满编排系统给的宽限期，最后被 <code>SIGKILL</code> 强杀，反而绕过了你精心写的清理逻辑。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>关闭数据库连接池</strong>
+
+  <p>项目里 <code>db.ts</code> 用 PG 时维护了一个连接池 <code>pool</code>，进程退出前要显式调用 <code>pool.end()</code> 把连接优雅归还，否则数据库那边会看到一堆"客户端异常断开"的连接，长期攒着可能拖垮连接数上限：</p>
+
+  <pre><span class="comment">// db.ts 新增一个导出函数</span>
+<span class="kw">export async function</span> <span class="fn">closeDB</span>() {
+  <span class="kw">if</span> (isPG && pool) {
+    <span class="kw">await</span> pool.end()
+  }
+  <span class="comment">// better-sqlite3 是同步文件句柄，可选调用 db.close()</span>
+}</pre>
+
+  <pre><span class="comment">// index.ts —— 在 server.close() 回调里补上这一步</span>
+server.close(<span class="kw">async</span> () => {
+  logger.info(<span class="str">'HTTP 服务器已停止接受新连接'</span>)
+  <span class="kw">await</span> closeDB()
+  logger.info(<span class="str">'数据库连接已关闭'</span>)
+  process.exit(<span class="num">0</span>)
+})</pre>
+</div>
+
+<h2>四、健康检查：liveness 和 readiness 是两回事</h2>
+
+<p>容器编排系统和负载均衡器需要定期问你的服务"你还好吗"，但这个问题其实有两层含义，很多人一开始会把它们混为一谈：</p>
+
+<table>
+  <tr><th>类型</th><th>回答的问题</th><th>失败后的动作</th></tr>
+  <tr><td><strong>Liveness（存活）</strong></td><td>"这个进程是不是卡死了？"</td><td>重启这个实例</td></tr>
+  <tr><td><strong>Readiness（就绪）</strong></td><td>"这个实例现在能不能正常处理请求？"</td><td>暂时把它从负载均衡的流量池里摘掉，但不重启</td></tr>
+</table>
+
+<div class="tip">
+  区别的关键场景：数据库连接暂时断开时，进程本身没死（liveness 应该是健康的，不该被重启），但它确实处理不了任何需要查库的请求（readiness 应该是不健康的，先别给它转发流量）。如果 liveness 检查里也去查数据库，一次数据库抖动就会触发一连串不必要的重启，反而让故障恢复更慢。
+</div>
+
+<div class="step">
+  <span class="step-num">1</span><strong>加 <code>/health</code>（liveness）</strong>
+
+  <p>只要进程能响应 HTTP 请求，就返回 200——不做任何外部依赖检查：</p>
+
+  <pre>app.get(<span class="str">'/health'</span>, (c) => c.json({ status: <span class="str">'ok'</span> }))</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>加 <code>/ready</code>（readiness）</strong>
+
+  <p>真正探测依赖是否可用——比如数据库能不能查通：</p>
+
+  <pre>app.get(<span class="str">'/ready'</span>, <span class="kw">async</span> (c) => {
+  <span class="kw">try</span> {
+    <span class="kw">if</span> (isPG) {
+      <span class="kw">await</span> pool.query(<span class="str">'SELECT 1'</span>)
+    } <span class="kw">else</span> {
+      db.prepare(<span class="str">'SELECT 1'</span>).get()
+    }
+    <span class="kw">return</span> c.json({ status: <span class="str">'ready'</span> })
+  } <span class="kw">catch</span> (err) {
+    logger.error({ err }, <span class="str">'就绪检查失败'</span>)
+    <span class="kw">return</span> c.json({ status: <span class="str">'not ready'</span> }, <span class="num">503</span>)
+  }
+})</pre>
+
+  <div class="good">
+    返回 <code>503</code>（Service Unavailable）而不是 <code>500</code>——这是语义正确的状态码，明确告诉调用方"我现在不是坏了，只是暂时没法处理请求"，负载均衡器和监控系统都会按这个约定识别"临时不可用"。
+  </div>
+</div>
+
+<h2>五、本课总结</h2>
+
+<ul>
+  <li>直接杀进程会丢在途请求、留下半吊子的数据库连接——优雅关闭是生产可靠性的基本功</li>
+  <li><code>SIGTERM</code> 是编排系统给你的"清理时间"，监听它并在超时前完成 <code>server.close()</code> + 关闭数据库连接</li>
+  <li>一定要加超时兜底，否则一个卡死的请求会让优雅关闭变成"永远不关闭"</li>
+  <li>liveness 只回答"进程活着吗"，readiness 才回答"依赖都通吗"——混用会导致依赖抖动时的不必要重启</li>
+  <li><code>/ready</code> 检查失败时返回 <code>503</code>，这是负载均衡器和监控系统都认识的标准语义</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果 <code>/health</code>（liveness）里也去检查数据库连接，数据库短暂抖动 5 秒会导致什么连锁反应？</p>
+  <p><strong>Q2</strong>：优雅关闭的超时兜底设成 10 秒，但项目里 <code>/api/chat</code> 请求经常要等 DeepSeek 返回超过 10 秒，这会带来什么问题？应该怎么调整？</p>
+  <p><strong>Q3</strong>：为什么服务器要先 <code>server.close()</code> 停止接受新连接，再关闭数据库连接池，而不是反过来？如果顺序反了会发生什么？</p>
+</div>
+
+<p>下一课将进入 <strong>第二十二课：Docker 容器化</strong>——把项目打包成镜像，学习多阶段构建减小镜像体积，并把这节课的健康检查接口接入 <code>HEALTHCHECK</code> 指令，为后续接入容器编排系统打基础。</p>
+
+</body>
+</html>
