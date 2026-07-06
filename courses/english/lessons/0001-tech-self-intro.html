@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 1 课：技术自我介绍</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #b45309;
+      --bg: #fafaf8;
+      --border: #e2e2dc;
+      --code-bg: #f4f4f0;
+      --success: #16a34a;
+      --warn-bg: #fffbeb;
+      --warn-border: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    .breadcrumb {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 3px;
+      background: #fef3c7;
+      color: var(--accent);
+      margin-bottom: 0.9rem;
+    }
+
+    h1 {
+      font-size: 2.1rem;
+      font-weight: normal;
+      line-height: 1.25;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 2.8rem 0 1rem;
+    }
+
+    p { margin-bottom: 1rem; }
+    strong { font-weight: bold; }
+
+    /* ── 句型卡片 ── */
+    .pattern {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 1.5rem 0 2rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .pattern-row {
+      border-bottom: 1px solid var(--border);
+      padding: 1.1rem 1.25rem;
+    }
+    .pattern-row:last-child { border-bottom: none; }
+
+    .pattern-num {
+      display: inline-flex;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      align-items: center;
+      justify-content: center;
+      margin-right: 0.5rem;
+    }
+
+    .pattern-en {
+      font-family: Georgia, serif;
+      font-size: 1.15rem;
+      margin: 0.5rem 0 0.4rem;
+    }
+
+    .pattern-en .blank {
+      color: var(--accent);
+      border-bottom: 2px dotted var(--accent);
+      padding: 0 3px;
+    }
+
+    .pattern-zh {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .pattern-example {
+      font-size: 0.9rem;
+      background: var(--code-bg);
+      border-left: 3px solid var(--accent);
+      padding: 0.5rem 0.9rem;
+      margin-top: 0.4rem;
+    }
+    .pattern-example .zh {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 0.2rem;
+    }
+
+    /* ── 词汇小抄 ── */
+    .vocab {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin: 1rem 0 2rem;
+    }
+    .vocab-item {
+      display: flex;
+      gap: 1rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      align-items: baseline;
+    }
+    .vocab-word {
+      font-weight: 700;
+      min-width: 130px;
+      color: var(--accent);
+    }
+    .vocab-desc { color: var(--text); }
+
+    /* ── 提示框 ── */
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 0.75rem 1.1rem;
+      background: #fffbeb;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* ── 练习区 ── */
+    .practice-box {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 1.1rem 1.25rem;
+      margin: 1.5rem 0 2rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+    .practice-box textarea {
+      width: 100%;
+      margin-top: 0.7rem;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      padding: 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      resize: vertical;
+      min-height: 90px;
+    }
+    .practice-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    code {
+      font-family: 'Fira Code', Menlo, Consolas, monospace;
+    }
+    p code, li code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+
+    /* ── 测验 ── */
+    .quiz {
+      margin: 1.5rem 0 2rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .quiz-header {
+      background: var(--code-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .quiz-q {
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .quiz-q:last-child { border-bottom: none; }
+
+    .quiz-question {
+      font-size: 0.95rem;
+      margin-bottom: 0.7rem;
+      line-height: 1.6;
+      font-family: Georgia, serif;
+    }
+
+    .quiz-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .quiz-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.83rem;
+      padding: 0.35rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.12s, background 0.12s;
+    }
+
+    .quiz-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .quiz-btn.correct {
+      border-color: var(--success);
+      background: #f0fdf4;
+      color: var(--success);
+    }
+
+    .quiz-btn.wrong {
+      border-color: #dc2626;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .quiz-explain {
+      display: none;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      line-height: 1.5;
+      padding-top: 0.6rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .quiz-explain.show { display: block; }
+    .quiz-explain .correct-label { color: var(--success); font-weight: 600; }
+    .quiz-explain .wrong-label   { color: #dc2626; font-weight: 600; }
+
+    /* ── 资源区 ── */
+    .resources {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .resource-item {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      align-items: flex-start;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      transition: color 0.12s;
+    }
+    .resource-item:last-child { border-bottom: none; }
+    .resource-item:hover { color: var(--accent); }
+
+    .resource-icon {
+      font-size: 1rem;
+      min-width: 1.5rem;
+      text-align: center;
+      margin-top: 1px;
+    }
+
+    .resource-body {}
+    .resource-name { font-weight: 600; }
+    .resource-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    .teacher-note {
+      margin-top: 2rem;
+      padding: 1rem 1.1rem;
+      background: #f0fdf4;
+      border-radius: 6px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      border: 1px solid #bbf7d0;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2.5rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="breadcrumb">程序员英语实战 › 第 1 课（共 N 课）</div>
+
+  <div class="tag">第 1 课 · 知识 + 技能</div>
+  <h1>30 秒技术自我介绍</h1>
+  <p class="subtitle">用三个句型，讲清楚"我是谁、我会什么、我在做什么"</p>
+
+  <!-- ──────────────────────────────── -->
+  <h2>为什么从这里开始</h2>
+
+  <p>
+    技术自我介绍（"Tell me about yourself"）几乎出现在<strong>每一场英文面试的开场</strong>，
+    也是加入国际团队、第一次站会自我介绍时最常用到的表达。
+    它是投入产出比最高的起点：句型固定、场景高频、练熟一次能反复用一辈子。
+  </p>
+
+  <p>
+    这节课不讲语法规则，只给你三个可以直接套用的句型，
+    覆盖"角色 → 技能背景 → 当前项目"这条最自然的介绍逻辑。
+  </p>
+
+  <!-- ──────────────────────────────── -->
+  <h2>三个核心句型</h2>
+
+  <div class="pattern">
+    <div class="pattern-row">
+      <div><span class="pattern-num">1</span><strong>说明你的角色</strong></div>
+      <p class="pattern-en">I'm <span class="blank">a / an ___</span>.</p>
+      <p class="pattern-zh">我是一名 ___（角色/职位）</p>
+      <div class="pattern-example">
+        I'm a backend developer.
+        <div class="zh">我是一名后端开发工程师。</div>
+      </div>
+    </div>
+
+    <div class="pattern-row">
+      <div><span class="pattern-num">2</span><strong>说明你的技能背景</strong></div>
+      <p class="pattern-en">I've been working with <span class="blank">___</span> for <span class="blank">___</span>.</p>
+      <p class="pattern-zh">我用 ___（技术/工具）已经做了 ___（时间）</p>
+      <div class="pattern-example">
+        I've been working with Node.js for two years.
+        <div class="zh">我用 Node.js 已经做了两年。</div>
+      </div>
+    </div>
+
+    <div class="pattern-row">
+      <div><span class="pattern-num">3</span><strong>说明你当前在做什么</strong></div>
+      <p class="pattern-en">Currently, I'm working on <span class="blank">___</span>.</p>
+      <p class="pattern-zh">目前，我在做 ___（项目/任务）</p>
+      <div class="pattern-example">
+        Currently, I'm working on an AI chat backend.
+        <div class="zh">目前，我在做一个 AI 聊天后端。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    把三句连起来，就是一段完整、自然的技术自我介绍：<br>
+    <em>"I'm a backend developer. I've been working with Node.js for two years.
+    Currently, I'm working on an AI chat backend."</em>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>词汇小抄</h2>
+
+  <div class="vocab">
+    <div class="vocab-item">
+      <span class="vocab-word">developer</span>
+      <span class="vocab-desc">开发者——最通用、最安全的自称，任何场合都合适</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">engineer</span>
+      <span class="vocab-desc">工程师——语气更正式，简历/面试中和 developer 可互换</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">work on</span>
+      <span class="vocab-desc">正在做（某个项目/任务）—— <code>on</code> 不能漏，后面接名词</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">work with</span>
+      <span class="vocab-desc">使用/搭配（某个技术、工具、语言）—— <code>with</code> 不能漏</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">currently</span>
+      <span class="vocab-desc">目前——放句首，提醒对方"接下来说的是现在进行的事"</span>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>轮到你了</h2>
+
+  <div class="practice-box">
+    <p>用今天的三个句型，写一段属于你自己的 30 秒自我介绍：</p>
+    <textarea placeholder="I'm a ... I've been working with ... for ... Currently, I'm working on ..."></textarea>
+    <p class="practice-hint">写完后大声读一遍——技术面试和站会都是"说"出来的，不是"写"出来的。</p>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>练习：检验你的理解</h2>
+
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+
+    <div class="quiz-q" id="q1">
+      <p class="quiz-question">
+        1. I ___ a backend developer.
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q1',this,true,'正确。主语是 I，be 动词用 am。')">am</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'is 只配 he / she / it，不配 I。')">is</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'be 是原形，不能直接跟在 I 后面做谓语。')">be</button>
+      </div>
+      <div class="quiz-explain" id="q1-explain"></div>
+    </div>
+
+    <div class="quiz-q" id="q2">
+      <p class="quiz-question">
+        2. I've ___ working with React for two years.
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q2',this,true,'正确。&quot;have/has been doing&quot; 是固定结构，表示从过去持续到现在。')">been</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'gone 搭配 have gone 表示&quot;去了(且没回来)&quot;，和这里的语境不符。')">gone</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'done 是 do 的过去分词，这里需要的是 be 的过去分词。')">done</button>
+      </div>
+      <div class="quiz-explain" id="q2-explain"></div>
+    </div>
+
+    <div class="quiz-q" id="q3">
+      <p class="quiz-question">
+        3. Currently, I'm working ___ an AI chat backend.
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q3',this,true,'正确。&quot;work on something&quot; 表示正在做某个项目/任务。')">on</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'&quot;work in&quot; 一般接领域/行业，比如 work in tech，不接具体项目。')">in</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'&quot;work at&quot; 一般接公司/地点，比如 work at Google。')">at</button>
+      </div>
+      <div class="quiz-explain" id="q3-explain"></div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <hr>
+
+  <div class="resources">
+    <h2>本课推荐资源</h2>
+
+    <a class="resource-item" href="https://www.techinterviewhandbook.org/self-introduction/" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Tech Interview Handbook: Self Introduction（主读）</div>
+        <div class="resource-desc">开源面试准备项目 · 讲解技术面试自我介绍的完整结构和更多真实范例</div>
+      </div>
+    </a>
+
+    <a class="resource-item" href="https://www.freecodecamp.org/news/learn-english-for-developers-a2/" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">freeCodeCamp: Learn English for Developers (A2)</div>
+        <div class="resource-desc">免费英语课程 · 适合系统补齐入门阶段的词汇和语法</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="teacher-note">
+    <strong>有疑问吗？</strong>
+    比如"为什么用 developer 不用 programmer"、"这句话可以换个说法吗"——
+    直接问我。我是你的老师，没有蠢问题。
+    下一课我们会用今天的句型，扩展到"介绍一个具体项目"。
+  </div>
+
+  <script>
+    function answer(qid, btn, isCorrect, explanation) {
+      const container = document.getElementById(qid);
+      if (container.dataset.answered) return;
+      container.dataset.answered = '1';
+
+      container.querySelectorAll('.quiz-btn').forEach(b => { b.disabled = true; });
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+      const explainEl = document.getElementById(qid + '-explain');
+      const label = isCorrect
+        ? '<span class="correct-label">正确。</span> '
+        : '<span class="wrong-label">错误。</span> ';
+      explainEl.innerHTML = label + explanation;
+      explainEl.classList.add('show');
+    }
+  </script>
+</body>
+</html>
