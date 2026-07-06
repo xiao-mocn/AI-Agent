@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { Hono } from 'hono'
 import { createUser, findUser } from '../db'
-import { RegisterSchema, LoginSchema } from '../schemas'
+import { RegisterSchema, LoginSchema } from './schemas'
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
 

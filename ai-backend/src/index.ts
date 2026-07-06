@@ -4,6 +4,8 @@ import { secureHeaders } from 'hono/secure-headers'
 import { Hono } from 'hono'
 import jwt from 'jsonwebtoken'
 import { cors } from 'hono/cors'
+import { requestId } from 'hono/request-id'
+import { logger } from './business/logger'
 import { rateLimiter } from 'hono-rate-limiter'
 import ChatMessageRoutes from './business/chat'
 import user from './business/user'
@@ -14,6 +16,7 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 app.use('*', secureHeaders())
+app.use('*', requestId())
 
 // CORS（需覆盖 /login /register 等无前缀路由，所以用 * 而非 /api/*）
 app.use('*', cors({
@@ -21,6 +24,19 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
+
+// 请求日志中间件：记录方法、路径、状态码、耗时
+app.use('*', async (c, next) => {
+  const start = Date.now()
+  await next()
+  logger.info({
+    requestId: c.var.requestId,
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    durationMs: Date.now() - start,
+  }, '请求完成')
+})
 
 // 全局限流：每 IP 每分钟 60 次
 app.use('/api/*', rateLimiter({
@@ -71,7 +87,11 @@ ChatMessageRoutes(app)
 
 // index.ts — 放在所有路由注册之后
 app.onError((err, c) => {
-  console.error('[未处理异常]', err)
+  logger.error({
+    requestId: c.var.requestId,
+    err: { message: err.message, stack: err.stack },
+    path: c.req.path,
+  }, '未处理异常')
   return c.json({ error: '服务器内部错误，请稍后重试' }, 500)
 })
 

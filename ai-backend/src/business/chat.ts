@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 import { Hono } from 'hono'
-import { ChatSchema } from '../schemas'
+import { ChatSchema } from './schemas'
 import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
 
 export default function ChatMessageRoutes(app: Hono) {
