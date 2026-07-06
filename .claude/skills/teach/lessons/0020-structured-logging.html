@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十课：结构化日志与可观测性（pino）</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十课：结构化日志与可观测性</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 后端 · 工程质量</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么 <code>console.log</code> 在生产环境里几乎等于没有日志</li>
+    <li>pino：高性能、TypeScript 友好的结构化 JSON 日志库</li>
+    <li>用 <code>pino-http</code> 给每个请求自动打日志（方法、路径、状态码、耗时）</li>
+    <li>用 requestId 把一次请求里的所有日志串成一条线</li>
+    <li>把上一课 <code>onError</code> 里的 <code>console.error</code> 升级成结构化错误日志</li>
+    <li>敏感字段（密码、token）自动脱敏，避免日志本身变成泄露源</li>
+  </ul>
+</div>
+
+<h2>一、为什么 console.log 不够用</h2>
+
+<p>上一课我们在 <code>app.onError</code> 里写了 <code>console.error('[未处理异常]', err)</code>——这只是"先别让堆栈泄露给用户"的临时方案，作为生产环境的日志系统，它有几个致命问题：</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>不可检索</strong>：日志是纯文本堆在终端或文件里，想找"过去一小时里所有 500 错误"只能肉眼翻</li>
+    <li><strong>不可分级</strong>：调试信息、警告、致命错误全部长一个样，生产环境想只看 error 级别做不到</li>
+    <li><strong>请求对不上号</strong>：并发请求下，A 请求和 B 请求的日志交错打印，出问题时分不清哪几行属于同一次请求</li>
+    <li><strong>没有结构</strong>：日志分析工具（如 ELK、Datadog、Grafana Loki）需要 JSON 这样的结构化数据才能做统计和告警，纯文本很难解析</li>
+  </ul>
+</div>
+
+<p>这就是"可观测性"（Observability）要解决的问题：<strong>不用重现 bug，只看日志就能定位问题根因</strong>。</p>
+
+<h2>二、pino 是什么</h2>
+
+<p>pino 是 Node.js 生态里性能最好的日志库之一，核心特点：</p>
+
+<ul>
+  <li><strong>默认输出结构化 JSON</strong>：每条日志都是一个对象，天然适合被日志系统检索、过滤、聚合</li>
+  <li><strong>极致性能</strong>：通过异步序列化把日志开销降到最低，不会成为高并发下的瓶颈</li>
+  <li><strong>日志分级</strong>：<code>trace/debug/info/warn/error/fatal</code> 六个级别，生产环境只开 <code>info</code> 以上</li>
+  <li><strong>字段脱敏</strong>：内置 <code>redact</code> 选项，声明敏感字段路径就能自动打码</li>
+  <li><strong>开发体验</strong>：配合 <code>pino-pretty</code>，本地开发时把 JSON 转成人类可读的彩色输出</li>
+</ul>
+
+<div class="tip">
+  推荐阅读官方文档：<a href="https://getpino.io/#/docs/api" target="_blank">pino API 文档</a>，尤其是 <code>redact</code> 和 <code>child logger</code> 两节。
+</div>
+
+<h2>三、安装与基础用法</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装</strong>
+
+  <pre>cd ai-backend
+npm install pino pino-http
+npm install -D pino-pretty</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>创建 logger 实例</strong>
+
+  <p>新建 <code>ai-backend/src/logger.ts</code>，集中配置：</p>
+
+  <pre><span class="kw">import</span> pino <span class="kw">from</span> <span class="str">'pino'</span>
+
+<span class="kw">const</span> isDev = process.env.NODE_ENV !== <span class="str">'production'</span>
+
+<span class="kw">export const</span> logger = pino({
+  level: process.env.LOG_LEVEL ?? (isDev ? <span class="str">'debug'</span> : <span class="str">'info'</span>),
+  <span class="comment">// 敏感字段自动脱敏，路径按 pino 的点号语法写</span>
+  redact: {
+    paths: [<span class="str">'req.headers.authorization'</span>, <span class="str">'*.password'</span>, <span class="str">'*.token'</span>],
+    censor: <span class="str">'[REDACTED]'</span>,
+  },
+  <span class="comment">// 开发环境用 pino-pretty 格式化，生产环境保持纯 JSON（方便日志系统采集）</span>
+  transport: isDev ? { target: <span class="str">'pino-pretty'</span>, options: { colorize: <span class="kw">true</span> } } : <span class="kw">undefined</span>,
+})</pre>
+
+  <div class="tip">
+    <code>level</code> 用环境变量 <code>LOG_LEVEL</code> 控制，本地开发默认 <code>debug</code>（看到所有细节），生产环境默认 <code>info</code>（只看关键事件），部署时不用改代码，改环境变量就行。
+  </div>
+</div>
+
+<h2>四、给每个请求自动打日志</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>用 <code>hono/request-id</code> 生成 requestId</strong>
+
+  <p>Hono 内置了请求 ID 中间件，给每个请求生成唯一 ID，方便把同一次请求的日志串起来：</p>
+
+  <pre><span class="comment">// index.ts</span>
+<span class="kw">import</span> { requestId } <span class="kw">from</span> <span class="str">'hono/request-id'</span>
+<span class="kw">import</span> { logger } <span class="kw">from</span> <span class="str">'./logger'</span>
+
+app.use(<span class="str">'*'</span>, requestId())
+
+<span class="comment">// 请求日志中间件：记录方法、路径、状态码、耗时</span>
+app.use(<span class="str">'*'</span>, <span class="kw">async</span> (c, next) => {
+  <span class="kw">const</span> start = Date.now()
+  <span class="kw">await</span> next()
+  logger.info({
+    requestId: c.var.requestId,
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    durationMs: Date.now() - start,
+  }, <span class="str">'请求完成'</span>)
+})</pre>
+
+  <div class="tip">
+    把这个中间件放在最前面（<code>secureHeaders</code> 之前或之后都行，但要在业务路由之前），这样无论请求最终成功还是被限流、鉴权拦截，都会留下一条日志。
+  </div>
+</div>
+
+<h2>五、把 onError 升级成结构化错误日志</h2>
+
+<p>上一课的 <code>app.onError</code> 只有 <code>console.error</code>，现在换成 pino，并带上 <code>requestId</code> 方便和请求日志对应：</p>
+
+<pre><span class="comment">// index.ts</span>
+app.onError((err, c) => {
+  logger.error({
+    requestId: c.var.requestId,
+    err: { message: err.message, stack: err.stack },
+    path: c.req.path,
+  }, <span class="str">'未处理异常'</span>)
+  <span class="kw">return</span> c.json({ error: <span class="str">'服务器内部错误，请稍后重试'</span> }, <span class="num">500</span>)
+})</pre>
+
+<div class="good">
+  <strong>为什么这样更好：</strong>
+  <ul>
+    <li><code>err.stack</code> 只写进服务器日志，从来不会到达 <code>c.json</code> 返回给客户端——延续了第十九课"5xx 不暴露内部信息"的原则</li>
+    <li><code>requestId</code> 让你能拿着用户报告的一次失败请求，在日志系统里精确搜出对应的错误堆栈</li>
+    <li>结构化字段（<code>path</code>、<code>err.message</code>）可以直接用来做告警规则，比如"某个 path 的 500 次数超过阈值就报警"</li>
+  </ul>
+</div>
+
+<h2>六、敏感信息脱敏的边界</h2>
+
+<div class="warn">
+  <p><code>redact</code> 只能屏蔽你显式声明的字段路径，无法自动识别"这个字符串看起来像密码"。所以：</p>
+  <ul>
+    <li>打印请求体前，永远检查里面有没有 <code>password</code>、<code>token</code>、<code>Authorization</code> 这类字段</li>
+    <li>不要在日志里直接 <code>logger.info(body)</code> 打印整个未经筛选的请求体——写清楚要打印哪些字段</li>
+    <li>JWT token 即使脱敏了字段名，也要注意别把 token 整串拼进其他字段（比如拼进一条纯文本消息里）</li>
+  </ul>
+</div>
+
+<h2>七、日志级别怎么用</h2>
+
+<table>
+  <tr><th>级别</th><th>什么时候用</th></tr>
+  <tr><td><code>debug</code></td><td>开发调试用的细节信息，生产环境通常关闭</td></tr>
+  <tr><td><code>info</code></td><td>正常业务事件：请求完成、用户登录成功、任务执行完毕</td></tr>
+  <tr><td><code>warn</code></td><td>不影响当前请求，但需要关注的异常情况：限流触发、token 即将过期</td></tr>
+  <tr><td><code>error</code></td><td>请求失败、未捕获异常——需要有人去看</td></tr>
+  <tr><td><code>fatal</code></td><td>进程即将崩溃退出前的最后记录</td></tr>
+</table>
+
+<h2>八、本课总结</h2>
+
+<ul>
+  <li><code>console.log</code> 只是"输出"，不是"可观测性"——生产环境需要结构化、可检索、可分级的日志</li>
+  <li>pino 提供高性能的 JSON 日志，配合 <code>pino-pretty</code> 兼顾开发体验</li>
+  <li>用 <code>hono/request-id</code> 生成 requestId，串联同一次请求的所有日志</li>
+  <li>请求日志 + 错误日志双管齐下：正常请求记 <code>info</code>，异常记 <code>error</code> 并带上 requestId</li>
+  <li><code>redact</code> 只能防你想到的字段，打印请求体前始终要过一遍脑子</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果两个并发请求同时抛出异常，日志里没有 requestId 会发生什么？加上 requestId 之后，你会怎么用它在日志系统里定位某一次用户报告的失败请求？</p>
+  <p><strong>Q2</strong>：<code>redact</code> 配置了 <code>'*.password'</code>，但如果某个接口把密码明文拼进了一条 <code>info</code> 级别的普通消息字符串（比如 <code>logger.info('用户 ' + username + ' 密码是 ' + password)</code>），还会被脱敏吗？为什么？</p>
+  <p><strong>Q3</strong>：生产环境把 <code>LOG_LEVEL</code> 设成 <code>debug</code> 会有什么代价？（提示：不仅是磁盘占用）</p>
+</div>
+
+<p>下一课将进入 <strong>第二十一课：优雅关闭与健康检查</strong>——学习如何让服务器在收到停止信号时不丢请求地安全退出，以及如何给负载均衡器和容器编排系统提供健康检查接口。</p>
+
+</body>
+</html>
