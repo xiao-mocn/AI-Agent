@@ -3,8 +3,7 @@ import bcrypt from 'bcryptjs'
 import { Hono } from 'hono'
 import { createUser, findUser } from '../db'
 import { RegisterSchema, LoginSchema } from './schemas'
-
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
+import { JWT_SECRET } from '../config'
 
 export default function createUserRoutes(app: Hono) {
   // 注册

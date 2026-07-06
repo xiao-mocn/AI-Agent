@@ -67,6 +67,24 @@ export async function deleteLastUserMsg(sessionId: string | number) {
   }
 }
 
+// 健康检查：数据库是否可查通
+export async function checkDBHealth() {
+  if (isPG) {
+    await pool!.query('SELECT 1')
+  } else {
+    db.prepare('SELECT 1').get()
+  }
+}
+
+// 关闭数据库连接
+export async function closeDB() {
+  if (isPG && pool) {
+    await pool.end()
+  }
+  // better-sqlite3 是同步文件句柄，可选调用 db.close()
+  db.close()
+}
+
 export async function initDB() {
   if (isPG) {
     await pool!.query(`

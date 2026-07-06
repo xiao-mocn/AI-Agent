@@ -2,18 +2,18 @@ import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { secureHeaders } from 'hono/secure-headers'
 import { Hono } from 'hono'
-import jwt from 'jsonwebtoken'
 import { cors } from 'hono/cors'
 import { requestId } from 'hono/request-id'
 import { logger } from './business/logger'
-import { rateLimiter } from 'hono-rate-limiter'
+import { FRONTEND_URL, PORT } from './config'
+import { requestLogger } from './middleware/requestLogger'
+import { requireAuth } from './middleware/auth'
+import { globalRateLimiter, chatRateLimiter } from './middleware/rateLimiters'
 import ChatMessageRoutes from './business/chat'
 import user from './business/user'
-import { initDB } from './db'
+import { initDB, closeDB, checkDBHealth } from './db'
 
 const app = new Hono()
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 app.use('*', secureHeaders())
 app.use('*', requestId())
@@ -25,67 +25,33 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
 
-// 请求日志中间件：记录方法、路径、状态码、耗时
-app.use('*', async (c, next) => {
-  const start = Date.now()
-  await next()
-  logger.info({
-    requestId: c.var.requestId,
-    method: c.req.method,
-    path: c.req.path,
-    status: c.res.status,
-    durationMs: Date.now() - start,
-  }, '请求完成')
-})
+app.use('*', requestLogger)
 
-// 全局限流：每 IP 每分钟 60 次
-app.use('/api/*', rateLimiter({
-  windowMs: 60 * 1000,
-  limit: 60,
-  keyGenerator: (c) => c.req.header('x-forwarded-for') ?? 'unknown',
-  standardHeaders: 'draft-6',
-}))
-
-// JWT 鉴权
-app.use('/api/*', async (c, next) => {
-  const authHeader = c.req.header('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ error: '未授权，请先登录' }, 401)
-  }
-  const token = authHeader.slice(7)
-  try {
-    jwt.verify(token, JWT_SECRET)
-    return next()
-  } catch {
-    return c.json({ error: 'token 无效或已过期，请重新登录' }, 401)
-  }
-})
-
-// AI 接口精细限流：按用户 ID，每分钟 10 次
-app.use('/api/chat/*', rateLimiter({
-  windowMs: 60 * 1000,
-  limit: 10,
-  keyGenerator: (c) => {
-    const auth = c.req.header('Authorization')
-    if (auth?.startsWith('Bearer ')) {
-      try {
-        const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { userId: number }
-        return `user:${payload.userId}`
-      } catch { }
-    }
-    return c.req.header('x-forwarded-for') ?? 'unknown'
-  },
-  standardHeaders: 'draft-6',
-}))
+app.use('/api/*', globalRateLimiter)
+app.use('/api/*', requireAuth)
+app.use('/api/chat/*', chatRateLimiter)
 
 app.get('/', (c) => {
   return c.json({ message: 'AI 后端运行中 ✓' })
 })
 
+// liveness：进程能响应就算活着，不查依赖
+app.get('/health', (c) => c.json({ status: 'ok' }))
+
+// readiness：探测数据库是否可查通
+app.get('/ready', async (c) => {
+  try {
+    await checkDBHealth()
+    return c.json({ status: 'ready' })
+  } catch (err) {
+    logger.error({ err }, '就绪检查失败')
+    return c.json({ status: 'not ready' }, 503)
+  }
+})
+
 user(app)
 ChatMessageRoutes(app)
 
-// index.ts — 放在所有路由注册之后
 app.onError((err, c) => {
   logger.error({
     requestId: c.var.requestId,
@@ -100,7 +66,28 @@ app.notFound((c) => {
 })
 
 initDB().then(() => {
-  serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3000 }, (info) => {
-    console.log(`服务器已启动：http://localhost:${info.port}`)
+  const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
+    logger.info(`服务器已启动：http://localhost:${info.port}`)
   })
+  // 优雅关闭服务器
+  function shutdown(signal: string) {
+    logger.info({ signal }, '收到退出信号，开始优雅关闭')
+
+    server.close(async () => {
+      logger.info('HTTP 服务器已停止接受新连接')
+      await closeDB()
+      logger.info('数据库连接已关闭')
+      process.exit(0)
+    })
+
+    // 兜底：如果 10 秒内还没关完（比如有请求卡死），强制退出
+    setTimeout(() => {
+      logger.error('优雅关闭超时，强制退出')
+      process.exit(1)
+    }, 10_000).unref()
+  }
+
+  // 注册信号处理函数
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 })
