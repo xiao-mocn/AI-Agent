@@ -33,7 +33,7 @@ export async function findUser(username: string): Promise<any> {
 
 // ===== 消息相关 =====
 
-export async function insertMsg(sessionId: string, role: string, content: string) {
+export async function insertMsg(sessionId: string | number, role: string, content: string) {
   if (isPG) {
     await pool!.query('INSERT INTO messages (session_id, role, content) VALUES ($1, $2, $3)', [sessionId, role, content])
   } else {
@@ -41,7 +41,7 @@ export async function insertMsg(sessionId: string, role: string, content: string
   }
 }
 
-export async function getHistory(sessionId: string) {
+export async function getHistory(sessionId: string | number) {
   if (isPG) {
     const { rows } = await pool!.query('SELECT role, content FROM messages WHERE session_id = $1 ORDER BY id ASC', [sessionId])
     return rows
@@ -49,7 +49,7 @@ export async function getHistory(sessionId: string) {
   return db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC').all(sessionId)
 }
 
-export async function countSession(sessionId: string): Promise<number> {
+export async function countSession(sessionId: string | number): Promise<number> {
   if (isPG) {
     const { rows } = await pool!.query('SELECT COUNT(*) AS cnt FROM messages WHERE session_id = $1', [sessionId])
     return Number(rows[0].cnt)
@@ -59,7 +59,7 @@ export async function countSession(sessionId: string): Promise<number> {
 }
 
 // PG 专用：删除 user 消息（出错回滚用）
-export async function deleteLastUserMsg(sessionId: string) {
+export async function deleteLastUserMsg(sessionId: string | number) {
   if (isPG) {
     await pool!.query('DELETE FROM messages WHERE session_id = $1 AND role = $2 AND id = (SELECT MAX(id) FROM messages WHERE session_id = $1 AND role = $2)', [sessionId, 'user'])
   } else {

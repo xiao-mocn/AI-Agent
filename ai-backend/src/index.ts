@@ -45,8 +45,8 @@ app.use('/api/*', async (c, next) => {
   }
 })
 
-// AI 接口精细限流：按用户 ID，每分钟 10 次（/api/chat 和 /api/chat/* 都覆盖）
-app.use('/api/chat', rateLimiter({
+// AI 接口精细限流：按用户 ID，每分钟 10 次
+app.use('/api/chat/*', rateLimiter({
   windowMs: 60 * 1000,
   limit: 10,
   keyGenerator: (c) => {
@@ -68,6 +68,16 @@ app.get('/', (c) => {
 
 user(app)
 ChatMessageRoutes(app)
+
+// index.ts — 放在所有路由注册之后
+app.onError((err, c) => {
+  console.error('[未处理异常]', err)
+  return c.json({ error: '服务器内部错误，请稍后重试' }, 500)
+})
+
+app.notFound((c) => {
+  return c.json({ error: '接口不存在' }, 404)
+})
 
 initDB().then(() => {
   serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3000 }, (info) => {

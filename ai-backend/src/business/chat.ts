@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { Hono } from 'hono'
+import { ChatSchema } from '../schemas'
 import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
 
 export default function ChatMessageRoutes(app: Hono) {
@@ -25,11 +26,10 @@ export default function ChatMessageRoutes(app: Hono) {
 
   // POST /api/chat — 接收用户消息，返回（假的）AI 回复
   app.post('/api/chat', async (c) => {
-    const { message, sessionId } = await c.req.json()
-
-    if (!message || !sessionId) {
-      return c.json({ error: '缺少参数' }, 400)
-    }
+    const body = await c.req.json()
+    const result = ChatSchema.safeParse(body)
+    if (!result.success) return c.json({ error: result.error.issues[0].message }, 400)
+    const { message, sessionId } = result.data
 
     // 新 session → 先插入 system prompt
     const cnt = await countSession(sessionId)
