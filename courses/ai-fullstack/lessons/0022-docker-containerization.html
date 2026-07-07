@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十二课：Docker 容器化</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十二课：Docker 容器化</h1>
+<p class="meta">目标时长 2 小时 · 难度 ⭐⭐⭐ · 后端 · 部署</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么要把应用打包成容器，而不是直接在服务器上装 Node.js 跑</li>
+    <li>写一个针对本项目的 <code>Dockerfile</code>（多阶段构建）</li>
+    <li><code>better-sqlite3</code> 这类原生模块在容器里必须重新编译的坑</li>
+    <li><code>.dockerignore</code> 排除不该打进镜像的文件</li>
+    <li>把第二十一课的 <code>/health</code> 接口接入 <code>HEALTHCHECK</code> 指令</li>
+    <li>本地构建、运行、传环境变量的完整流程</li>
+  </ul>
+</div>
+
+<h2>一、为什么要容器化</h2>
+
+<p>项目目前部署（第十五课）依赖平台（Railway/Render）直接识别 <code>package.json</code> 帮你跑 <code>npm install</code> + <code>npm start</code>。这种方式简单，但有个前提：平台得知道怎么"猜"你的启动方式，而且你本地开发环境和平台的运行环境（Node 版本、系统库）不一定完全一致。</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>"我这能跑"问题</strong>：本地 Node 24，平台默认 Node 18，行为可能有细微差异</li>
+    <li><strong>依赖平台的约定</strong>：换一个平台（比如从 Railway 换到自己的服务器），部署方式要重新摸索</li>
+    <li><strong>原生模块隐患</strong>：<code>better-sqlite3</code> 这种依赖 C++ 编译的模块，如果平台的构建环境和你本地不一致，可能直接装不上</li>
+  </ul>
+</div>
+
+<p>Docker 把"运行时环境"本身打包进镜像——你在 <code>Dockerfile</code> 里精确声明用哪个 Node 版本、装哪些系统依赖，镜像在你电脑上、在任何云平台上、甚至在同事电脑上，行为完全一致。这也是为什么几乎所有云平台（Railway、Render、AWS、自建服务器）都支持"给我一个 Docker 镜像，我来跑"这种最通用的部署方式。</p>
+
+<h2>二、多阶段构建：为什么不是一个 Dockerfile 走到底</h2>
+
+<p>项目用 <code>tsx</code> 直接跑 TypeScript（<code>package.json</code> 里 <code>"start": "tsx src/index.ts"</code>），好消息是 <code>tsx</code> 本身在 <code>dependencies</code> 里，不需要额外的编译步骤——但即便如此，构建镜像时用到的工具（比如给 <code>better-sqlite3</code> 编译原生模块要用的 <code>python3</code>、<code>make</code>、<code>g++</code>）不应该留在最终跑起来的镜像里，那些只在"装依赖"这一步需要，运行时完全用不上。</p>
+
+<p>多阶段构建（multi-stage build）解决的就是这个问题：</p>
+
+<div class="tip">
+  <strong>阶段一（builder）</strong>：装好编译工具，跑 <code>npm ci</code> 把所有依赖（包括原生模块）编译好<br/>
+  <strong>阶段二（runtime）</strong>：只从阶段一里<strong>复制编译好的 <code>node_modules</code> 和源码</strong>，不带编译工具，镜像体积小很多
+</div>
+
+<h2>三、写 Dockerfile</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>在 <code>ai-backend/</code> 下新建 <code>Dockerfile</code></strong>
+
+  <pre><span class="comment"># ---- 阶段一：builder，装依赖 + 编译原生模块 ----</span>
+<span class="kw">FROM</span> node:24-slim <span class="kw">AS</span> builder
+<span class="kw">WORKDIR</span> /app
+
+<span class="comment"># better-sqlite3 编译需要这些系统工具</span>
+<span class="kw">RUN</span> apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+
+<span class="kw">COPY</span> package.json package-lock.json ./
+<span class="kw">RUN</span> npm ci
+
+<span class="kw">COPY</span> . .
+
+<span class="comment"># ---- 阶段二：runtime，只留运行需要的东西 ----</span>
+<span class="kw">FROM</span> node:24-slim
+<span class="kw">WORKDIR</span> /app
+
+<span class="kw">COPY</span> --from=builder /app/node_modules ./node_modules
+<span class="kw">COPY</span> . .
+
+<span class="kw">ENV</span> NODE_ENV=production
+<span class="kw">EXPOSE</span> 3000
+
+<span class="kw">HEALTHCHECK</span> --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  <span class="kw">CMD</span> node -e <span class="str">"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"</span>
+
+<span class="kw">CMD</span> [<span class="str">"npm"</span>, <span class="str">"start"</span>]</pre>
+
+  <div class="warn">
+    <code>HEALTHCHECK</code> 探测的是 <code>/health</code>（liveness），不是 <code>/ready</code>——原因和第二十一课的道理一样：数据库短暂不可用不该让 Docker 判定容器"不健康"从而重启它，那只是暂时没法处理请求，不是进程本身出了问题。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>为什么 <code>node_modules</code> 必须在容器里装，不能直接复制本地的</strong>
+
+  <p><code>better-sqlite3</code> 是一个原生模块，装的时候会针对当前系统（操作系统 + CPU 架构 + Node 版本 ABI）编译一份 <code>.node</code> 二进制文件。如果你在 Windows/Mac 上装好 <code>node_modules</code> 再直接 <code>COPY</code> 进 Linux 容器，这份二进制文件根本对不上容器的运行环境，启动时会直接报错。</p>
+
+  <div class="danger">
+    这也是为什么 <code>Dockerfile</code> 里是 <code>COPY package.json package-lock.json ./</code> 再 <code>RUN npm ci</code>，而不是 <code>COPY node_modules ./node_modules</code>——必须让 <code>npm ci</code> 在容器内部跑，针对容器自己的系统重新编译原生模块。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>新建 <code>.dockerignore</code></strong>
+
+  <p>和 <code>.gitignore</code> 类似，避免把不该打进镜像的文件带进构建上下文（既浪费构建时间，也可能把敏感文件打进镜像里）：</p>
+
+  <pre>node_modules
+.env
+.env.*
+chat.db
+chat.db-shm
+chat.db-wal
+.git
+*.log</pre>
+
+  <div class="tip">
+    <code>node_modules</code> 必须排除——不排除的话，本地的 <code>node_modules</code>（可能是 Windows 编译的原生模块）会被传进构建上下文，虽然 <code>Dockerfile</code> 里没有直接用它，但会拖慢构建、浪费空间。
+  </div>
+</div>
+
+<h2>四、构建与运行</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>构建镜像</strong>
+
+  <pre>cd ai-backend
+docker build -t ai-backend:latest .</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>运行容器，传入环境变量</strong>
+
+  <pre>docker run -p 3000:3000 \
+  -e JWT_SECRET=your-secret \
+  -e DEEPSEEK_API_KEY=your-key \
+  -e DATABASE_URL=postgres://... \
+  ai-backend:latest</pre>
+
+  <div class="tip">
+    生产环境不要把密钥写死在 <code>Dockerfile</code> 或镜像里——镜像是要被推送、分发的，写死等于把密钥公开出去。用 <code>-e</code>（或 <code>--env-file</code>）在运行时注入，镜像本身不包含任何密钥。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>验证健康检查</strong>
+
+  <pre>docker ps
+<span class="comment"># STATUS 列会显示 (healthy) 或 (unhealthy)，对应 HEALTHCHECK 的探测结果</span></pre>
+</div>
+
+<h2>五、本课总结</h2>
+
+<ul>
+  <li>容器化解决的是"环境一致性"问题——本地、任何云平台、任何机器上跑起来都一样</li>
+  <li>多阶段构建把编译工具和最终运行环境分开，减小镜像体积，也减少攻击面</li>
+  <li>原生模块（<code>better-sqlite3</code>）必须在目标平台（容器）内部重新编译，不能直接复制本地的 <code>node_modules</code></li>
+  <li><code>.dockerignore</code> 排除 <code>node_modules</code>、<code>.env</code>、数据库文件，避免污染构建上下文和镜像</li>
+  <li><code>HEALTHCHECK</code> 探测 <code>/health</code>（liveness）而不是 <code>/ready</code>，语义和编排系统的健康检查保持一致</li>
+  <li>密钥永远在运行时通过环境变量注入，不写进镜像</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果直接把本地 Windows 上跑 <code>npm install</code> 生成的 <code>node_modules</code> 复制进 Linux 容器镜像，启动时大概率会报什么类型的错误？为什么？</p>
+  <p><strong>Q2</strong>：<code>HEALTHCHECK</code> 如果探测 <code>/ready</code> 而不是 <code>/health</code>，数据库短暂抖动时会发生什么？和第二十一课 Q1 的场景有什么共同点？</p>
+  <p><strong>Q3</strong>：为什么 <code>Dockerfile</code> 里要先单独 <code>COPY package.json package-lock.json</code> 再 <code>RUN npm ci</code>，而不是一开始就 <code>COPY . .</code> 整个项目再装依赖？（提示：和 Docker 的镜像分层缓存机制有关）</p>
+</div>
+
+<p>下一课将进入 <strong>第二十三课：CI/CD 自动化部署</strong>——用 GitHub Actions 在每次推送代码后自动跑测试、构建镜像，实现"合并代码即部署"的自动化流水线。</p>
+
+</body>
+</html>

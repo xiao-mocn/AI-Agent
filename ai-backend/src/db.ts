@@ -7,7 +7,11 @@ export const isPG = !!DATABASE_URL
 
 // — PG 连接池 —
 let pool: Pool | undefined
-pool = new Pool({ connectionString: DATABASE_URL })
+pool = new Pool({
+  connectionString: DATABASE_URL,
+  // Render 等托管数据库的外部连接强制要求 SSL，但证书链不在容器信任列表里
+  ssl: isPG ? { rejectUnauthorized: false } : undefined,
+})
 
 export const db = new Database(process.env.DB_PATH || 'chat.db')
 // 开启 WAL 模式

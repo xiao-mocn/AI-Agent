@@ -1,0 +1,8 @@
+node_modules
+.env
+.env.*
+chat.db
+chat.db-shm
+chat.db-wal
+.git
+*.log
