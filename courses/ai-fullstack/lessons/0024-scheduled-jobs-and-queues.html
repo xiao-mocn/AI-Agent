@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十四课：定时任务与后台队列</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十四课：定时任务与后台队列</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 后端 · 部署</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么 Node.js 服务里需要定时任务，以及直接写 <code>setInterval</code> 会踩哪些坑</li>
+    <li>什么是后台队列，以及它怎么避免"慢操作"阻塞主请求</li>
+    <li>用 <code>node-cron</code> 实现一个每天清理过期消息的定时任务</li>
+    <li>用内存队列把 AI 调用改成"先接收请求、后台慢慢处理、做完再通知"的模式</li>
+    <li>定时任务和队列在优雅关闭时要怎么处理</li>
+  </ul>
+</div>
+
+<h2>一、为什么需要定时任务和后台队列</h2>
+
+<p>你的 AI 聊天应用运行一段时间后，数据库里的消息会越来越多。这些数据里有很多是临时对话，保留太久既浪费存储，也可能带来隐私风险。如果靠人手动清理，迟早会忘。定时任务就是让这类"周期性维护工作"自动化的机制。</p>
+
+<p>后台队列解决的是另一个问题。现在用户发一条消息，后端要立刻调用 DeepSeek API、等它返回、再把结果写回数据库，整个过程中 HTTP 请求一直卡着。如果 AI 响应慢，用户看到的就会是"转圈圈"，严重时还会超时。后台队列的思路是：请求进来后只做两件事——把任务放进队列、立刻返回"已收到"；另一个 worker 在后台慢慢处理任务，做完再通过 WebSocket 或轮询接口把结果推给用户。</p>
+
+<div class="tip">
+  这一课我们先在单进程、内存队列的层面理解原理，不引入 Redis、RabbitMQ 这类外部消息队列。等以后服务需要多实例部署时，再把内存队列替换成持久化队列。
+</div>
+
+<h2>二、定时任务的常见陷阱</h2>
+
+<p>很多同学第一次写定时任务会用 <code>setInterval</code>：</p>
+
+<pre><span class="kw">setInterval</span>(() <span class="kw">=></span> {
+  <span class="fn">cleanupOldMessages</span>()
+}, <span class="num">24</span> * <span class="num">60</span> * <span class="num">60</span> * <span class="num">1000</span>)</pre>
+
+<p>这样写有几个隐患：</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>任务执行时间超过间隔</strong>：如果某次清理很慢，下一次会重叠执行，导致资源竞争或重复清理</li>
+    <li><strong>进程崩溃后没有补偿</strong>：服务重启了，就再也不会执行，直到下一次触发点</li>
+    <li><strong>多实例部署时会重复执行</strong>：如果未来水平扩展成两个容器，两个进程都会跑同一份定时任务，容易冲突</li>
+    <li><strong>优雅关闭时不等待</strong>：第二十一课讲过优雅关闭，如果关闭时定时任务正在跑，可能中途被中断，留下半清理状态</li>
+  </ul>
+</div>
+
+<p><code>node-cron</code> 这类库能帮你解决"重叠执行"的问题（通过锁或下次触发时跳过正在跑的任务），但"多实例重复执行"和"进程补偿"需要依赖外部锁或数据库级调度。这节课我们先聚焦单实例场景，把基础模式做对。</p>
+
+<h2>三、后台队列的基本模式</h2>
+
+<table>
+  <tr><th>模式</th><th>说明</th><th>适用场景</th></tr>
+  <tr><td><strong>同步处理</strong></td><td>请求进来直接调用 AI，等返回再响应</td><td>简单、快速、可容忍延迟的操作</td></tr>
+  <tr><td><strong>异步队列</strong></td><td>请求只入队，立刻返回任务 ID；worker 后台处理</td><td>耗时长、可能失败、需要重试的操作</td></tr>
+  <tr><td><strong>发布/订阅</strong></td><td>一个事件被多个消费者并行处理</td><td>通知、日志、数据同步</td></tr>
+</table>
+
+<p>我们这节课实现的是第二种：内存异步队列。它的核心结构是三部分：</p>
+
+<ol>
+  <li><strong>队列</strong>：保存等待处理的任务</li>
+  <li><strong>生产者</strong>：HTTP handler 收到请求后把任务塞进去</li>
+  <li><strong>消费者 / worker</strong>：循环从队列取任务并执行</li>
+</ol>
+
+<h2>四、动手实践</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装 <code>node-cron</code> 和类型定义</strong>
+
+  <pre>npm install node-cron
+npm install --save-dev @types/node-cron</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>新增 <code>src/scheduler.ts</code>：每天清理 30 天前的消息</strong>
+
+  <pre><span class="kw">import</span> <span class="ty">cron</span> <span class="kw">from</span> <span class="str">'node-cron'</span>
+<span class="kw">import</span> { <span class="ty">db</span>, <span class="ty">isPG</span> } <span class="kw">from</span> <span class="str">'./db'</span>
+<span class="kw">import</span> <span class="ty">logger</span> <span class="kw">from</span> <span class="str">'./logger'</span>
+
+<span class="kw">let</span> <span class="ty">task</span>: <span class="ty">cron</span>.<span class="ty">ScheduledTask</span> | <span class="kw">null</span> = <span class="kw">null</span>
+
+<span class="kw">export function</span> <span class="fn">startScheduler</span>() {
+  <span class="comment">// 每天凌晨 3 点执行</span>
+  <span class="ty">task</span> = <span class="ty">cron</span>.<span class="fn">schedule</span>(<span class="str">'0 3 * * *'</span>, <span class="kw">async</span> () <span class="kw">=></span> {
+    <span class="kw">try</span> {
+      <span class="kw">const</span> <span class="ty">cutoff</span> = <span class="kw">new</span> <span class="ty">Date</span>()
+      <span class="ty">cutoff</span>.<span class="fn">setDate</span>(<span class="ty">cutoff</span>.<span class="fn">getDate</span>() - <span class="num">30</span>)
+      <span class="kw">const</span> <span class="ty">iso</span> = <span class="ty">cutoff</span>.<span class="fn">toISOString</span>()
+
+      <span class="kw">if</span> (<span class="ty">isPG</span>) {
+        <span class="comment">// PG 版本待实现</span>
+      } <span class="kw">else</span> {
+        <span class="kw">const</span> <span class="ty">result</span> = <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'DELETE FROM messages WHERE created_at &lt; ?'</span>).<span class="fn">run</span>(<span class="ty">iso</span>)
+        <span class="ty">logger</span>.<span class="fn">info</span>({ <span class="ty">deleted</span>: <span class="ty">result</span>.<span class="ty">changes</span> }, <span class="str">'定时清理过期消息完成'</span>)
+      }
+    } <span class="kw">catch</span> (<span class="ty">err</span>) {
+      <span class="ty">logger</span>.<span class="fn">error</span>(<span class="ty">err</span>, <span class="str">'定时清理失败'</span>)
+    }
+  }, {
+    <span class="ty">scheduled</span>: <span class="kw">true</span>,
+    <span class="ty">timezone</span>: <span class="str">'Asia/Shanghai'</span>,
+    <span class="comment">// node-cron 默认不会重叠执行，但如果任务执行超过 24 小时仍需额外保护</span>
+  })
+}
+
+<span class="kw">export function</span> <span class="fn">stopScheduler</span>() {
+  <span class="kw">if</span> (<span class="ty">task</span>) {
+    <span class="ty">task</span>.<span class="fn">stop</span>()
+    <span class="ty">task</span> = <span class="kw">null</span>
+  }
+}</pre>
+
+  <div class="warn">
+    这里用了 <code>DELETE</code> 直接删数据。真实生产环境中，通常会先把数据归档或软删除，确认没问题再做物理清理。这节课为了演示核心机制，简化了这一步。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>新增 <code>src/queue.ts</code>：简单的内存任务队列</strong>
+
+  <pre><span class="kw">import</span> <span class="ty">logger</span> <span class="kw">from</span> <span class="str">'./logger'</span>
+
+<span class="kw">type</span> <span class="ty">Task</span> = {
+  <span class="ty">id</span>: <span class="ty">string</span>
+  <span class="ty">type</span>: <span class="str">'ai-reply'</span>
+  <span class="ty">sessionId</span>: <span class="ty">string</span> | <span class="ty">number</span>
+  <span class="ty">content</span>: <span class="ty">string</span>
+}
+
+<span class="kw">const</span> <span class="ty">queue</span>: <span class="ty">Task</span>[] = []
+<span class="kw">let</span> <span class="ty">running</span> = <span class="kw">false</span>
+<span class="kw">let</span> <span class="ty">activePromise</span>: <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt; | <span class="kw">null</span> = <span class="kw">null</span>
+
+<span class="kw">async function</span> <span class="fn">processTask</span>(<span class="ty">task</span>: <span class="ty">Task</span>) {
+  <span class="comment">// 这里调用 AI 并保存结果</span>
+  <span class="ty">logger</span>.<span class="fn">info</span>({ <span class="ty">taskId</span>: <span class="ty">task</span>.<span class="ty">id</span> }, <span class="str">'开始处理任务'</span>)
+  <span class="comment">// await callAIAndSave(task.sessionId, task.content)</span>
+}
+
+<span class="kw">async function</span> <span class="fn">loop</span>() {
+  <span class="kw">while</span> (<span class="ty">running</span> || <span class="ty">queue</span>.<span class="ty">length</span> &gt; <span class="num">0</span>) {
+    <span class="kw">const</span> <span class="ty">task</span> = <span class="ty">queue</span>.<span class="fn">shift</span>()
+    <span class="kw">if</span> (!<span class="ty">task</span>) {
+      <span class="kw">await</span> <span class="kw">new</span> <span class="ty">Promise</span>(<span class="ty">resolve</span> <span class="kw">=></span> <span class="fn">setTimeout</span>(<span class="ty">resolve</span>, <span class="num">100</span>))
+      <span class="kw">continue</span>
+    }
+    <span class="kw">try</span> {
+      <span class="kw">await</span> <span class="fn">processTask</span>(<span class="ty">task</span>)
+    } <span class="kw">catch</span> (<span class="ty">err</span>) {
+      <span class="ty">logger</span>.<span class="fn">error</span>(<span class="ty">err</span>, { <span class="ty">taskId</span>: <span class="ty">task</span>.<span class="ty">id</span> }, <span class="str">'任务处理失败'</span>)
+    }
+  }
+}
+
+<span class="kw">export function</span> <span class="fn">startWorker</span>() {
+  <span class="ty">running</span> = <span class="kw">true</span>
+  <span class="ty">activePromise</span> = <span class="fn">loop</span>()
+}
+
+<span class="kw">export function</span> <span class="fn">stopWorker</span>() {
+  <span class="ty">running</span> = <span class="kw">false</span>
+}
+
+<span class="kw">export function</span> <span class="fn">waitForWorker</span>() {
+  <span class="kw">return</span> <span class="ty">activePromise</span> ?? <span class="ty">Promise</span>.<span class="fn">resolve</span>()
+}
+
+<span class="kw">export function</span> <span class="fn">enqueue</span>(<span class="ty">task</span>: <span class="ty">Task</span>) {
+  <span class="ty">queue</span>.<span class="fn">push</span>(<span class="ty">task</span>)
+}</pre>
+
+  <div class="tip">
+    这里的 <code>loop</code> 用 <code>running</code> 标志控制退出，优雅关闭时把 <code>running</code> 设成 <code>false</code>，worker 会把手头任务跑完再退出。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span><strong>在 <code>src/index.ts</code> 启动和关闭时接入调度器与队列</strong>
+
+  <pre><span class="comment">// 启动时</span>
+<span class="fn">startScheduler</span>()
+<span class="fn">startWorker</span>()
+
+<span class="comment">// 优雅关闭时（在 SIGTERM/SIGINT handler 里）</span>
+<span class="kw">await</span> <span class="fn">waitForWorker</span>()
+<span class="fn">stopScheduler</span>()</pre>
+</div>
+
+<h2>五、本课总结</h2>
+
+<ul>
+  <li>定时任务把"周期性维护"自动化，但直接写 <code>setInterval</code> 容易出现重叠执行、崩溃丢失、多实例冲突等问题</li>
+  <li><code>node-cron</code> 能避免重叠执行，配合时区配置更适合真实业务场景</li>
+  <li>后台队列把"耗时操作"从请求路径上剥离，避免用户请求阻塞或超时</li>
+  <li>内存队列适合单实例学习和小规模服务，生产多实例场景需要换成 Redis 等持久化队列</li>
+  <li>定时任务和队列都要接入优雅关闭流程，避免中途被 SIGTERM 打断</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么 <code>setInterval</code> 不适合直接做"每天凌晨清理过期数据"这种定时任务？如果任务执行时间超过间隔会发生什么？</p>
+  <p><strong>Q2</strong>：如果以后把服务部署成两个容器（水平扩展），内存队列会出现什么问题？为什么需要引入 Redis 这类外部队列？</p>
+  <p><strong>Q3</strong>：优雅关闭时，为什么要先 <code>await waitForWorker()</code> 再 <code>stopScheduler()</code>？如果反过来，或者直接 <code>process.exit(0)</code>，可能丢掉什么？</p>
+</div>
+
+<p>下一课将进入 <strong>第二十五课：WebSocket 实时通信</strong>——学习如何让服务器主动推送消息到浏览器，实现真正的"AI 回复完成后自动显示"，而不用用户反复刷新或轮询。</p>
+
+</body>
+</html>

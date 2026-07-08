@@ -12,6 +12,10 @@ import { globalRateLimiter, chatRateLimiter } from './middleware/rateLimiters'
 import ChatMessageRoutes from './business/chat'
 import user from './business/user'
 import { initDB, closeDB, checkDBHealth } from './db'
+import { startScheduler, stopScheduler } from './middleware/scheduler'
+import { startWorker, waitForWorker } from './middleware/queue'
+
+
 
 const app = new Hono()
 
@@ -68,12 +72,16 @@ app.notFound((c) => {
 initDB().then(() => {
   const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
     logger.info(`服务器已启动：http://localhost:${info.port}`)
+    startScheduler()
+    startWorker()
   })
   // 优雅关闭服务器
   function shutdown(signal: string) {
     logger.info({ signal }, '收到退出信号，开始优雅关闭')
 
     server.close(async () => {
+      await waitForWorker()
+      stopScheduler()
       logger.info('HTTP 服务器已停止接受新连接')
       await closeDB()
       logger.info('数据库连接已关闭')
