@@ -14,6 +14,7 @@ import user from './business/user'
 import { initDB, closeDB, checkDBHealth } from './db'
 import { startScheduler, stopScheduler } from './middleware/scheduler'
 import { startWorker, waitForWorker } from './middleware/queue'
+import { attachWebSocket, closeWebSocket } from './middleware/websocket'
 
 
 
@@ -75,6 +76,7 @@ initDB().then(() => {
     startScheduler()
     startWorker()
   })
+  attachWebSocket(server)
   // 优雅关闭服务器
   function shutdown(signal: string) {
     logger.info({ signal }, '收到退出信号，开始优雅关闭')
@@ -82,6 +84,7 @@ initDB().then(() => {
     server.close(async () => {
       await waitForWorker()
       stopScheduler()
+      closeWebSocket()
       logger.info('HTTP 服务器已停止接受新连接')
       await closeDB()
       logger.info('数据库连接已关闭')

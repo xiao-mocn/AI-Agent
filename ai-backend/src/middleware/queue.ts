@@ -1,4 +1,5 @@
 import { logger } from '../business/logger'
+import { pushToSession } from './websocket'
 
 type Task = {
   id: string
@@ -15,6 +16,11 @@ async function processTask(task: Task) {
   // 这里调用 AI 并保存结果
   logger.info({ taskId: task.id }, '开始处理任务')
   // await callAIAndSave(task.sessionId, task.content)
+  pushToSession(String(task.sessionId), {
+    type: 'ai-reply-done',
+    taskId: task.id,
+    // reply,
+  })
 }
 
 async function loop() {
@@ -27,7 +33,7 @@ async function loop() {
     try {
       await processTask(task)
     } catch (err) {
-      logger.error(err, JSON.stringify({ taskId: task.id }), '任务处理失败')
+      logger.error({ err, taskId: task.id }, '任务处理失败')
     }
   }
 }
