@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十三课：CI/CD 自动化部署</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十三课：CI/CD 自动化部署</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 后端 · 部署</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>CI（持续集成）和 CD（持续部署）到底解决什么问题</li>
+    <li>GitHub Actions 的核心概念：workflow、job、step、trigger</li>
+    <li>写一个 <code>.github/workflows/ci.yml</code>，每次 push 自动跑类型检查、验证 Docker 镜像能否构建成功</li>
+    <li>为什么这节课选择让 CI 做"质量门禁"，把"部署"这件事交给 Render 自己的 Git 集成</li>
+    <li>怎么在 GitHub Actions 里管理密钥（Secrets），不把它们写进仓库</li>
+  </ul>
+</div>
+
+<h2>一、CI/CD 解决的是什么问题</h2>
+
+<p>到现在为止，你的部署流程大概是：本地改完代码 → 手动 <code>git push</code> → 手动登录 Render/Railway 控制台确认部署成功 → 如果构建失败，自己再去看日志排查。这个流程有几个隐患：</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>忘记验证就推送</strong>：改完代码直接 push，没在本地跑一遍类型检查，等平台构建失败了才发现问题</li>
+    <li><strong>"我这能跑"再次出现</strong>：第二十二课解决了运行时环境不一致，但如果没人在 push 前确认 Docker 镜像真的能构建成功，一样会把坏的提交推上去</li>
+    <li><strong>依赖人的记忆力</strong>：多人协作时，"push 前记得跑测试"这种约定很容易被忘记，尤其是赶时间的时候</li>
+  </ul>
+</div>
+
+<p>CI（Continuous Integration，持续集成）就是把"验证代码没问题"这件事从"人记得做"变成"每次 push 自动做"。GitHub Actions 是 GitHub 内置的自动化工具，仓库里有个 <code>.github/workflows/*.yml</code> 文件，GitHub 就会在指定的时机（比如每次 push）自动拉起一台干净的虚拟机，按你写的步骤跑一遍。</p>
+
+<div class="tip">
+  CD（Continuous Deployment，持续部署）是更进一步——验证通过后自动部署到生产环境。但这节课不会在 workflow 里手写"部署到 Render"的脚本，原因见第三节。
+</div>
+
+<h2>二、GitHub Actions 核心概念</h2>
+
+<table>
+  <tr><th>概念</th><th>说明</th></tr>
+  <tr><td><code>workflow</code></td><td>一个 <code>.yml</code> 文件就是一个 workflow，定义"什么时候触发"和"触发后做什么"</td></tr>
+  <tr><td><code>trigger</code></td><td>触发条件，比如 <code>push</code>（有人推送代码）、<code>pull_request</code>（有人开 PR）</td></tr>
+  <tr><td><code>job</code></td><td>一个 workflow 可以有多个 job，默认并行跑，每个 job 在一台独立的干净虚拟机上执行</td></tr>
+  <tr><td><code>step</code></td><td>job 内部按顺序执行的具体命令，比如"装依赖"、"跑类型检查"</td></tr>
+  <tr><td><code>action</code></td><td>别人（或 GitHub 官方）写好的可复用 step，比如 <code>actions/checkout</code> 负责把你的仓库代码拉下来</td></tr>
+</table>
+
+<h2>三、写 CI workflow</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>新建 <code>.github/workflows/ci.yml</code></strong>
+
+  <pre><span class="kw">name</span>: CI
+
+<span class="kw">on</span>:
+  <span class="kw">push</span>:
+    <span class="kw">branches</span>: [main]
+  <span class="kw">pull_request</span>:
+    <span class="kw">branches</span>: [main]
+
+<span class="kw">jobs</span>:
+  <span class="fn">build-and-check</span>:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">defaults</span>:
+      <span class="kw">run</span>:
+        <span class="kw">working-directory</span>: ai-backend
+
+    <span class="kw">steps</span>:
+      - <span class="kw">name</span>: 拉取代码
+        <span class="kw">uses</span>: actions/checkout@v4
+
+      - <span class="kw">name</span>: 安装 Node.js
+        <span class="kw">uses</span>: actions/setup-node@v4
+        <span class="kw">with</span>:
+          <span class="kw">node-version</span>: <span class="str">'24'</span>
+          <span class="kw">cache</span>: <span class="str">'npm'</span>
+          <span class="kw">cache-dependency-path</span>: ai-backend/package-lock.json
+
+      - <span class="kw">name</span>: 安装依赖
+        <span class="kw">run</span>: npm ci
+
+      - <span class="kw">name</span>: 类型检查
+        <span class="kw">run</span>: npx tsc --noEmit
+
+      - <span class="kw">name</span>: 验证 Docker 镜像能否构建
+        <span class="kw">run</span>: docker build -t ai-backend:ci .</pre>
+
+  <div class="tip">
+    <strong>为什么固定 <code>node-version: '24'</code></strong>：如果不写死版本，<code>setup-node</code> 会用 runner 镜像自带的默认版本，可能和你本地、和 Dockerfile 里的 <code>node:24-slim</code> 都对不上——这正是第二十二课想解决的"环境一致性"问题，CI 里也要保持一致。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>关于"跑测试"这一步</strong>
+
+  <p>当前 <code>package.json</code> 里的 <code>test</code> 脚本还是占位符（<code>echo "Error: no test specified"</code>），项目还没有真正的测试用例，所以这份 workflow 暂时没加 <code>npm test</code> 这一步——加了反而会让每次 CI 必然失败。等以后写了单元测试（比如用 <code>vitest</code>），只需要在 workflow 里补一步 <code>run: npm test</code> 即可，不需要改动其他部分。</p>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>为什么不在 workflow 里写"部署到 Render"的脚本</strong>
+
+  <p>Render（以及大多数 PaaS）支持直接在控制台把服务和 GitHub 仓库绑定，之后每次 <code>push</code> 到指定分支，Render 会<strong>自己</strong>拉代码、构建、部署，不需要你在 GitHub Actions 里手写调用 Render API 的部署脚本。</p>
+
+  <div class="good">
+    这样分工更清晰：<strong>GitHub Actions 负责"质量门禁"</strong>（类型检查、镜像能不能构建成功）——查得不对就直接在 PR 页面标红，挡在合并之前；<strong>Render 负责"部署"</strong>——它更懂自己的部署环境，出问题时的日志和回滚功能也更完善。避免了自己维护一套本可以交给平台做得更好的部署脚本。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span><strong>用 GitHub Secrets 管理密钥（如果以后 CI 需要真实密钥）</strong>
+
+  <p>如果之后 CI 里需要用到真实密钥（比如跑集成测试要连测试数据库），<strong>绝对不要</strong>把密钥写进 <code>.yml</code> 文件——仓库里的任何内容都是明文可见的。正确做法是在 GitHub 仓库 Settings → Secrets and variables → Actions 里添加密钥，workflow 里通过 <code>${{ secrets.密钥名 }}</code> 引用：</p>
+
+  <pre><span class="kw">env</span>:
+  <span class="kw">DATABASE_URL</span>: <span class="str">${{ secrets.DATABASE_URL }}</span></pre>
+</div>
+
+<h2>四、本课总结</h2>
+
+<ul>
+  <li>CI 把"验证代码没问题"从"人记得做"变成"每次 push 自动做"，避免带着明显问题的提交流入生产环境</li>
+  <li>GitHub Actions 的核心是 workflow → job → step 这层结构，触发条件（<code>on</code>）决定什么时候跑</li>
+  <li>CI 里固定 Node 版本，和 Dockerfile、本地开发环境保持一致，避免"我这能跑"再次出现</li>
+  <li>没有真实测试时不要硬加 <code>npm test</code> 步骤，先做类型检查和镜像构建验证，测试写好了再补</li>
+  <li>"验证"交给 GitHub Actions，"部署"交给 Render 自己的 Git 集成，分工清晰、各自发挥所长</li>
+  <li>密钥永远放在 GitHub Secrets 里，不写进 <code>.yml</code> 文件</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么 CI 里要加一步 <code>docker build</code> 去验证镜像能不能构建成功，而不是信任"本地能跑就行"？结合第二十二课遇到的实际问题想一想。</p>
+  <p><strong>Q2</strong>：如果 <code>actions/setup-node</code> 没有指定 <code>node-version</code>，会用 runner 镜像自带的默认版本。这可能带来什么后果？和 Dockerfile 里写死 <code>node:24-slim</code> 的道理有什么共同点？</p>
+  <p><strong>Q3</strong>：这节课选择让 GitHub Actions 只做类型检查和镜像构建验证，把真正的部署交给 Render 的 Git 集成。如果反过来，在 workflow 里自己写脚本调用 Render 的部署 API，可能会遇到哪些额外的维护负担？</p>
+</div>
+
+<p>下一课将进入 <strong>第二十四课：定时任务与后台队列</strong>——学习如何在 Node.js 服务里安全地跑定时任务（比如每天清理过期数据），以及用消息队列处理耗时的异步任务，不阻塞主请求。</p>
+
+</body>
+</html>
