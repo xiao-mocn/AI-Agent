@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十六课：多轮对话的上下文管理</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十六课：多轮对话的上下文管理</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 后端 · AI 集成</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么"把完整历史都发给 AI"这个从第四课就在用的做法迟早会出问题</li>
+    <li>token 是什么、怎么在不引入重型依赖的前提下粗略估算它</li>
+    <li>常见的上下文裁剪策略：滑动窗口 vs 按 token 预算裁剪</li>
+    <li>为什么裁剪要丢"最旧的"而不是"最新的"，以及 system prompt 要特殊对待</li>
+    <li>裁剪只影响"发给 AI 的这次请求"，不影响数据库里保存的完整历史</li>
+  </ul>
+</div>
+
+<h2>一、现在的实现藏着什么问题</h2>
+
+<p>回到第四课写的 <code>src/business/chat.ts</code>，核心逻辑是这样的：</p>
+
+<pre><span class="kw">const</span> <span class="ty">history</span> = <span class="kw">await</span> <span class="fn">getHistory</span>(<span class="ty">sessionId</span>) <span class="kw">as</span> <span class="ty">ChatMessage</span>[]
+
+<span class="kw">const</span> <span class="ty">stream</span> = <span class="kw">await</span> <span class="ty">client</span>.<span class="ty">chat</span>.<span class="ty">completions</span>.<span class="fn">create</span>({
+  <span class="ty">model</span>: <span class="str">'deepseek-chat'</span>,
+  <span class="ty">messages</span>: <span class="ty">history</span>, <span class="comment">// 这个 session 从第一条消息到现在的全部历史</span>
+  <span class="ty">stream</span>: <span class="kw">true</span>,
+})</pre>
+
+<p>这段代码能跑，是因为学习阶段的对话通常只有几轮。但只要这个 session 活得足够久——比如用户把它当日常助手一直聊下去——<code>history</code> 会无限增长，每次请求都要把从第一句话到现在的所有内容重新发给 AI。这会带来三个实际问题：</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>超出模型的上下文窗口</strong>：每个模型都有 token 上限（比如几万到十几万不等），历史超过这个数直接报错，对话彻底"卡死"</li>
+    <li><strong>成本线性增长</strong>：大部分 AI API 按 token 计费，输入 token 里包含了整个历史，同样一句"你好"，聊到第 200 轮的成本可能是第 1 轮的几十倍</li>
+    <li><strong>延迟变大</strong>：输入越长，模型处理和首字返回的时间通常也越长，用户体验从"秒回"变成"转圈"</li>
+  </ul>
+</div>
+
+<h2>二、token 是什么，怎么粗略估算</h2>
+
+<p>AI 模型不是按"字"或"字符"计费和计算上下文的，而是按 <strong>token</strong>——一种介于字符和单词之间的切分单位。英文里一个 token 大约是 3-4 个字符，中文里通常 1-2 个汉字对应一个 token（具体切法取决于模型的分词器，不同模型不完全一样）。</p>
+
+<div class="tip">
+  真实项目里，如果要精确计算 token 数，可以装 <code>gpt-tokenizer</code> 或 <code>tiktoken</code> 这类库，调用模型对应的分词器直接算出精确值。这节课为了不引入额外依赖、把注意力放在"裁剪策略"这个核心机制上，先用一个足够用的粗略估算：按字符数除以一个经验系数来近似。这个近似值会有误差，但对于"要不要开始裁剪"这种阈值判断已经够用。
+</div>
+
+<h2>三、裁剪策略：滑动窗口 vs 按 token 预算</h2>
+
+<table>
+  <tr><th>策略</th><th>做法</th><th>问题</th></tr>
+  <tr><td><strong>滑动窗口（按轮数）</strong></td><td>只保留最近 N 轮对话</td><td>N 轮里如果消息特别长（比如粘贴了一大段代码），照样会超预算；N 轮很短又会浪费还没超预算的额度</td></tr>
+  <tr><td><strong>按 token 预算</strong></td><td>从最新的消息往前累加估算的 token 数，累加到预算上限就停止，更早的消息全部丢弃</td><td>需要自己估算 token，逻辑比数轮数复杂一点</td></tr>
+</table>
+
+<p>这节课选按 token 预算裁剪，因为它更贴近"到底会不会超模型上限、会花多少钱"这个真实约束，而不是拍脑袋定一个轮数。</p>
+
+<div class="danger">
+  裁剪方向千万不能搞反：必须丢弃<strong>最旧</strong>的消息，保留<strong>最新</strong>的。AI 需要记住的是"我们刚才聊到哪了"，而不是"这个对话是怎么开始的"。如果不小心写反（比如从数组开头往后截取），效果是 AI 只记得话题最开始的几句寒暄，完全忘了用户刚刚说的话，看起来像是"完全没在听"。
+</div>
+
+<h2>四、动手实践</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>新增 <code>src/business/contextWindow.ts</code>：token 估算 + 按预算裁剪</strong>
+
+  <pre><span class="kw">type</span> <span class="ty">ChatMessage</span> = {
+  <span class="ty">role</span>: <span class="str">'user'</span> | <span class="str">'assistant'</span> | <span class="str">'system'</span>
+  <span class="ty">content</span>: <span class="ty">string</span>
+}
+
+<span class="comment">// 粗略估算：中文场景下 1 个字符约等于 0.7~1 个 token，这里取保守系数 1.5 字符/token</span>
+<span class="kw">export function</span> <span class="fn">estimateTokens</span>(<span class="ty">text</span>: <span class="ty">string</span>): <span class="ty">number</span> {
+  <span class="kw">return</span> <span class="ty">Math</span>.<span class="fn">ceil</span>(<span class="ty">text</span>.<span class="ty">length</span> / <span class="num">1.5</span>)
+}
+
+<span class="comment">// 按 token 预算裁剪历史：永远保留 system prompt，从最新消息往前累加，超预算就停止</span>
+<span class="kw">export function</span> <span class="fn">trimHistory</span>(<span class="ty">messages</span>: <span class="ty">ChatMessage</span>[], <span class="ty">maxTokens</span>: <span class="ty">number</span>): <span class="ty">ChatMessage</span>[] {
+  <span class="kw">const</span> <span class="ty">systemMsg</span> = <span class="ty">messages</span>[<span class="num">0</span>]?.<span class="ty">role</span> === <span class="str">'system'</span> ? <span class="ty">messages</span>[<span class="num">0</span>] : <span class="kw">null</span>
+  <span class="kw">const</span> <span class="ty">rest</span> = <span class="ty">systemMsg</span> ? <span class="ty">messages</span>.<span class="fn">slice</span>(<span class="num">1</span>) : <span class="ty">messages</span>
+
+  <span class="kw">let</span> <span class="ty">budget</span> = <span class="ty">maxTokens</span> - (<span class="ty">systemMsg</span> ? <span class="fn">estimateTokens</span>(<span class="ty">systemMsg</span>.<span class="ty">content</span>) : <span class="num">0</span>)
+  <span class="kw">const</span> <span class="ty">kept</span>: <span class="ty">ChatMessage</span>[] = []
+
+  <span class="comment">// 从最新的往前挑，直到预算用完</span>
+  <span class="kw">for</span> (<span class="kw">let</span> <span class="ty">i</span> = <span class="ty">rest</span>.<span class="ty">length</span> - <span class="num">1</span>; <span class="ty">i</span> &gt;= <span class="num">0</span>; <span class="ty">i</span>--) {
+    <span class="kw">const</span> <span class="ty">cost</span> = <span class="fn">estimateTokens</span>(<span class="ty">rest</span>[<span class="ty">i</span>].<span class="ty">content</span>)
+    <span class="kw">if</span> (<span class="ty">cost</span> &gt; <span class="ty">budget</span>) <span class="kw">break</span>
+    <span class="ty">kept</span>.<span class="fn">unshift</span>(<span class="ty">rest</span>[<span class="ty">i</span>])
+    <span class="ty">budget</span> -= <span class="ty">cost</span>
+  }
+
+  <span class="kw">return</span> <span class="ty">systemMsg</span> ? [<span class="ty">systemMsg</span>, ...<span class="ty">kept</span>] : <span class="ty">kept</span>
+}</pre>
+
+  <div class="tip">
+    <code>unshift</code> 保证挑出来的消息按原本的时间顺序排列（虽然是倒着遍历挑选的，但插回去的时候插在数组最前面，最终顺序不变）。<code>system</code> 消息永远单独处理、永远保留在最前面——它承载着"AI 该怎么表现"这个贯穿全程的设定，不该被当成普通历史消息一样被挤掉。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>在 <code>src/business/chat.ts</code> 里接入裁剪，只影响发给 AI 的这次请求</strong>
+
+  <pre><span class="kw">import</span> { <span class="fn">trimHistory</span> } <span class="kw">from</span> <span class="str">'./contextWindow'</span>
+
+<span class="kw">const</span> <span class="ty">MAX_CONTEXT_TOKENS</span> = <span class="num">4000</span>
+
+<span class="comment">// 读取完整历史（数据库里的记录不受影响，用户刷新页面仍能看到全部消息）</span>
+<span class="kw">const</span> <span class="ty">history</span> = <span class="kw">await</span> <span class="fn">getHistory</span>(<span class="ty">sessionId</span>) <span class="kw">as</span> <span class="ty">ChatMessage</span>[]
+
+<span class="comment">// 只有发给 AI 的这一份做裁剪</span>
+<span class="kw">const</span> <span class="ty">trimmedHistory</span> = <span class="fn">trimHistory</span>(<span class="ty">history</span>, <span class="ty">MAX_CONTEXT_TOKENS</span>)
+
+<span class="kw">const</span> <span class="ty">stream</span> = <span class="kw">await</span> <span class="ty">client</span>.<span class="ty">chat</span>.<span class="ty">completions</span>.<span class="fn">create</span>({
+  <span class="ty">model</span>: <span class="str">'deepseek-chat'</span>,
+  <span class="ty">messages</span>: <span class="ty">trimmedHistory</span>,
+  <span class="ty">stream</span>: <span class="kw">true</span>,
+})</pre>
+
+  <div class="warn">
+    注意这里裁剪的是<strong>发给 AI 的副本</strong>，不是数据库里的 <code>history</code> 本身。写入数据库的 <code>insertMsg</code> 调用完全不受影响，用户的完整对话记录永远都在——AI 只是"记性变短了"，不代表用户的聊天记录也被删了。
+  </div>
+</div>
+
+<h2>五、本课总结</h2>
+
+<ul>
+  <li>把完整历史无脑塞进每次请求，迟早会撞上模型上限、成本失控、延迟变差三个问题</li>
+  <li>token 是模型计费和计算上下文的真实单位，字符数只是一个够用的粗略估算</li>
+  <li>裁剪要按 token 预算而不是按轮数，更贴近真实约束；方向上必须丢"最旧"保"最新"</li>
+  <li><code>system</code> prompt 承载着 AI 的行为设定，永远单独保留在裁剪结果最前面</li>
+  <li>裁剪只影响这一次请求发给 AI 的内容，数据库里的完整历史不受任何影响</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么裁剪应该丢弃"最旧"的消息而不是"最新"的？如果反过来会造成什么现象？</p>
+  <p><strong>Q2</strong>：这节课用字符数估算 token 是粗略的，如果实际 token 数比估算值更多，可能会有什么后果？更稳妥的做法是什么？</p>
+  <p><strong>Q3</strong>：为什么裁剪只作用于"发给 AI 的这次请求"，而不直接应用到数据库存储上？如果反过来，把裁剪也用在存储层，会有什么问题？</p>
+</div>
+
+<p>下一课将学习<strong>第二十七课：多会话与用户维度的资源隔离</strong>——当一个用户可以同时开很多个对话 session，怎么在数据库设计和接口层面把"我的会话"和"别人的会话"严格隔离开，避免越权访问。</p>
+
+</body>
+</html>

@@ -1,7 +1,10 @@
 import OpenAI from 'openai'
 import { Hono } from 'hono'
 import { ChatSchema } from './schemas'
+import { trimHistory } from '../middleware/contextWindow'
 import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
+
+const MAX_CONTEXT_TOKENS = 4000
 
 export default function ChatMessageRoutes(app: Hono) {
 
@@ -40,11 +43,13 @@ export default function ChatMessageRoutes(app: Hono) {
 
     // 读取完整历史
     const history = await getHistory(sessionId) as ChatMessage[]
+    // 只有发给 AI 的这一份做裁剪
+    const trimmedHistory = trimHistory(history, MAX_CONTEXT_TOKENS)
 
     try {
       const stream = await client.chat.completions.create({
         model: 'deepseek-chat',
-        messages: history,
+        messages: trimmedHistory,
         stream: true,
       })
 
