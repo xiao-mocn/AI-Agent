@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十七课：多会话与用户维度的资源隔离</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十七课：多会话与用户维度的资源隔离</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 后端 · 安全</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么当前 <code>requireAuth</code> 只校验 token 有效性、却没有把 <code>userId</code> 传下去，是一个隐患</li>
+    <li>为什么 <code>messages</code> 表现在光靠 <code>session_id</code> 查询是不安全的</li>
+    <li>怎么给 Hono 的 <code>Context</code> 挂上当前登录用户的身份，让业务代码随手可用</li>
+    <li>怎么给消息表加 <code>user_id</code> 字段，并且 PG / SQLite 两条分支都要改到</li>
+    <li>为什么"归属校验"必须放进 SQL 查询条件里，而不是查出来之后在代码里 <code>if</code> 判断</li>
+  </ul>
+</div>
+
+<h2>一、现在的实现藏着什么问题</h2>
+
+<p>第十二课写的 <code>src/middleware/auth.ts</code> 是这样的：</p>
+
+<pre><span class="kw">export const</span> <span class="ty">requireAuth</span>: <span class="ty">MiddlewareHandler</span> = <span class="kw">async</span> (<span class="ty">c</span>, <span class="ty">next</span>) =&gt; {
+  <span class="kw">const</span> <span class="ty">authHeader</span> = <span class="ty">c</span>.<span class="ty">req</span>.<span class="fn">header</span>(<span class="str">'Authorization'</span>)
+  <span class="kw">if</span> (!<span class="ty">authHeader</span>?.<span class="fn">startsWith</span>(<span class="str">'Bearer '</span>)) {
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'未授权，请先登录'</span> }, <span class="num">401</span>)
+  }
+  <span class="kw">const</span> <span class="ty">token</span> = <span class="ty">authHeader</span>.<span class="fn">slice</span>(<span class="num">7</span>)
+  <span class="kw">try</span> {
+    <span class="ty">jwt</span>.<span class="fn">verify</span>(<span class="ty">token</span>, <span class="ty">JWT_SECRET</span>)
+    <span class="kw">return</span> <span class="fn">next</span>()
+  } <span class="kw">catch</span> {
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'token 无效或已过期，请重新登录'</span> }, <span class="num">401</span>)
+  }
+}</pre>
+
+<p>它只回答了"这个 token 有没有过期、是不是伪造的"，却把 <code>jwt.verify</code> 解出来的 <code>userId</code> 直接扔掉了，业务代码根本拿不到"这次请求到底是谁发的"。再看 <code>src/db.ts</code> 里的 <code>getHistory</code>：</p>
+
+<pre><span class="kw">export async function</span> <span class="fn">getHistory</span>(<span class="ty">sessionId</span>: <span class="ty">string</span> | <span class="ty">number</span>) {
+  <span class="kw">return</span> <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC'</span>).<span class="fn">all</span>(<span class="ty">sessionId</span>)
+}</pre>
+
+<p>只要拿到一个 <code>session_id</code>，任何登录用户都能读到这个会话的全部内容——因为 SQL 里压根没有 <code>user_id</code> 这个条件。这两个问题合在一起，就是一个完整的越权链：</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>身份信息在鉴权层被丢弃</strong>：<code>requireAuth</code> 验证完 token 就不管了，业务代码里想用 <code>userId</code> 却拿不到</li>
+    <li><strong>数据表没有归属字段</strong>：<code>messages</code> 表只有 <code>session_id</code>，不知道这条消息是谁的</li>
+    <li><strong>越权读取</strong>：用户 A 只要能拿到（或猜到）用户 B 的 <code>sessionId</code>，就能通过同一个 <code>/api/chat</code> 接口读到 B 的完整对话历史</li>
+  </ul>
+</div>
+
+<h2>二、怎么把身份从鉴权层传到业务层</h2>
+
+<p>Hono 的 <code>Context</code> 对象支持 <code>c.set(key, value)</code> / <code>c.get(key)</code>，专门用来在中间件之间传递请求级别的数据。<code>requireAuth</code> 里 <code>jwt.verify</code> 的返回值就是当初 <code>jwt.sign({ userId: user.id }, ...)</code> 签发的 payload，解出来直接 <code>c.set('userId', ...)</code> 存起来，后面的路由处理函数用 <code>c.get('userId')</code> 就能拿到。</p>
+
+<div class="tip">
+  这比"每个路由自己重新解一次 JWT"要好：解码逻辑只在 <code>requireAuth</code> 里写一次，业务代码只管拿现成的 <code>userId</code>，符合"鉴权归鉴权、业务归业务"的分层原则。
+</div>
+
+<h2>三、消息表要不要建 <code>sessions</code> 表？</h2>
+
+<table>
+  <tr><th>方案</th><th>做法</th><th>取舍</th></tr>
+  <tr><td><strong>给 <code>messages</code> 直接加 <code>user_id</code></strong></td><td>每条消息落库时带上当前用户 id</td><td>改动小，符合现有表结构；但同一个 session 理论上可以被写入不同 <code>user_id</code>（数据一致性靠代码保证，不靠表结构约束）</td></tr>
+  <tr><td><strong>拆出独立 <code>sessions</code> 表</strong></td><td>会话归属只在 <code>sessions</code> 表里存一份，<code>messages</code> 通过外键关联</td><td>结构更严谨，但要多写一次表迁移，对当前只有单表的项目改动偏大</td></tr>
+</table>
+
+<p>这节课选第一种：直接给 <code>messages</code> 表加 <code>user_id</code> 列，改动范围小、能复用现有的 <code>session_id</code> 分组逻辑。当项目后面需要"会话列表"、"重命名会话标题"这类功能时（下一课会讲），再考虑拆出 <code>sessions</code> 表。</p>
+
+<div class="danger">
+  归属校验必须写进 SQL 的 <code>WHERE</code> 条件里，而不是"先查出来，再在 JS 里判断 <code>row.user_id === userId</code>"。后者容易在某次改动中被漏写判断，或者被后来者删掉觉得"多此一举"；写进 SQL 条件里，查不到数据本身就意味着"要么不存在，要么不是你的"，没有中间状态可以被绕过。
+</div>
+
+<h2>四、动手实践</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>改造 <code>src/middleware/auth.ts</code>，把 <code>userId</code> 挂到 <code>Context</code> 上</strong>
+
+  <pre><span class="kw">export const</span> <span class="ty">requireAuth</span>: <span class="ty">MiddlewareHandler</span> = <span class="kw">async</span> (<span class="ty">c</span>, <span class="ty">next</span>) =&gt; {
+  <span class="kw">const</span> <span class="ty">authHeader</span> = <span class="ty">c</span>.<span class="ty">req</span>.<span class="fn">header</span>(<span class="str">'Authorization'</span>)
+  <span class="kw">if</span> (!<span class="ty">authHeader</span>?.<span class="fn">startsWith</span>(<span class="str">'Bearer '</span>)) {
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'未授权，请先登录'</span> }, <span class="num">401</span>)
+  }
+  <span class="kw">const</span> <span class="ty">token</span> = <span class="ty">authHeader</span>.<span class="fn">slice</span>(<span class="num">7</span>)
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="ty">payload</span> = <span class="ty">jwt</span>.<span class="fn">verify</span>(<span class="ty">token</span>, <span class="ty">JWT_SECRET</span>) <span class="kw">as</span> { <span class="ty">userId</span>: <span class="ty">number</span> }
+    <span class="comment">// 把身份挂到 Context 上，后面的路由处理函数用 c.get('userId') 取</span>
+    <span class="ty">c</span>.<span class="fn">set</span>(<span class="str">'userId'</span>, <span class="ty">payload</span>.<span class="ty">userId</span>)
+    <span class="kw">return</span> <span class="fn">next</span>()
+  } <span class="kw">catch</span> {
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'token 无效或已过期，请重新登录'</span> }, <span class="num">401</span>)
+  }
+}</pre>
+
+  <div class="tip">
+    如果项目用了 TypeScript 严格模式，<code>c.set</code>/<code>c.get</code> 的键值类型需要通过 Hono 的泛型 <code>Variables</code> 声明才有类型提示，这节课先用类型断言 <code>as { userId: number }</code> 跑通功能，类型声明可以作为课后自选项。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>给 <code>src/db.ts</code> 的 <code>messages</code> 表加 <code>user_id</code> 列</strong>
+
+  <pre><span class="comment">// PG 分支</span>
+<span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(<span class="str">`
+  CREATE TABLE IF NOT EXISTS messages (
+    id         SERIAL PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    user_id    INTEGER NOT NULL,
+    role       TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`</span>)
+
+<span class="comment">// SQLite 分支</span>
+<span class="ty">db</span>.<span class="fn">exec</span>(<span class="str">`
+  CREATE TABLE IF NOT EXISTS messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT    NOT NULL,
+    user_id    INTEGER NOT NULL,
+    role       TEXT    NOT NULL,
+    content    TEXT    NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`</span>)</pre>
+
+  <div class="warn">
+    这是破坏性表结构变更：已有的 <code>chat.db</code> 文件里 <code>messages</code> 表没有 <code>user_id</code> 列，<code>CREATE TABLE IF NOT EXISTS</code> 不会自动加列。本地开发可以直接删掉 <code>chat.db</code> 重建；生产环境要写显式的 <code>ALTER TABLE messages ADD COLUMN user_id ...</code> 迁移脚本，并给已有数据回填一个默认值，不能假装"删库重建"是普适方案。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>改造 <code>insertMsg</code> / <code>getHistory</code> / <code>countSession</code>，让 <code>user_id</code> 贯穿始终</strong>
+
+  <pre><span class="kw">export async function</span> <span class="fn">insertMsg</span>(<span class="ty">sessionId</span>: <span class="ty">string</span> | <span class="ty">number</span>, <span class="ty">userId</span>: <span class="ty">number</span>, <span class="ty">role</span>: <span class="ty">string</span>, <span class="ty">content</span>: <span class="ty">string</span>) {
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(
+      <span class="str">'INSERT INTO messages (session_id, user_id, role, content) VALUES ($1, $2, $3, $4)'</span>,
+      [<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="ty">role</span>, <span class="ty">content</span>]
+    )
+  } <span class="kw">else</span> {
+    <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'INSERT INTO messages (session_id, user_id, role, content) VALUES (?, ?, ?, ?)'</span>)
+      .<span class="fn">run</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="ty">role</span>, <span class="ty">content</span>)
+  }
+}
+
+<span class="comment">// 归属校验直接写进 WHERE 条件：session_id 和 user_id 必须同时匹配</span>
+<span class="kw">export async function</span> <span class="fn">getHistory</span>(<span class="ty">sessionId</span>: <span class="ty">string</span> | <span class="ty">number</span>, <span class="ty">userId</span>: <span class="ty">number</span>) {
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">const</span> { <span class="ty">rows</span> } = <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(
+      <span class="str">'SELECT role, content FROM messages WHERE session_id = $1 AND user_id = $2 ORDER BY id ASC'</span>,
+      [<span class="ty">sessionId</span>, <span class="ty">userId</span>]
+    )
+    <span class="kw">return</span> <span class="ty">rows</span>
+  }
+  <span class="kw">return</span> <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'SELECT role, content FROM messages WHERE session_id = ? AND user_id = ? ORDER BY id ASC'</span>)
+    .<span class="fn">all</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>)
+}
+
+<span class="comment">// countSession 同理加 user_id 条件</span>
+<span class="kw">export async function</span> <span class="fn">countSession</span>(<span class="ty">sessionId</span>: <span class="ty">string</span> | <span class="ty">number</span>, <span class="ty">userId</span>: <span class="ty">number</span>): <span class="ty">Promise</span>&lt;<span class="ty">number</span>&gt; {
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">const</span> { <span class="ty">rows</span> } = <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(
+      <span class="str">'SELECT COUNT(*) AS cnt FROM messages WHERE session_id = $1 AND user_id = $2'</span>,
+      [<span class="ty">sessionId</span>, <span class="ty">userId</span>]
+    )
+    <span class="kw">return</span> <span class="ty">Number</span>(<span class="ty">rows</span>[<span class="num">0</span>].<span class="ty">cnt</span>)
+  }
+  <span class="kw">const</span> { <span class="ty">cnt</span> } = <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'SELECT COUNT(*) AS cnt FROM messages WHERE session_id = ? AND user_id = ?'</span>)
+    .<span class="fn">get</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>) <span class="kw">as</span> <span class="ty">any</span>
+  <span class="kw">return</span> <span class="ty">cnt</span>
+}</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span><strong>改造 <code>src/business/chat.ts</code>，把 <code>userId</code> 从 <code>Context</code> 传进每次数据库调用</strong>
+
+  <pre><span class="kw">const</span> <span class="ty">userId</span> = <span class="ty">c</span>.<span class="fn">get</span>(<span class="str">'userId'</span>) <span class="kw">as</span> <span class="ty">number</span>
+
+<span class="comment">// 新 session → 先插入 system prompt</span>
+<span class="kw">const</span> <span class="ty">cnt</span> = <span class="kw">await</span> <span class="fn">countSession</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>)
+<span class="kw">if</span> (<span class="ty">cnt</span> === <span class="num">0</span>) <span class="kw">await</span> <span class="fn">insertMsg</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="str">'system'</span>, <span class="ty">SYSTEM_PROMPT</span>)
+
+<span class="comment">// 写入 user 消息</span>
+<span class="kw">await</span> <span class="fn">insertMsg</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="str">'user'</span>, <span class="ty">message</span>)
+
+<span class="comment">// 读取完整历史（只会读到属于当前用户的记录）</span>
+<span class="kw">const</span> <span class="ty">history</span> = <span class="kw">await</span> <span class="fn">getHistory</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>) <span class="kw">as</span> <span class="ty">ChatMessage</span>[]
+<span class="kw">const</span> <span class="ty">trimmedHistory</span> = <span class="fn">trimHistory</span>(<span class="ty">history</span>, <span class="ty">MAX_CONTEXT_TOKENS</span>)</pre>
+
+  <div class="warn">
+    注意 <code>cnt === 0</code> 这个判断现在变得更严格了：即使这个 <code>sessionId</code> 之前被别人用过（<code>cnt</code> 在全局意义上不为 0），只要当前用户从没在这个 <code>sessionId</code> 下写过消息，<code>countSession(sessionId, userId)</code> 对他来说就是 0，会重新插入一次 system prompt。这其实是一个天然的副作用：两个用户即使凑巧用了同一个 <code>sessionId</code> 字符串，数据也不会互相污染，因为查询永远带着 <code>user_id</code> 过滤。
+  </div>
+</div>
+
+<h2>五、本课总结</h2>
+
+<ul>
+  <li><code>requireAuth</code> 验证 token 后，要用 <code>c.set('userId', ...)</code> 把身份传给后续的业务代码，不能验证完就扔掉</li>
+  <li><code>messages</code> 表加 <code>user_id</code> 列，PG 和 SQLite 两个分支的建表语句都要同步改</li>
+  <li>归属校验要写进 SQL 的 <code>WHERE</code> 条件（<code>session_id = ? AND user_id = ?</code>），不能查出来再用 JS 判断</li>
+  <li><code>insertMsg</code> / <code>getHistory</code> / <code>countSession</code> 全部要带上 <code>userId</code> 参数，一个不落</li>
+  <li>表结构变更是破坏性迁移，本地可以删库重建，生产环境必须写 <code>ALTER TABLE</code> 脚本并处理存量数据</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果 <code>getHistory</code> 里的归属校验写成"先按 <code>session_id</code> 查出全部记录，再在 JS 里用 <code>filter</code> 过滤 <code>user_id</code>"，而不是写进 SQL 的 <code>WHERE</code> 条件，会有什么隐患？</p>
+  <p><strong>Q2</strong>：<code>requireAuth</code> 里为什么要用 <code>c.set</code> 传递 <code>userId</code>，而不是让每个路由处理函数自己重新调用一次 <code>jwt.verify</code>？</p>
+  <p><strong>Q3</strong>：给 <code>messages</code> 表新增 <code>user_id NOT NULL</code> 列后，如果生产环境的表里已经有旧数据，直接执行 <code>ALTER TABLE messages ADD COLUMN user_id INTEGER NOT NULL</code> 会发生什么？更稳妥的迁移步骤是什么？</p>
+</div>
+
+<p>下一课将学习<strong>第二十八课：对话列表与会话生命周期管理</strong>——基于这节课打好的 <code>user_id</code> 隔离基础，实现"查看我的所有会话"、"删除某个会话"、"重命名会话标题"等完整的会话管理功能。</p>
+
+</body>
+</html>

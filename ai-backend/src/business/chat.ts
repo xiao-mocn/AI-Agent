@@ -3,10 +3,11 @@ import { Hono } from 'hono'
 import { ChatSchema } from './schemas'
 import { trimHistory } from '../middleware/contextWindow'
 import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
+import type { AppEnv } from '../types'
 
 const MAX_CONTEXT_TOKENS = 4000
 
-export default function ChatMessageRoutes(app: Hono) {
+export default function ChatMessageRoutes(app: Hono<AppEnv>) {
 
   // AI 的行为设定
   const SYSTEM_PROMPT =
@@ -33,16 +34,17 @@ export default function ChatMessageRoutes(app: Hono) {
     const result = ChatSchema.safeParse(body)
     if (!result.success) return c.json({ error: result.error.issues[0].message }, 400)
     const { message, sessionId } = result.data
+    const userId = c.get('userId') as number
 
     // 新 session → 先插入 system prompt
-    const cnt = await countSession(sessionId)
-    if (cnt === 0) await insertMsg(sessionId, 'system', SYSTEM_PROMPT)
+    const cnt = await countSession(sessionId, userId)
+    if (cnt === 0) await insertMsg(sessionId, userId, 'system', SYSTEM_PROMPT)
 
     // 写入 user 消息
-    await insertMsg(sessionId, 'user', message)
+    await insertMsg(sessionId, userId, 'user', message)
 
     // 读取完整历史
-    const history = await getHistory(sessionId) as ChatMessage[]
+    const history = await getHistory(sessionId, userId) as ChatMessage[]
     // 只有发给 AI 的这一份做裁剪
     const trimmedHistory = trimHistory(history, MAX_CONTEXT_TOKENS)
 
@@ -69,7 +71,7 @@ export default function ChatMessageRoutes(app: Hono) {
             controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`))
             controller.close()
             // 写入完整回复到数据库（用于历史还原）
-            await insertMsg(sessionId, 'assistant', fullReply)
+            await insertMsg(sessionId, userId, 'assistant', fullReply)
           },
         }),
         {

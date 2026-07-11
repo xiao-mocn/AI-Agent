@@ -4,8 +4,9 @@ import { Hono } from 'hono'
 import { createUser, findUser } from '../db'
 import { RegisterSchema, LoginSchema } from './schemas'
 import { JWT_SECRET } from '../config'
+import type { AppEnv } from '../types'
 
-export default function createUserRoutes(app: Hono) {
+export default function createUserRoutes(app: Hono<AppEnv>) {
   // 注册
   app.post('/register', async (c) => {
     const body = await c.req.json()

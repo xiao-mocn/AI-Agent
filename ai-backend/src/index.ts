@@ -15,10 +15,11 @@ import { initDB, closeDB, checkDBHealth } from './db'
 import { startScheduler, stopScheduler } from './middleware/scheduler'
 import { startWorker, waitForWorker } from './middleware/queue'
 import { attachWebSocket, closeWebSocket } from './middleware/websocket'
+import type { AppEnv } from './types'
 
 
 
-const app = new Hono()
+const app = new Hono<AppEnv>()
 
 app.use('*', secureHeaders())
 app.use('*', requestId())

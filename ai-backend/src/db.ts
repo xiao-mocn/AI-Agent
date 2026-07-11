@@ -37,28 +37,42 @@ export async function findUser(username: string): Promise<any> {
 
 // ===== 消息相关 =====
 
-export async function insertMsg(sessionId: string | number, role: string, content: string) {
+export async function insertMsg(sessionId: string | number, userId: number, role: string, content: string) {
   if (isPG) {
-    await pool!.query('INSERT INTO messages (session_id, role, content) VALUES ($1, $2, $3)', [sessionId, role, content])
+    await pool!.query(
+      'INSERT INTO messages (session_id, user_id, role, content) VALUES ($1, $2, $3, $4)',
+      [sessionId, userId, role, content]
+    )
   } else {
-    db.prepare('INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)').run(sessionId, role, content)
+    db.prepare('INSERT INTO messages (session_id, user_id, role, content) VALUES (?, ?, ?, ?)')
+      .run(sessionId, userId, role, content)
   }
 }
 
-export async function getHistory(sessionId: string | number) {
+// 归属校验直接写进 WHERE 条件：session_id 和 user_id 必须同时匹配
+export async function getHistory(sessionId: string | number, userId: number) {
   if (isPG) {
-    const { rows } = await pool!.query('SELECT role, content FROM messages WHERE session_id = $1 ORDER BY id ASC', [sessionId])
+    const { rows } = await pool!.query(
+      'SELECT role, content FROM messages WHERE session_id = $1 AND user_id = $2 ORDER BY id ASC',
+      [sessionId, userId]
+    )
     return rows
   }
-  return db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC').all(sessionId)
+  return db.prepare('SELECT role, content FROM messages WHERE session_id = ? AND user_id = ? ORDER BY id ASC')
+    .all(sessionId, userId)
 }
 
-export async function countSession(sessionId: string | number): Promise<number> {
+// countSession 同理加 user_id 条件
+export async function countSession(sessionId: string | number, userId: number): Promise<number> {
   if (isPG) {
-    const { rows } = await pool!.query('SELECT COUNT(*) AS cnt FROM messages WHERE session_id = $1', [sessionId])
+    const { rows } = await pool!.query(
+      'SELECT COUNT(*) AS cnt FROM messages WHERE session_id = $1 AND user_id = $2',
+      [sessionId, userId]
+    )
     return Number(rows[0].cnt)
   }
-  const { cnt } = db.prepare('SELECT COUNT(*) AS cnt FROM messages WHERE session_id = ?').get(sessionId) as any
+  const { cnt } = db.prepare('SELECT COUNT(*) AS cnt FROM messages WHERE session_id = ? AND user_id = ?')
+    .get(sessionId, userId) as any
   return cnt
 }
 
@@ -102,6 +116,7 @@ export async function initDB() {
       CREATE TABLE IF NOT EXISTS messages (
         id         SERIAL PRIMARY KEY,
         session_id TEXT NOT NULL,
+        user_id    INTEGER NOT NULL,
         role       TEXT NOT NULL,
         content    TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -112,6 +127,7 @@ export async function initDB() {
       CREATE TABLE IF NOT EXISTS messages (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id TEXT    NOT NULL,
+        user_id    INTEGER NOT NULL,
         role       TEXT    NOT NULL,
         content    TEXT    NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
