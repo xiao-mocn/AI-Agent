@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 import { Hono } from 'hono'
 import { ChatSchema } from './schemas'
 import { trimHistory } from '../middleware/contextWindow'
-import { deleteLastUserMsg, insertMsg, getHistory, countSession } from '../db'
+import { deleteLastUserMsg, insertMsg, getHistory, countSession, createSessionIfNotExists } from '../db'
 import type { AppEnv } from '../types'
 
 const MAX_CONTEXT_TOKENS = 4000
@@ -35,6 +35,10 @@ export default function ChatMessageRoutes(app: Hono<AppEnv>) {
     if (!result.success) return c.json({ error: result.error.issues[0].message }, 400)
     const { message, sessionId } = result.data
     const userId = c.get('userId') as number
+
+    // 会话不存在则建档（幂等，重复调用不会报错也不会覆盖已有标题）
+    await createSessionIfNotExists(sessionId, userId, message
+    )
 
     // 新 session → 先插入 system prompt
     const cnt = await countSession(sessionId, userId)

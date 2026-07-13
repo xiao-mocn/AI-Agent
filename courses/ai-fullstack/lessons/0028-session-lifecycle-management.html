@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第二十八课：对话列表与会话生命周期管理</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第二十八课：对话列表与会话生命周期管理</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 后端 · 数据建模</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么光靠 <code>messages.session_id</code> 分组，撑不起"查看我的所有会话"这个功能</li>
+    <li>怎么设计一张独立的 <code>sessions</code> 表，把"会话"本身变成一等公民</li>
+    <li>怎么在用户第一次发消息时自动创建一条 <code>sessions</code> 记录，并生成默认标题</li>
+    <li>怎么实现 <code>GET /api/sessions</code>（列表）、<code>PATCH /api/sessions/:id</code>（改名）、<code>DELETE /api/sessions/:id</code>（删除）三个接口</li>
+    <li>为什么"删除会话"必须同时清理 <code>messages</code> 表，而不是留下一堆孤儿数据</li>
+  </ul>
+</div>
+
+<h2>一、现在的 <code>session_id</code> 撑不起"会话列表"</h2>
+
+<p>
+  第二十七课解决了"同一个 <code>session_id</code> 不会被两个用户混用"的问题，但 <code>session_id</code>
+  本身还只是前端随手生成的一个字符串（比如一个 UUID），后端从来没有为它单独建过档：不知道这个会话叫什么名字、
+  是什么时候创建的、当前用户名下一共有几个会话。
+</p>
+
+<p>
+  这意味着如果产品要做一个类似 ChatGPT 左侧边栏的"历史会话列表"，现在的表结构完全给不出答案——
+  <code>SELECT DISTINCT session_id FROM messages WHERE user_id = ?</code> 勉强能凑出一个 ID 列表，
+  但凑不出标题、也没法优雅地处理"删除会话"（删除后 <code>DISTINCT</code> 查询会不会重新捡回残留数据，取决于你有没有把
+  <code>messages</code> 也一起清干净）。
+</p>
+
+<div class="bad">
+  <ul>
+    <li><strong>没有标题</strong>：会话列表只能显示一串 <code>session_id</code>，用户体验很差</li>
+    <li><strong>没有创建/更新时间</strong>：列表没法按"最近使用"排序</li>
+    <li><strong>删除语义不清晰</strong>：到底是"这个 <code>session_id</code> 以后不能再用"，还是"把这些消息删了但 <code>session_id</code> 还能复用"，没有一个表能给出权威答案</li>
+  </ul>
+</div>
+
+<h2>二、拆出 <code>sessions</code> 表</h2>
+
+<p>
+  第二十七课的表格里提过"拆出独立 <code>sessions</code> 表"这个选项，当时因为只需要解决越权问题，选了改动更小的方案。
+  现在需求变了——"会话列表"、"重命名"、"删除"都是围绕"会话"这个实体的操作，而不是围绕单条消息，
+  所以这节课把 <code>sessions</code> 表补上，让它成为会话的唯一权威来源，<code>messages</code> 通过
+  <code>session_id</code> 关联它。
+</p>
+
+<pre><span class="comment">// PG 分支</span>
+<span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(<span class="str">`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id         TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
+    title      TEXT NOT NULL DEFAULT '新会话',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`</span>)
+
+<span class="comment">// SQLite 分支</span>
+<span class="ty">db</span>.<span class="fn">exec</span>(<span class="str">`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id         TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
+    title      TEXT    NOT NULL DEFAULT '新会话',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`</span>)</pre>
+
+<div class="tip">
+  <code>id</code> 直接复用前端生成的 <code>session_id</code> 字符串做主键，不额外引入自增 ID——这样
+  <code>messages.session_id</code> 不用改类型，两张表靠同一个值天然对齐。
+</div>
+
+<table>
+  <tr><th>方案</th><th>做法</th><th>取舍</th></tr>
+  <tr><td><strong>加外键约束</strong></td><td><code>messages.session_id</code> 显式 <code>REFERENCES sessions(id)</code></td><td>数据库帮你保证一致性，删除 <code>sessions</code> 时可以用 <code>ON DELETE CASCADE</code> 自动清消息；但要求 <code>sessions</code> 记录必须先于 <code>messages</code> 存在，插入顺序不能乱</td></tr>
+  <tr><td><strong>不加外键，应用层保证</strong></td><td>两张表各自独立，靠业务代码保证先建 <code>session</code> 再写消息</td><td>灵活，但一致性完全靠代码纪律，容易出现孤儿消息</td></tr>
+</table>
+
+<p>这节课选<strong>加外键 + <code>ON DELETE CASCADE</code></strong>：这是数据库最擅长的事情——"父记录没了，子记录自动清理"这种一致性规则，交给数据库比交给业务代码更可靠。</p>
+
+<div class="danger">
+  <code>ON DELETE CASCADE</code> 意味着一旦执行 <code>DELETE FROM sessions WHERE id = ?</code>，这个会话下的所有消息会被<strong>无提示、不可逆地</strong>一起删掉。接口层必须在删除前做好归属校验（<code>WHERE id = ? AND user_id = ?</code>），确保用户只能删自己的会话——级联删除会把"权限校验疏漏"的后果放得更大，因为一次误删清空的是一整条对话历史，而不是一条消息。
+</div>
+
+<h2>三、动手实践</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>在 <code>src/db.ts</code> 里建 <code>sessions</code> 表，并给 <code>messages</code> 补外键</strong>
+
+  <pre><span class="comment">// messages 表的 session_id 列，改成带外键约束</span>
+<span class="comment">// PG：</span>
+<span class="ty">session_id</span> <span class="ty">TEXT</span> <span class="kw">NOT NULL</span> <span class="kw">REFERENCES</span> <span class="fn">sessions</span>(<span class="ty">id</span>) <span class="kw">ON DELETE CASCADE</span>,
+
+<span class="comment">// SQLite：建表时加，并且需要 PRAGMA foreign_keys = ON 才会生效</span>
+<span class="ty">db</span>.<span class="fn">pragma</span>(<span class="str">'foreign_keys = ON'</span>)</pre>
+
+  <div class="warn">
+    和第二十七课一样，这也是破坏性表结构变更：本地直接删 <code>chat.db</code> 重建；<code>sessions</code>
+    表要先于 <code>messages</code> 建出来，建表顺序不能颠倒（外键引用的表必须已存在）。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>新增 <code>createSessionIfNotExists</code> / <code>listSessions</code> / <code>renameSession</code> / <code>deleteSession</code></strong>
+
+  <pre><span class="comment">// 首次发消息时自动建档，标题取消息内容前 20 个字符</span>
+<span class="kw">export async function</span> <span class="fn">createSessionIfNotExists</span>(<span class="ty">sessionId</span>: <span class="ty">string</span>, <span class="ty">userId</span>: <span class="ty">number</span>, <span class="ty">firstMessage</span>: <span class="ty">string</span>) {
+  <span class="kw">const</span> <span class="ty">title</span> = <span class="ty">firstMessage</span>.<span class="fn">slice</span>(<span class="num">0</span>, <span class="num">20</span>) || <span class="str">'新会话'</span>
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(
+      <span class="str">'INSERT INTO sessions (id, user_id, title) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING'</span>,
+      [<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="ty">title</span>]
+    )
+  } <span class="kw">else</span> {
+    <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'INSERT OR IGNORE INTO sessions (id, user_id, title) VALUES (?, ?, ?)'</span>)
+      .<span class="fn">run</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="ty">title</span>)
+  }
+}
+
+<span class="comment">// 归属校验同样写进 WHERE：只能列出自己的会话</span>
+<span class="kw">export async function</span> <span class="fn">listSessions</span>(<span class="ty">userId</span>: <span class="ty">number</span>) {
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">const</span> { <span class="ty">rows</span> } = <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(
+      <span class="str">'SELECT id, title, updated_at FROM sessions WHERE user_id = $1 ORDER BY updated_at DESC'</span>,
+      [<span class="ty">userId</span>]
+    )
+    <span class="kw">return</span> <span class="ty">rows</span>
+  }
+  <span class="kw">return</span> <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'SELECT id, title, updated_at FROM sessions WHERE user_id = ? ORDER BY updated_at DESC'</span>)
+    .<span class="fn">all</span>(<span class="ty">userId</span>)
+}
+
+<span class="comment">// 改名：WHERE 里同时带 id 和 user_id，查不到就是"不存在或不是你的"</span>
+<span class="kw">export async function</span> <span class="fn">renameSession</span>(<span class="ty">sessionId</span>: <span class="ty">string</span>, <span class="ty">userId</span>: <span class="ty">number</span>, <span class="ty">title</span>: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">boolean</span>&gt; {
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">const</span> <span class="ty">res</span> = <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(
+      <span class="str">'UPDATE sessions SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3'</span>,
+      [<span class="ty">title</span>, <span class="ty">sessionId</span>, <span class="ty">userId</span>]
+    )
+    <span class="kw">return</span> (<span class="ty">res</span>.<span class="ty">rowCount</span> ?? <span class="num">0</span>) &gt; <span class="num">0</span>
+  }
+  <span class="kw">const</span> <span class="ty">info</span> = <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'UPDATE sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?'</span>)
+    .<span class="fn">run</span>(<span class="ty">title</span>, <span class="ty">sessionId</span>, <span class="ty">userId</span>)
+  <span class="kw">return</span> <span class="ty">info</span>.<span class="ty">changes</span> &gt; <span class="num">0</span>
+}
+
+<span class="comment">// 删除：只删 sessions，messages 靠 ON DELETE CASCADE 自动清理</span>
+<span class="kw">export async function</span> <span class="fn">deleteSession</span>(<span class="ty">sessionId</span>: <span class="ty">string</span>, <span class="ty">userId</span>: <span class="ty">number</span>): <span class="ty">Promise</span>&lt;<span class="ty">boolean</span>&gt; {
+  <span class="kw">if</span> (<span class="ty">isPG</span>) {
+    <span class="kw">const</span> <span class="ty">res</span> = <span class="kw">await</span> <span class="ty">pool</span>!.<span class="fn">query</span>(<span class="str">'DELETE FROM sessions WHERE id = $1 AND user_id = $2'</span>, [<span class="ty">sessionId</span>, <span class="ty">userId</span>])
+    <span class="kw">return</span> (<span class="ty">res</span>.<span class="ty">rowCount</span> ?? <span class="num">0</span>) &gt; <span class="num">0</span>
+  }
+  <span class="kw">const</span> <span class="ty">info</span> = <span class="ty">db</span>.<span class="fn">prepare</span>(<span class="str">'DELETE FROM sessions WHERE id = ? AND user_id = ?'</span>).<span class="fn">run</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>)
+  <span class="kw">return</span> <span class="ty">info</span>.<span class="ty">changes</span> &gt; <span class="num">0</span>
+}</pre>
+
+  <div class="tip">
+    <code>renameSession</code>/<code>deleteSession</code> 都返回一个 <code>boolean</code>：受影响行数为 0，
+    路由层就能区分"这个会话本来就不存在或不是你的"，回一个 404，而不是含糊地回 200。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>在 <code>chat.ts</code> 里，写第一条消息前先调用 <code>createSessionIfNotExists</code></strong>
+
+  <pre><span class="kw">const</span> <span class="ty">userId</span> = <span class="ty">c</span>.<span class="fn">get</span>(<span class="str">'userId'</span>) <span class="kw">as</span> <span class="ty">number</span>
+
+<span class="comment">// 会话不存在则建档（幂等，重复调用不会报错也不会覆盖已有标题）</span>
+<span class="kw">await</span> <span class="fn">createSessionIfNotExists</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="ty">message</span>)
+
+<span class="kw">const</span> <span class="ty">cnt</span> = <span class="kw">await</span> <span class="fn">countSession</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>)
+<span class="kw">if</span> (<span class="ty">cnt</span> === <span class="num">0</span>) <span class="kw">await</span> <span class="fn">insertMsg</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="str">'system'</span>, <span class="ty">SYSTEM_PROMPT</span>)
+<span class="kw">await</span> <span class="fn">insertMsg</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="str">'user'</span>, <span class="ty">message</span>)</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span><strong>新增 <code>src/business/sessions.ts</code>，暴露三个路由</strong>
+
+  <pre><span class="kw">import</span> { <span class="ty">Hono</span> } <span class="kw">from</span> <span class="str">'hono'</span>
+<span class="kw">import</span> <span class="kw">type</span> { <span class="ty">AppEnv</span> } <span class="kw">from</span> <span class="str">'../types'</span>
+<span class="kw">import</span> { <span class="fn">listSessions</span>, <span class="fn">renameSession</span>, <span class="fn">deleteSession</span> } <span class="kw">from</span> <span class="str">'../db'</span>
+
+<span class="kw">export default function</span> <span class="fn">SessionRoutes</span>(<span class="ty">app</span>: <span class="ty">Hono</span>&lt;<span class="ty">AppEnv</span>&gt;) {
+  <span class="ty">app</span>.<span class="fn">get</span>(<span class="str">'/api/sessions'</span>, <span class="kw">async</span> (<span class="ty">c</span>) =&gt; {
+    <span class="kw">const</span> <span class="ty">userId</span> = <span class="ty">c</span>.<span class="fn">get</span>(<span class="str">'userId'</span>) <span class="kw">as</span> <span class="ty">number</span>
+    <span class="kw">const</span> <span class="ty">sessions</span> = <span class="kw">await</span> <span class="fn">listSessions</span>(<span class="ty">userId</span>)
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">sessions</span> })
+  })
+
+  <span class="ty">app</span>.<span class="fn">patch</span>(<span class="str">'/api/sessions/:id'</span>, <span class="kw">async</span> (<span class="ty">c</span>) =&gt; {
+    <span class="kw">const</span> <span class="ty">userId</span> = <span class="ty">c</span>.<span class="fn">get</span>(<span class="str">'userId'</span>) <span class="kw">as</span> <span class="ty">number</span>
+    <span class="kw">const</span> <span class="ty">sessionId</span> = <span class="ty">c</span>.<span class="ty">req</span>.<span class="fn">param</span>(<span class="str">'id'</span>)
+    <span class="kw">const</span> { <span class="ty">title</span> } = <span class="kw">await</span> <span class="ty">c</span>.<span class="ty">req</span>.<span class="fn">json</span>()
+    <span class="kw">if</span> (!<span class="ty">title</span> || <span class="kw">typeof</span> <span class="ty">title</span> !== <span class="str">'string'</span>) <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'title 不能为空'</span> }, <span class="num">400</span>)
+
+    <span class="kw">const</span> <span class="ty">ok</span> = <span class="kw">await</span> <span class="fn">renameSession</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>, <span class="ty">title</span>)
+    <span class="kw">if</span> (!<span class="ty">ok</span>) <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'会话不存在'</span> }, <span class="num">404</span>)
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">ok</span>: <span class="kw">true</span> })
+  })
+
+  <span class="ty">app</span>.<span class="fn">delete</span>(<span class="str">'/api/sessions/:id'</span>, <span class="kw">async</span> (<span class="ty">c</span>) =&gt; {
+    <span class="kw">const</span> <span class="ty">userId</span> = <span class="ty">c</span>.<span class="fn">get</span>(<span class="str">'userId'</span>) <span class="kw">as</span> <span class="ty">number</span>
+    <span class="kw">const</span> <span class="ty">sessionId</span> = <span class="ty">c</span>.<span class="ty">req</span>.<span class="fn">param</span>(<span class="str">'id'</span>)
+
+    <span class="kw">const</span> <span class="ty">ok</span> = <span class="kw">await</span> <span class="fn">deleteSession</span>(<span class="ty">sessionId</span>, <span class="ty">userId</span>)
+    <span class="kw">if</span> (!<span class="ty">ok</span>) <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">error</span>: <span class="str">'会话不存在'</span> }, <span class="num">404</span>)
+    <span class="kw">return</span> <span class="ty">c</span>.<span class="fn">json</span>({ <span class="ty">ok</span>: <span class="kw">true</span> })
+  })
+}</pre>
+
+  <div class="warn">
+    别忘了在 <code>index.ts</code> 里 <code>app.use('/api/*', requireAuth)</code> 之后注册
+    <code>SessionRoutes(app)</code>——三个接口都依赖 <code>c.get('userId')</code>，必须先经过鉴权中间件。
+  </div>
+</div>
+
+<h2>四、本课总结</h2>
+
+<ul>
+  <li>新增 <code>sessions</code> 表作为会话的唯一权威来源，<code>messages.session_id</code> 用外键 <code>ON DELETE CASCADE</code> 关联它</li>
+  <li>用户第一次发消息时，<code>createSessionIfNotExists</code> 自动建档并生成默认标题</li>
+  <li><code>listSessions</code>/<code>renameSession</code>/<code>deleteSession</code> 全部要求 <code>userId</code> 参数，归属校验写进 SQL 的 <code>WHERE</code> 条件</li>
+  <li><code>renameSession</code>/<code>deleteSession</code> 返回受影响行数而不是"成功就完事"，路由层据此区分 404 和 200</li>
+  <li>级联删除是把双刃剑：效率高，但一旦权限校验疏漏，误删的后果会被放大成整条对话历史</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：如果没有 <code>ON DELETE CASCADE</code>，直接执行 <code>DELETE FROM sessions WHERE id = ? AND user_id = ?</code>，会遗留什么问题？如果反过来"先手动删 <code>messages</code>，再删 <code>sessions</code>"，又要注意什么顺序问题？</p>
+  <p><strong>Q2</strong>：<code>renameSession</code> 的 SQL 是 <code>WHERE id = ? AND user_id = ?</code>，如果只写 <code>WHERE id = ?</code>（不校验 <code>user_id</code>），会造成什么后果？只在路由层用 <code>if (session.userId !== userId)</code> 判断、不写进 SQL，是否能达到同样的安全效果？</p>
+  <p><strong>Q3</strong>：用"消息内容前 20 个字符"当默认会话标题，在实际使用中会遇到什么局限（比如用户第一句话很短、或者是一段代码）？如果想用 AI 自动生成更有意义的标题，这个调用应该放在请求的同步路径里，还是异步做？为什么？</p>
+</div>
+
+<p>下一课将学习<strong>第二十九课：前端接入会话列表与切换</strong>——把这节课新增的三个接口接到 Vue 聊天界面里，做一个左侧边栏展示"我的所有会话"，支持点击切换、双击重命名、悬浮删除，让后端这几课攒下的能力第一次在界面上被真正用起来。</p>
+
+</body>
+</html>

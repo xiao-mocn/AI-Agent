@@ -85,6 +85,57 @@ export async function deleteLastUserMsg(sessionId: string | number) {
   }
 }
 
+// 首次发消息时自动建档，标题取消息内容前 20 个字符
+export async function createSessionIfNotExists(sessionId: string | number, userId: number, firstMessage: string) {
+  const title = firstMessage.slice(0, 20) || '新会话'
+  if (isPG) {
+    await pool!.query(
+      'INSERT INTO sessions (id, user_id, title) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
+      [sessionId, userId, title]
+    )
+  } else {
+    db.prepare('INSERT OR IGNORE INTO sessions (id, user_id, title) VALUES (?, ?, ?)')
+      .run(sessionId, userId, title)
+  }
+}
+
+// 归属校验同样写进 WHERE：只能列出自己的会话
+export async function listSessions(userId: number) {
+  if (isPG) {
+    const { rows } = await pool!.query(
+      'SELECT id, title, updated_at FROM sessions WHERE user_id = $1 ORDER BY updated_at DESC',
+      [userId]
+    )
+    return rows
+  }
+  return db.prepare('SELECT id, title, updated_at FROM sessions WHERE user_id = ? ORDER BY updated_at DESC')
+    .all(userId)
+}
+
+// 改名：WHERE 里同时带 id 和 user_id，查不到就是"不存在或不是你的"
+export async function renameSession(sessionId: string, userId: number, title: string): Promise<boolean> {
+  if (isPG) {
+    const res = await pool!.query(
+      'UPDATE sessions SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3',
+      [title, sessionId, userId]
+    )
+    return (res.rowCount ?? 0) > 0
+  }
+  const info = db.prepare('UPDATE sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?')
+    .run(title, sessionId, userId)
+  return info.changes > 0
+}
+
+// 删除：只删 sessions，messages 靠 ON DELETE CASCADE 自动清理
+export async function deleteSession(sessionId: string, userId: number): Promise<boolean> {
+  if (isPG) {
+    const res = await pool!.query('DELETE FROM sessions WHERE id = $1 AND user_id = $2', [sessionId, userId])
+    return (res.rowCount ?? 0) > 0
+  }
+  const info = db.prepare('DELETE FROM sessions WHERE id = ? AND user_id = ?').run(sessionId, userId)
+  return info.changes > 0
+}
+
 // 健康检查：数据库是否可查通
 export async function checkDBHealth() {
   if (isPG) {
@@ -106,6 +157,15 @@ export async function closeDB() {
 export async function initDB() {
   if (isPG) {
     await pool!.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id         TEXT PRIMARY KEY,
+        user_id    INTEGER NOT NULL,
+        title      TEXT NOT NULL DEFAULT '新会话',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    await pool!.query(`
       CREATE TABLE IF NOT EXISTS users (
         id       SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
@@ -115,7 +175,7 @@ export async function initDB() {
     await pool!.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id         SERIAL PRIMARY KEY,
-        session_id TEXT NOT NULL,
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
         user_id    INTEGER NOT NULL,
         role       TEXT NOT NULL,
         content    TEXT NOT NULL,
@@ -123,10 +183,20 @@ export async function initDB() {
       )
     `)
   } else {
+    db.pragma('foreign_keys = ON')
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id         TEXT PRIMARY KEY,
+        user_id    INTEGER NOT NULL,
+        title      TEXT    NOT NULL DEFAULT '新会话',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
     db.exec(`
       CREATE TABLE IF NOT EXISTS messages (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id TEXT    NOT NULL,
+        session_id TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
         user_id    INTEGER NOT NULL,
         role       TEXT    NOT NULL,
         content    TEXT    NOT NULL,

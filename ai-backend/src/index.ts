@@ -16,6 +16,7 @@ import { startScheduler, stopScheduler } from './middleware/scheduler'
 import { startWorker, waitForWorker } from './middleware/queue'
 import { attachWebSocket, closeWebSocket } from './middleware/websocket'
 import type { AppEnv } from './types'
+import SessionRoutes from './business/sessions'
 
 
 
@@ -57,6 +58,7 @@ app.get('/ready', async (c) => {
 
 user(app)
 ChatMessageRoutes(app)
+SessionRoutes(app)
 
 app.onError((err, c) => {
   logger.error({
