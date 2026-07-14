@@ -4,7 +4,12 @@
     <aside class="sidebar">
       <button class="new-chat-btn" @click="createSession">＋ 新建对话</button>
       <div v-for="s in sessions" :key="s.id" :class="['session-item', { active: s.id === activeId }]"
-        @click="activeId = s.id">{{ s.title }}</div>
+        @click="switchSession(s.id)">
+        <input v-if="editingId === s.id" v-model="editingTitle" class="session-title-input" ref="editInputEl"
+          @click.stop @blur="commitRename(s)" @keydown.enter="commitRename(s)" @keydown.esc="editingId = ''" />
+        <span v-else class="session-title" @dblclick.stop="startRename(s)">{{ s.title }}</span>
+        <button class="delete-btn" title="删除" @click.stop="removeSession(s.id)">×</button>
+      </div>
     </aside>
     <!-- 右侧聊天区域（把原来的 .layout 放这里）-->
     <div class="chat-area">
@@ -23,13 +28,13 @@
         <!-- 消息区域 -->
         <main class="messages" ref="messagesEl">
           <!-- 空状态 -->
-          <div v-if="activeSession.messages.length === 0" class="empty">
+          <div v-if="activeMessages.length === 0" class="empty">
             <div class="empty-icon">✦</div>
             <p class="empty-title">有什么我可以帮你的？</p>
             <p class="empty-sub">我是你的 AI 全栈工程师助教</p>
           </div>
 
-          <div v-for="(msg, i) in activeSession.messages" :key="i" :class="`row ${msg.role}`">
+          <div v-for="(msg, i) in activeMessages" :key="i" :class="`row ${msg.role}`">
             <div v-if="msg.role === 'assistant'" class="avatar">✦</div>
             <div class="bubble">{{ msg.content }}</div>
           </div>
@@ -65,27 +70,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 type Message = { role: 'user' | 'assistant'; content: string }
+type SessionMeta = { id: string; title: string; updated_at: string }
 
-type Session = {
-  id: string
-  title: string
-  messages: Message[]
-}
+const sessions = ref<SessionMeta[]>([])
+const activeId = ref<string>('')
+// 消息按 sessionId 分开缓存，切换会话时优先读缓存
+const messagesCache = ref<Record<string, Message[]>>({})
 
-const sessions = ref<Session[]>([newSession()])
-const activeId = ref(sessions.value[0].id)
-
-const activeSession = computed(() =>
-  sessions.value.find(s => s.id === activeId.value)!
-)
-
-function newSession(): Session {
-  return { id: crypto.randomUUID(), title: '新对话', messages: [] }
-}
+const activeMessages = computed(() => messagesCache.value[activeId.value] ?? [])
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const router = useRouter()
@@ -94,25 +90,57 @@ const input = ref('')
 const loading = ref(false)
 const bottomEl = ref<HTMLElement | null>(null)
 
+function authHeaders(extra: Record<string, string> = {}) {
+  const token = localStorage.getItem('token')
+  return { Authorization: `Bearer ${token}`, ...extra }
+}
+
 function scrollToBottom() {
   nextTick(() => bottomEl.value?.scrollIntoView({ behavior: 'smooth' }))
+}
+
+async function loadSessions() {
+  const res = await fetch(`${API_URL}/api/sessions`, { headers: authHeaders() })
+  if (!res.ok) return
+  const { sessions: list } = await res.json()
+  sessions.value = list
+  // 有历史会话就默认选中最新的那个，没有就留空走"新对话"逻辑
+  if (list.length > 0) await switchSession(list[0].id)
+  else createSession()
+}
+
+onMounted(loadSessions)
+
+// 拉一次最新的会话元信息（标题、updated_at），不影响 activeId 和已缓存的消息
+async function refreshSessionList() {
+  const res = await fetch(`${API_URL}/api/sessions`, { headers: authHeaders() })
+  if (res.ok) sessions.value = (await res.json()).sessions
+}
+
+async function switchSession(id: string) {
+  activeId.value = id
+  if (messagesCache.value[id]) return // 缓存过，不用再请求
+
+  const res = await fetch(`${API_URL}/api/sessions/${id}/messages`, { headers: authHeaders() })
+  messagesCache.value[id] = res.ok ? (await res.json()).messages : []
 }
 
 async function send() {
   const text = input.value.trim()
   if (!text || loading.value) return
 
-  activeSession.value.messages.push({ role: 'user', content: text })
+  if (!messagesCache.value[activeId.value]) messagesCache.value[activeId.value] = []
+  const list = messagesCache.value[activeId.value]
+
+  list.push({ role: 'user', content: text })
   input.value = ''
   loading.value = true
   scrollToBottom()
 
   try {
-    let token = localStorage.getItem('token')
-
     const res = await fetch(`${API_URL}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ message: text, sessionId: activeId.value }),
     })
 
@@ -131,8 +159,8 @@ async function send() {
 
     if (!res.ok) throw new Error('请求失败')
 
-    activeSession.value.messages.push({ role: 'assistant', content: '' })
-    const lastMsg = activeSession.value.messages[activeSession.value.messages.length - 1]
+    list.push({ role: 'assistant', content: '' })
+    const lastMsg = list[list.length - 1]
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
 
@@ -150,17 +178,69 @@ async function send() {
       }
     }
   } catch {
-    activeSession.value.messages.push({ role: 'assistant', content: '出错了，请稍后重试' })
+    list.push({ role: 'assistant', content: '出错了，请稍后重试' })
   } finally {
     loading.value = false
     scrollToBottom()
+    // 首条消息会让后端自动建档，标题/updated_at 也会变，刷新一下侧边栏列表
+    await refreshSessionList()
   }
 }
 
 function createSession() {
-  const s = newSession()
-  sessions.value.push(s)
-  activeId.value = s.id
+  activeId.value = crypto.randomUUID()
+  messagesCache.value[activeId.value] = []
+}
+
+const editingId = ref('')
+const editingTitle = ref('')
+const editInputEl = ref<HTMLInputElement | null>(null)
+
+function startRename(s: SessionMeta) {
+  editingId.value = s.id
+  editingTitle.value = s.title
+  nextTick(() => {
+    const el = Array.isArray(editInputEl.value) ? editInputEl.value[0] : editInputEl.value
+    el?.focus()
+    el?.select()
+  })
+}
+
+async function commitRename(s: SessionMeta) {
+  if (editingId.value !== s.id) return // 已经提交过一次了（Enter 触发后紧接着 blur）
+  editingId.value = ''
+  const newTitle = editingTitle.value.trim()
+  if (!newTitle || newTitle === s.title) return
+  await renameSession(s, newTitle)
+}
+
+async function renameSession(s: SessionMeta, newTitle: string) {
+  const old = s.title
+  s.title = newTitle // 先改界面，用户不用等网络请求就能看到反馈
+
+  const res = await fetch(`${API_URL}/api/sessions/${s.id}`, {
+    method: 'PATCH',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ title: newTitle }),
+  })
+  if (!res.ok) s.title = old // 请求失败，回滚回原标题
+}
+
+async function removeSession(id: string) {
+  const res = await fetch(`${API_URL}/api/sessions/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (!res.ok) return
+
+  sessions.value = sessions.value.filter(s => s.id !== id)
+  delete messagesCache.value[id]
+
+  // 删的正好是当前打开的会话：切到列表里第一个，列表也空了就回到"新对话"的空状态
+  if (activeId.value === id) {
+    if (sessions.value.length > 0) await switchSession(sessions.value[0].id)
+    else createSession()
+  }
 }
 
 function logout() {
@@ -224,14 +304,14 @@ body {
 }
 
 .session-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.6rem 0.85rem;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.55);
   font-size: 0.875rem;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   transition: background 0.15s, color 0.15s;
 }
 
@@ -244,6 +324,50 @@ body {
   background: rgba(255, 255, 255, 0.13);
   color: #fff;
   font-weight: 500;
+}
+
+.session-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-title-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  color: #fff;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.delete-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.session-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 
 /* 右侧聊天区域 */

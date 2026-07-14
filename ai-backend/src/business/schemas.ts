@@ -23,5 +23,5 @@ export const ChatSchema = z.object({
     .string()
     .min(1, '消息不能为空')
     .max(4000, '消息最多 4000 字'),
-  sessionId: z.number().int().positive('sessionId 必须是正整数'),
+  sessionId: z.string().uuid('sessionId 必须是合法的 UUID'),
 })
