@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第三十课：给后端 API 写自动化测试（Vitest + Supertest）</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  pre .comment { color: #6c7086; }
+  pre .kw { color: #cba6f7; }
+  pre .str { color: #a6e3a1; }
+  pre .fn { color: #89b4fa; }
+  pre .ty { color: #f9e2af; }
+  pre .num { color: #fab387; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; font-weight: 600; }
+  td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+  .bad { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+  .good { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.2rem; margin: 0.75rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第三十课：给后端 API 写自动化测试（Vitest + Supertest）</h1>
+<p class="meta">目标时长 1.5 小时 · 难度 ⭐⭐⭐ · 后端 · 测试</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么"删别人的会话该 404"这类权限边界，光靠手动点前端几乎测不到，需要自动化测试兜底</li>
+    <li>Vitest 是什么、为什么这个项目选它而不是 Jest，怎么装、怎么跑</li>
+    <li>用 Supertest 对 Hono 应用发真实 HTTP 请求，链式断言状态码和响应体</li>
+    <li>为什么要把"构建 app"和"启动服务器"拆成两个文件，测试才能安全地 import app</li>
+    <li>测试用的数据库要怎么和本地开发用的 <code>chat.db</code> 隔离开</li>
+  </ul>
+</div>
+
+<h2>一、手动点前端，为什么撑不住了</h2>
+
+<p>
+  这几周攒下来的接口已经不少了：注册、登录、发消息（流式）、拉会话列表、按需拉历史消息、重命名、删除……
+  而且第27课之后每个接口都带着 <code>userId</code> 归属校验。上一课改完前端顺手发现 <code>ChatSchema.sessionId</code>
+  还是四课以前的类型定义，跟实际用的 UUID 对不上——这种"改了 A 处，没注意到 B 处早就假设了别的东西"的回归，
+  光靠自己手动点一遍界面是很难兜住的。
+</p>
+
+<p>
+  更麻烦的是权限边界这一类分支：要测出"用户 A 删不掉用户 B 的会话"，你得手动开两个浏览器（或者两个隐私窗口），
+  分别注册、登录、拿到两个不同的 <code>sessionId</code>，再故意拿 A 的 token 去删 B 的会话——这种操作成本高、
+  容易嫌麻烦而跳过，恰恰是最需要被测试覆盖的场景，因为它是安全边界，出问题就是真实的越权漏洞。
+</p>
+
+<div class="bad">
+  <strong>如果没有自动化测试网：</strong>每次改动都要祈祷"没改坏别的地方"，权限边界这种低频但高危的分支基本没人会每次都手动验证一遍，出问题往往是等用户投诉才发现。
+</div>
+
+<h2>二、为什么选 Vitest</h2>
+
+<p>
+  Node.js 生态最常见的测试框架是 Jest，但这个项目从第一课开始就用 <code>tsx</code> 直接跑 TypeScript，
+  没有走 Babel/webpack 那套编译链路。Vitest 底层用 esbuild/Vite 做转译，天然支持 TypeScript 和 ESM，
+  配置成本几乎为零；而且它的 API（<code>describe</code>/<code>it</code>/<code>expect</code>）和 Jest 高度兼容，
+  以后如果换公司用 Jest，学习成本也不会归零。
+</p>
+
+<h2>三、Supertest 怎么对 Hono 应用发请求</h2>
+
+<p>
+  Hono 官方推荐的测试方式是直接调用 <code>app.request(path, init)</code>，拿到一个标准的 <code>Response</code> 对象自己解析。
+  这节课选 Supertest 的原因是它的链式断言 API（<code>.expect(200)</code>、<code>.expect(res =&gt; ...)</code>）更贴近
+  Express/Koa 生态里最常见的写法，换到别的 Node 后端项目也能直接复用这套思路。技术上能接得上，是因为
+  <code>@hono/node-server</code> 的 <code>serve()</code> 返回的就是一个真正的 <code>node:http</code> <code>Server</code> 实例，
+  Supertest 本来就是包这种对象设计的。
+</p>
+
+<h2>四、要让 <code>app</code> 可测试，得先做一次小拆分</h2>
+
+<p>
+  现在 <code>src/index.ts</code> 把"构建 Hono 应用"和"启动服务器"焊在了一起——文件顶层直接
+  <code>initDB().then(() =&gt; serve({ fetch: app.fetch, port: PORT }, ...))</code>，还顺带启动了
+  <code>scheduler</code>、<code>worker</code>、<code>websocket</code>，注册了优雅关闭的信号监听。
+  如果测试文件直接 <code>import</code> 这个文件，就会真的连数据库、真的监听端口、真的启动定时任务——这些副作用测试根本不需要，
+  还会导致测试跑不完（进程被 <code>serve()</code> 挂起）或者端口冲突。
+</p>
+
+<div class="tip">
+  拆分方案：新建 <code>src/app.ts</code>，只做"<code>new Hono()</code> + 注册中间件 + 注册路由 + <code>onError</code>/<code>notFound</code>"，
+  然后 <code>export default app</code>。<code>src/index.ts</code> 瘦身成启动入口：<code>import app from './app'</code>，
+  剩下的 <code>initDB()</code>/<code>serve()</code>/优雅关闭逻辑原样留在这里不动。测试文件只 import <code>app.ts</code>，
+  拿到的是一个"配置好了但没有监听端口"的纯 Hono 实例，交给 Supertest 自己接管监听。
+</div>
+
+<h2>五、测试数据库怎么和开发库隔离</h2>
+
+<table>
+  <tr><th>方案</th><th>做法</th><th>取舍</th></tr>
+  <tr><td><strong>SQLite 内存库 <code>:memory:</code></strong></td><td>每次 <code>new Database(':memory:')</code> 给一个全新的库</td><td>速度最快、天然不留文件；但 <code>db.ts</code> 现在是模块级单例（<code>export const db = new Database(...)</code>），每个测试文件各自 <code>import</code> 时如果没控制好加载时机，容易出现"用的不是同一个连接"的问题</td></tr>
+  <tr><td><strong>每个测试文件一个临时文件路径</strong></td><td>测试启动前通过 <code>process.env.DB_PATH</code> 指向一个临时 <code>.db</code> 文件，测试结束后删除</td><td>能直接复用 <code>db.ts</code> 现成的"读 <code>DB_PATH</code> 环境变量"逻辑，不用改一行生产代码；行为也更接近生产环境用的落盘数据库</td></tr>
+</table>
+
+<p>
+  这节课选<strong>临时文件</strong>方案：不用改 <code>db.ts</code> 一行代码，只要保证测试文件在 <code>import</code>
+  应用代码<strong>之前</strong>把 <code>DB_PATH</code> 环境变量设置好——因为 <code>db.ts</code> 顶层的
+  <code>new Database(process.env.DB_PATH || 'chat.db')</code> 只在模块第一次被加载时执行一次。
+</p>
+
+<div class="danger">
+  这里有个容易踩的坑：Vitest 默认每个测试文件跑在独立的 worker 里，模块也是独立加载的，所以"在 <code>beforeAll</code>
+  里设置 <code>process.env.DB_PATH</code>，再动态 <code>import</code> 应用代码"这个顺序不能反——如果测试文件顶部用静态
+  <code>import</code> 提前加载了 <code>app.ts</code>（从而提前加载了 <code>db.ts</code>），<code>DB_PATH</code>
+  这时候还没设置，模块已经连上默认的 <code>chat.db</code> 了，之后再改环境变量也没用。
+</div>
+
+<h2>六、动手实践</h2>
+
+<div class="step">
+  <span class="step-num">1</span><strong>安装依赖，加测试脚本</strong>
+
+  <pre><span class="ty">npm</span> <span class="fn">install</span> <span class="kw">-D</span> vitest supertest <span class="ty">@types/supertest</span></pre>
+
+  <p><code>package.json</code> 里把占位的 <code>test</code> 脚本换掉：</p>
+
+  <pre><span class="str">"scripts"</span>: {
+  <span class="str">"start"</span>: <span class="str">"tsx src/index.ts"</span>,
+  <span class="str">"test"</span>: <span class="str">"vitest run"</span>
+}</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span><strong>拆分 <code>src/app.ts</code> / <code>src/index.ts</code></strong>
+
+  <pre><span class="comment">// src/app.ts —— 只负责"搭好这个 Hono 应用长什么样"，不做任何启动动作</span>
+<span class="kw">import</span> { <span class="ty">Hono</span> } <span class="kw">from</span> <span class="str">'hono'</span>
+<span class="kw">import</span> { secureHeaders } <span class="kw">from</span> <span class="str">'hono/secure-headers'</span>
+<span class="kw">import</span> { cors } <span class="kw">from</span> <span class="str">'hono/cors'</span>
+<span class="kw">import</span> { requestId } <span class="kw">from</span> <span class="str">'hono/request-id'</span>
+<span class="comment">// ……原来 index.ts 里 app.use / 路由注册 / onError / notFound 那部分整体搬过来</span>
+<span class="kw">import</span> <span class="ty">type</span> { <span class="ty">AppEnv</span> } <span class="kw">from</span> <span class="str">'./types'</span>
+
+<span class="kw">const</span> <span class="ty">app</span> = <span class="kw">new</span> <span class="ty">Hono</span>&lt;<span class="ty">AppEnv</span>&gt;()
+<span class="comment">// app.use(...) / user(app) / ChatMessageRoutes(app) / SessionRoutes(app) / app.onError(...) / app.notFound(...)</span>
+
+<span class="kw">export default</span> <span class="ty">app</span></pre>
+
+  <pre><span class="comment">// src/index.ts —— 瘦身后的启动入口</span>
+<span class="kw">import</span> <span class="ty">app</span> <span class="kw">from</span> <span class="str">'./app'</span>
+<span class="kw">import</span> { <span class="fn">serve</span> } <span class="kw">from</span> <span class="str">'@hono/node-server'</span>
+<span class="comment">// initDB / attachWebSocket / startScheduler / startWorker / 优雅关闭那一整套原样保留</span>
+
+<span class="fn">initDB</span>().<span class="fn">then</span>(() =&gt; {
+  <span class="kw">const</span> <span class="ty">server</span> = <span class="fn">serve</span>({ <span class="ty">fetch</span>: <span class="ty">app</span>.<span class="ty">fetch</span>, <span class="ty">port</span>: <span class="ty">PORT</span> }, (<span class="ty">info</span>) =&gt; { <span class="fn">...</span> })
+  <span class="fn">...</span>
+})</pre>
+
+  <div class="tip">
+    这次拆分只是"剪切粘贴 + 改 import"，不改变任何运行时行为——<code>npm start</code> 跑起来应该和拆分前完全一样。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span><strong>测试专用的数据库隔离 + 登录辅助函数</strong>
+
+  <pre><span class="comment">// tests/helpers.ts</span>
+<span class="kw">import</span> { <span class="fn">randomUUID</span> } <span class="kw">from</span> <span class="str">'crypto'</span>
+<span class="kw">import</span> <span class="ty">path</span> <span class="kw">from</span> <span class="str">'path'</span>
+
+<span class="comment">// 每个测试文件调用一次，必须在 import app.ts 之前调用</span>
+<span class="kw">export function</span> <span class="fn">useTestDB</span>() {
+  <span class="ty">process</span>.<span class="ty">env</span>.<span class="ty">DB_PATH</span> = <span class="ty">path</span>.<span class="fn">join</span>(<span class="fn">__dirname</span>, <span class="str">`test-${randomUUID()}.db`</span>)
+}
+
+<span class="comment">// 注册 + 登录，返回可以直接拼进 Authorization 头的 token</span>
+<span class="kw">export async function</span> <span class="fn">registerAndLogin</span>(<span class="ty">request</span>: <span class="ty">any</span>, <span class="ty">app</span>: <span class="ty">any</span>, <span class="ty">username</span>: <span class="ty">string</span>) {
+  <span class="kw">const</span> <span class="ty">password</span> = <span class="str">'Test1234!'</span>
+  <span class="kw">await</span> <span class="fn">request</span>(<span class="ty">app</span>).<span class="fn">post</span>(<span class="str">'/register'</span>).<span class="fn">send</span>({ <span class="ty">username</span>, <span class="ty">password</span> })
+  <span class="kw">const</span> <span class="ty">res</span> = <span class="kw">await</span> <span class="fn">request</span>(<span class="ty">app</span>).<span class="fn">post</span>(<span class="str">'/login'</span>).<span class="fn">send</span>({ <span class="ty">username</span>, <span class="ty">password</span> })
+  <span class="kw">return</span> <span class="ty">res</span>.<span class="ty">body</span>.<span class="ty">token</span> <span class="kw">as</span> <span class="ty">string</span>
+}</pre>
+
+  <div class="warn">
+    <code>useTestDB()</code> 只是设置了环境变量，真正"生效"是在 <code>db.ts</code> 第一次被 <code>import</code>
+    的时候。所以测试文件里必须先调用它，再用<strong>动态 <code>import()</code></strong> 加载 <code>app.ts</code>
+    和 <code>initDB</code>，不能在文件顶部用静态 <code>import</code>（那样会在 <code>useTestDB()</code> 跑之前就把模块加载完了）。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span><strong>正常流程测试：注册 → 登录 → 发消息 → 能在会话列表里看到</strong>
+
+  <pre><span class="comment">// tests/sessions.test.ts</span>
+<span class="kw">import</span> { describe, it, expect, beforeAll } <span class="kw">from</span> <span class="str">'vitest'</span>
+<span class="kw">import</span> request <span class="kw">from</span> <span class="str">'supertest'</span>
+<span class="kw">import</span> { useTestDB, registerAndLogin } <span class="kw">from</span> <span class="str">'./helpers'</span>
+
+<span class="fn">useTestDB</span>()
+<span class="kw">let</span> <span class="ty">app</span>: <span class="ty">any</span>
+
+<span class="fn">beforeAll</span>(<span class="kw">async</span> () =&gt; {
+  <span class="kw">const</span> { initDB } = <span class="kw">await</span> <span class="fn">import</span>(<span class="str">'../src/db'</span>)
+  <span class="kw">await</span> <span class="fn">initDB</span>()
+  <span class="ty">app</span> = (<span class="kw">await</span> <span class="fn">import</span>(<span class="str">'../src/app'</span>)).<span class="kw">default</span>
+})
+
+<span class="fn">describe</span>(<span class="str">'会话列表'</span>, () =&gt; {
+  <span class="fn">it</span>(<span class="str">'发一条消息后，会话应该出现在 GET /api/sessions 里'</span>, <span class="kw">async</span> () =&gt; {
+    <span class="kw">const</span> <span class="ty">token</span> = <span class="kw">await</span> <span class="fn">registerAndLogin</span>(request, app, <span class="str">'alice'</span>)
+    <span class="kw">const</span> <span class="ty">sessionId</span> = <span class="fn">crypto</span>.<span class="fn">randomUUID</span>()
+
+    <span class="kw">await</span> <span class="fn">request</span>(app)
+      .<span class="fn">post</span>(<span class="str">'/api/chat'</span>)
+      .<span class="fn">set</span>(<span class="str">'Authorization'</span>, <span class="str">`Bearer ${token}`</span>)
+      .<span class="fn">send</span>({ <span class="ty">message</span>: <span class="str">'你好'</span>, <span class="ty">sessionId</span> })
+
+    <span class="kw">const</span> <span class="ty">res</span> = <span class="kw">await</span> <span class="fn">request</span>(app)
+      .<span class="fn">get</span>(<span class="str">'/api/sessions'</span>)
+      .<span class="fn">set</span>(<span class="str">'Authorization'</span>, <span class="str">`Bearer ${token}`</span>)
+
+    <span class="fn">expect</span>(res.status).<span class="fn">toBe</span>(<span class="num">200</span>)
+    <span class="fn">expect</span>(res.body.sessions.<span class="fn">some</span>((s: any) =&gt; s.id === sessionId)).<span class="fn">toBe</span>(<span class="kw">true</span>)
+  })
+})</pre>
+
+  <div class="tip">
+    <code>POST /api/chat</code> 是流式接口，测试里不用管流式细节——只要请求发出去、状态码不是错误，后端就已经把
+    <code>user</code> 消息和会话记录落库了，紧接着查 <code>GET /api/sessions</code> 能验证到这一点就够了。
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">5</span><strong>权限边界测试：这才是这节课真正要补的网</strong>
+
+  <pre><span class="fn">describe</span>(<span class="str">'跨用户越权'</span>, () =&gt; {
+  <span class="fn">it</span>(<span class="str">'用户 B 不能删除用户 A 的会话'</span>, <span class="kw">async</span> () =&gt; {
+    <span class="kw">const</span> <span class="ty">tokenA</span> = <span class="kw">await</span> <span class="fn">registerAndLogin</span>(request, app, <span class="str">'sessionOwnerA'</span>)
+    <span class="kw">const</span> <span class="ty">tokenB</span> = <span class="kw">await</span> <span class="fn">registerAndLogin</span>(request, app, <span class="str">'attackerB'</span>)
+    <span class="kw">const</span> <span class="ty">sessionId</span> = <span class="fn">crypto</span>.<span class="fn">randomUUID</span>()
+
+    <span class="kw">await</span> <span class="fn">request</span>(app)
+      .<span class="fn">post</span>(<span class="str">'/api/chat'</span>)
+      .<span class="fn">set</span>(<span class="str">'Authorization'</span>, <span class="str">`Bearer ${tokenA}`</span>)
+      .<span class="fn">send</span>({ <span class="ty">message</span>: <span class="str">'这是 A 的会话'</span>, <span class="ty">sessionId</span> })
+
+    <span class="comment">// B 拿着自己的 token，去删 A 的 sessionId</span>
+    <span class="kw">const</span> <span class="ty">delRes</span> = <span class="kw">await</span> <span class="fn">request</span>(app)
+      .<span class="fn">delete</span>(<span class="str">`/api/sessions/${sessionId}`</span>)
+      .<span class="fn">set</span>(<span class="str">'Authorization'</span>, <span class="str">`Bearer ${tokenB}`</span>)
+
+    <span class="fn">expect</span>(delRes.status).<span class="fn">toBe</span>(<span class="num">404</span>) <span class="comment">// 而不是 200</span>
+
+    <span class="comment">// 确认 A 的会话真的还在</span>
+    <span class="kw">const</span> <span class="ty">listRes</span> = <span class="kw">await</span> <span class="fn">request</span>(app)
+      .<span class="fn">get</span>(<span class="str">'/api/sessions'</span>)
+      .<span class="fn">set</span>(<span class="str">'Authorization'</span>, <span class="str">`Bearer ${tokenA}`</span>)
+    <span class="fn">expect</span>(listRes.body.sessions.<span class="fn">some</span>((s: any) =&gt; s.id === sessionId)).<span class="fn">toBe</span>(<span class="kw">true</span>)
+  })
+})</pre>
+
+  <div class="danger">
+    如果这个测试写完之后跑起来是<strong>失败</strong>的（<code>delRes.status</code> 实际是 <code>200</code>），
+    说明第28课 <code>deleteSession</code> 里 <code>WHERE id = ? AND user_id = ?</code> 这个归属校验被后续某次改动破坏了——
+    这正是自动化测试要在这种时候把你拦下来，而不是等上线后被用户发现。
+  </div>
+</div>
+
+<h2>七、本课总结</h2>
+
+<ul>
+  <li>安装 <code>vitest</code> + <code>supertest</code>，<code>package.json</code> 的 <code>test</code> 脚本改成 <code>vitest run</code></li>
+  <li>把 <code>src/index.ts</code> 拆成 <code>src/app.ts</code>（只搭应用）和瘦身后的 <code>src/index.ts</code>（负责 <code>initDB</code>/<code>serve</code>/优雅关闭），测试才能安全 import</li>
+  <li>测试用 <code>DB_PATH</code> 环境变量指向临时文件，跟本地开发用的 <code>chat.db</code> 完全隔离，必须在 <code>import</code> 应用代码之前设置好</li>
+  <li>Supertest 直接包 Hono 应用（本质是 <code>node:http</code> <code>Server</code>），用链式 <code>.expect()</code> 断言状态码和响应体</li>
+  <li>正常流程测试之外，权限边界测试（"删别人的会话该 404"）是这节课真正要补上的网——这类分支平时手动点前端几乎不会触发</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么测试要用独立的临时数据库文件，而不是直接复用本地开发用的 <code>chat.db</code>？如果图省事直接跑在 <code>chat.db</code> 上，会出现什么问题？</p>
+  <p><strong>Q2</strong>：这节课把 <code>src/index.ts</code> 拆成了 <code>app.ts</code> + <code>index.ts</code> 两个文件。如果不做这次拆分，直接在测试文件里 <code>import '../src/index'</code> 会发生什么？（提示：想想 <code>initDB().then(() =&gt; serve(...))</code> 和进程生命周期）</p>
+  <p><strong>Q3</strong>：第29课 <code>GET /api/sessions/:id/messages</code> 的设计是"查不到就返回 <code>200 + 空数组</code>"，而不是 <code>404</code>。如果要给这个接口写一个"用户 B 读不到用户 A 的会话消息"的越权测试，断言该写成"状态码是 404"还是"状态码是 200 但 <code>messages</code> 是空数组"？这种设计对写自动化测试的人来说，是更容易还是更容易漏掉这个边界？</p>
+</div>
+
+<p>下一课将学习<strong>第三十一课：给 CI 接入自动化测试</strong>——第23课已经把 GitHub Actions 跑起来了，这节课攒下的 Vitest 测试套件不能只留在本地"想起来才跑"，要接进 CI，让每个 PR 在合并前必须先跑过这些测试，尤其是这节课刚补上的权限边界测试。</p>
+
+</body>
+</html>
