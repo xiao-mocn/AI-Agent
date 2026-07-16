@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第三十二课：测试数据清理与覆盖率</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; } ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; } li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; } th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; } td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+<h1>第三十二课：测试数据清理与覆盖率</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★☆ · 工程化 · 测试维护</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么 SQLite 测试库会留下 <code>.db</code>、<code>-wal</code>、<code>-shm</code> 文件</li>
+    <li>如何让测试在服务关闭后自动删除自己的临时数据</li>
+    <li>如何运行 Vitest V8 覆盖率报告并阅读行、函数与分支覆盖率</li>
+    <li>如何用覆盖率发现值得补测的安全和错误处理分支</li>
+  </ul>
+</div>
+
+<h2>一、测试必须自己收拾现场</h2>
+<p>第 30 课为每个测试文件生成了随机的 <code>test-UUID.db</code>，避免不同测试互相污染。这保证了隔离性，却也会在 <code>test/</code> 留下数据库文件；SQLite 启用 WAL 模式时，还可能同时出现 <code>-wal</code> 和 <code>-shm</code> 旁车文件。</p>
+<div class="danger"><strong>不要用通配符删除整个 test 目录。</strong> 清理逻辑只能删除本次测试自己创建并记录下来的精确路径，以及对应的 <code>-wal</code>、<code>-shm</code> 文件。测试辅助文件和源代码绝不能成为清理目标。</div>
+
+<h2>二、覆盖率回答“跑过了吗”，不是“写过了吗”</h2>
+<p>测试通过说明现有断言成立；覆盖率报告则显示哪些代码路径真正被执行过。对于鉴权、找不到资源、数据库异常等分支，分支覆盖率比单纯的行覆盖率更有参考价值。</p>
+<table>
+  <tr><th>指标</th><th>回答的问题</th><th>本项目优先关注</th></tr>
+  <tr><td>Statements</td><td>语句是否执行过？</td><td>路由主流程</td></tr>
+  <tr><td>Functions</td><td>函数是否被调用？</td><td>控制器与数据库辅助函数</td></tr>
+  <tr><td>Branches</td><td>每个条件的两侧是否都走过？</td><td>鉴权失败、404 与错误处理</td></tr>
+  <tr><td>Lines</td><td>哪些源码行仍未覆盖？</td><td>报告中的具体文件和行号</td></tr>
+</table>
+<div class="warn">覆盖率不是 KPI 游戏。不要为了数字给每一行写机械测试；优先补会影响用户隔离、权限边界和失败恢复的分支。</div>
+
+<h2>三、动手实践</h2>
+<div class="step">
+  <span class="step-num">1</span><strong>确认遗留文件</strong>
+  <p>先运行一次测试，再查看测试目录。你应能看到随机命名的测试数据库或它的 WAL/SHM 旁车文件：</p>
+  <pre>Set-Location E:\project\AI-Agent\ai-backend
+npm test
+Get-ChildItem .\test\test-*.db*</pre>
+</div>
+<div class="step">
+  <span class="step-num">2</span><strong>让 helper 暴露精确的清理函数</strong>
+  <p>在 <code>test/helpers.ts</code> 中保存随机生成的数据库路径，并增加 <code>cleanupTestDB()</code>。它只针对该路径依次尝试删除数据库主文件、<code>-wal</code> 和 <code>-shm</code>；文件不存在时不应失败。</p>
+  <pre>import fs from 'fs'
+
+let testDBPath = ''
+
+export function useTestDB() {
+  testDBPath = path.join(__dirname, `test-${randomUUID()}.db`)
+  process.env.DB_PATH = testDBPath
+}
+
+export function cleanupTestDB() {
+  for (const suffix of ['', '-wal', '-shm']) {
+    fs.rmSync(`${testDBPath}${suffix}`, { force: true })
+  }
+}</pre>
+  <p>保留现有的 <code>registerAndLogin</code>，不要把业务断言、HTTP 请求或全局删除操作混进 helper。</p>
+</div>
+<div class="step">
+  <span class="step-num">3</span><strong>在关闭服务器后清理</strong>
+  <p>在 <code>test/sessions.test.ts</code> 引入 <code>cleanupTestDB</code>，并在已有的 <code>afterAll</code> 中先等待 <code>server.close</code> 完成、再调用它。这样 SQLite 不再被服务连接占用，Windows 也能稳定删除文件。</p>
+  <pre>afterAll(async () =&gt; {
+  await new Promise&lt;void&gt;((resolve, reject) =&gt; {
+    server.close((error) =&gt; error ? reject(error) : resolve())
+  })
+  cleanupTestDB()
+})</pre>
+  <p>运行 <code>npm test</code> 后再次执行 <code>Get-ChildItem .\test\test-*.db*</code>，预期没有任何输出。</p>
+</div>
+<div class="step">
+  <span class="step-num">4</span><strong>生成第一份覆盖率报告</strong>
+  <p>安装与当前 Vitest 版本匹配的 V8 provider，并在 <code>package.json</code> 增加覆盖率脚本：</p>
+  <pre>npm install -D @vitest/coverage-v8
+
+// package.json 的 scripts
+"test:coverage": "vitest run --coverage"</pre>
+  <p>随后运行：</p>
+  <pre>npm run test:coverage</pre>
+  <p>查看终端表格，重点记录 <code>src/app.ts</code> 与会话相关路由的分支覆盖情况。不要在未理解缺口前追求百分比阈值。</p>
+</div>
+
+<h2>四、排查顺序</h2>
+<ol>
+  <li>删除失败时，先确认服务已关闭，再检查清理是否在同一个 <code>afterAll</code> 中执行。</li>
+  <li>确认清理函数使用的是本次随机生成的精确路径，而不是目录或宽泛通配符。</li>
+  <li>覆盖率命令找不到 provider 时，确认 <code>@vitest/coverage-v8</code> 已写入 <code>devDependencies</code> 和 lock 文件。</li>
+  <li>覆盖率很低时，先读未覆盖分支的业务意义，再决定是否增加 API 测试。</li>
+</ol>
+
+<h2>五、本课总结</h2>
+<ul>
+  <li>临时测试数据需要隔离，也需要在测试结束时精确清理</li>
+  <li>SQLite 的 <code>-wal</code> 与 <code>-shm</code> 是数据库状态的一部分，不能只删除主文件</li>
+  <li>先关闭 HTTP 服务再删除数据库，可避免 Windows 上的文件占用问题</li>
+  <li>覆盖率报告用来指引风险分支的测试补强，不替代有意义的断言</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么清理函数必须只删除本次测试记录的精确数据库路径，而不能用 <code>test/*.db*</code> 这类全局通配符？</p>
+  <p><strong>Q2</strong>：若你只删除 <code>.db</code> 而遗漏 <code>-wal</code> 和 <code>-shm</code>，在本地和 CI 中分别可能造成什么问题？</p>
+  <p><strong>Q3</strong>：某个错误处理分支未被覆盖，但你认为它“几乎不会发生”。你会如何判断该不该为它增加测试？</p>
+</div>
+
+<p>下一课将学习<strong>第三十三课：CI 中的覆盖率门槛与测试报告</strong>——让覆盖率报告成为 Pull Request 的可见反馈，并为关键代码建立合理、可维护的质量门槛。</p>
+</body>
+</html>

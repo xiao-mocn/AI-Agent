@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { serve } from '@hono/node-server'
 import request from 'supertest'
-import { useTestDB, registerAndLogin } from './helpers'
+import { useTestDB, registerAndLogin, cleanupTestDB } from './helpers'
 
 vi.mock('openai', () => ({
   default: class MockOpenAI {
@@ -31,6 +31,7 @@ afterAll(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve())
   })
+  await cleanupTestDB()
 })
 
 describe('会话列表', () => {

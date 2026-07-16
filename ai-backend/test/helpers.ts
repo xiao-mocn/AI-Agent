@@ -1,9 +1,21 @@
 import { randomUUID } from 'crypto'
 import path from 'path'
+import fs from 'fs'
 
 // 每个测试文件调用一次，必须在 import app.ts 之前调用
+let testDBPath = ''
 export function useTestDB() {
-  process.env.DB_PATH = path.join(__dirname, `test-${randomUUID()}.db`)
+  testDBPath = path.join(__dirname, `test-${randomUUID()}.db`)
+  process.env.DB_PATH = testDBPath
+}
+
+export async function cleanupTestDB() {
+  const { closeDB } = await import('../src/db')
+  await closeDB()
+
+  for (const suffix of ['', '-wal', '-shm']) {
+    fs.rmSync(`${testDBPath}${suffix}`, { force: true })
+  }
 }
 
 // 注册 + 登录，返回可以直接拼进 Authorization 头的 token
