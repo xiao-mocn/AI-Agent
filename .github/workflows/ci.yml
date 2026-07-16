@@ -30,5 +30,8 @@ jobs:
       - name: 类型检查
         run: npx tsc --noEmit
 
+      - name: 运行 API 自动化测试
+        run: npm test
+
       - name: 验证 Docker 镜像能否构建
         run: docker build -t ai-backend:ci .

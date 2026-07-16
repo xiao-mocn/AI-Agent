@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第三十一课：让 CI 自动跑 API 测试</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; } ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; } li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; } th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; } td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+<h1>第三十一课：让 CI 自动跑 API 测试</h1>
+<p class="meta">目标时长 1 小时 · 难度 ⭐⭐ · 工程化 · CI</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>为什么本地跑过测试还不够，测试要成为每次提交都经过的门禁</li>
+    <li>读懂现有 GitHub Actions 的触发条件、工作目录和执行顺序</li>
+    <li>把 <code>npm test</code> 接入现有 CI，并理解为什么它不需要 DeepSeek 密钥</li>
+    <li>从 Actions 日志判断安装、类型检查、测试或 Docker 构建在哪一步失败</li>
+  </ul>
+</div>
+
+<h2>一、CI 解决的是“会不会忘记跑”</h2>
+<p>第 30 课的 <code>npm test</code> 已经能在本地拦住会话越权回归，但它仍依赖你每次改代码都记得执行。持续集成会在每次 push 和 Pull Request 时，使用一台干净的 Linux 机器重新安装依赖、检查类型、运行测试。</p>
+<div class="danger"><strong>只留在本地的测试：</strong>最容易在“这次只是改一行”的时候被跳过。权限校验这类低频分支，恰恰需要每次都被重复验证。</div>
+
+<h2>二、现有工作流已经准备好了</h2>
+<p>根目录的 <code>.github/workflows/ci.yml</code> 已在向 <code>main</code> push 或创建 PR 时运行。它进入 <code>ai-backend</code> 目录，依次执行 <code>npm ci</code>、TypeScript 类型检查和 Docker 构建。</p>
+<table>
+  <tr><th>步骤</th><th>回答的问题</th><th>失败时先看哪里</th></tr>
+  <tr><td><code>npm ci</code></td><td>锁定版本能否在干净环境安装？</td><td>package-lock 与 package.json</td></tr>
+  <tr><td>类型检查</td><td>TypeScript 能理解所有调用吗？</td><td>日志中的文件、行号、类型</td></tr>
+  <tr><td><code>npm test</code></td><td>行为和权限边界仍成立吗？</td><td>失败用例的期望值和实际值</td></tr>
+  <tr><td>Docker 构建</td><td>生产镜像能构建吗？</td><td>Dockerfile 与构建日志</td></tr>
+</table>
+<div class="tip"><code>npm ci</code> 严格按照 lock 文件安装。它能让 CI 复现本地验证过的依赖树；lock 文件和 package.json 不一致时会直接失败，而不是悄悄替你换版本。</div>
+
+<h2>三、为什么 CI 不需要 DeepSeek Key</h2>
+<p>第 30 课的测试用 Vitest Mock 替换了外部 AI Client。<code>/api/chat</code> 仍走真实路由、鉴权和 SQLite 数据库，但不会请求 DeepSeek，因此 CI 不依赖网络、额度或第三方服务状态。</p>
+<div class="warn">不要把真实 <code>DEEPSEEK_API_KEY</code> 写进 workflow 或仓库。即使使用 GitHub Secrets，真实 API 调用也会让普通回归测试变慢、付费且不稳定。真实模型验证应是单独、受控的集成测试。</div>
+
+<h2>四、动手实践</h2>
+<div class="step">
+  <span class="step-num">1</span><strong>确认本地基线</strong>
+  <p>先在后端目录运行与 CI 完全相同的测试命令：</p>
+  <pre>Set-Location E:\project\AI-Agent\ai-backend
+npm test</pre>
+  <p>预期看到 <code>Test Files 1 passed</code> 和 <code>Tests 2 passed</code>。本地失败时先在本地修复，不要等推到 GitHub 才开始猜。</p>
+</div>
+<div class="step">
+  <span class="step-num">2</span><strong>加入测试步骤</strong>
+  <p>在 <code>.github/workflows/ci.yml</code> 的“类型检查”后、Docker 构建前加入：</p>
+  <pre>- name: 运行 API 自动化测试
+  run: npm test</pre>
+  <p>工作流已有 <code>working-directory: ai-backend</code>，不需要额外 <code>cd</code>。测试先于 Docker 构建执行，能在更快、更便宜的阶段尽早失败。</p>
+</div>
+<div class="step">
+  <span class="step-num">3</span><strong>提交并观察 Actions</strong>
+  <p>本地测试通过后，提交 workflow 改动并推送。到 GitHub 仓库的 <strong>Actions</strong> 标签展开“运行 API 自动化测试”，确认 Vitest 的通过摘要。功能分支创建 PR 也会触发这条检查，这就是合并前门禁。</p>
+</div>
+<div class="step">
+  <span class="step-num">4</span><strong>练习读失败日志</strong>
+  <p>可以暂时把一个 <code>toBe(404)</code> 改成 <code>toBe(200)</code>，在本地运行 <code>npm test</code> 观察失败用例、期望值和实际状态码。练习结束后立即恢复正确断言并确认重新通过；不要提交故意失败的测试。</p>
+</div>
+
+<h2>五、CI 失败时的排查顺序</h2>
+<ol>
+  <li>先找失败的步骤名称，不要只看整个 job 的红色图标。</li>
+  <li><code>npm ci</code> 失败时，检查依赖改动是否连同 lock 文件提交。</li>
+  <li>类型检查失败时，在本地运行 <code>npx tsc --noEmit</code>，按日志文件和行号复现。</li>
+  <li>测试失败时，运行同一条 <code>npm test</code>，比较断言的预期与实际值。</li>
+  <li>前三步都通过而 Docker 失败时，才集中查看镜像构建环境。</li>
+</ol>
+<div class="danger">不要用“删掉 CI 中的测试步骤”来处理红灯。红灯说明干净环境与代码契约出现差异；正确动作是定位失败层级、在本地复现、修复后让 CI 重新变绿。</div>
+
+<h2>六、本课总结</h2>
+<ul>
+  <li>CI 把“记得跑测试”变成每次提交都会执行的自动规则</li>
+  <li><code>npm ci</code> 保证依赖安装可复现，<code>npm test</code> 验证行为没有回归</li>
+  <li>Mock 外部 AI 调用让测试无需密钥，适合在 GitHub Actions 中稳定运行</li>
+  <li>从失败步骤开始，按安装、类型、测试、Docker 的顺序缩小范围</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么建议把 <code>npm test</code> 放在 Docker 构建前？如果 Docker 构建先跑，会造成什么实际成本？</p>
+  <p><strong>Q2</strong>：本地 <code>npm test</code> 通过、GitHub Actions 却在 <code>npm ci</code> 失败时，你会先检查哪些文件和差异？为什么不应该直接改 CI 的安装命令？</p>
+  <p><strong>Q3</strong>：当前测试 Mock 了 DeepSeek。如果以后要确认真实 DeepSeek API 仍可用，为什么不应把这类检查直接加入每次 push 的 CI？你会怎样设计它？</p>
+</div>
+
+<p>下一课将学习<strong>第三十二课：测试数据清理与覆盖率</strong>——测试已经能跑起来，下一步要解决临时数据库文件如何自动收尾，以及哪些关键分支还没有被测试覆盖。</p>
+</body>
+</html>
