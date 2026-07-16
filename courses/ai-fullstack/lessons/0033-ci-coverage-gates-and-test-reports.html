@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第三十三课：CI 中的覆盖率门槛与测试报告</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; } ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; } li { margin: 0.35rem 0; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
+  .quiz h3 { color: #7c3aed; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; } th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; } td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+<h1>第三十三课：CI 中的覆盖率门槛与测试报告</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★★ · 工程化 · 持续质量</p>
+
+<div class="goal">
+  <strong>本节课你会学到：</strong>
+  <ul>
+    <li>如何让 GitHub Actions 在每次推送和 Pull Request 中生成覆盖率报告</li>
+    <li>如何把 HTML 覆盖率报告作为 CI Artifact 保留，而不是只看一段终端日志</li>
+    <li>如何用 Vitest 的 <code>thresholds</code> 建立循序渐进的质量门槛</li>
+    <li>如何区分“代码变少导致比例变化”和“真正遗漏了风险分支”</li>
+  </ul>
+</div>
+
+<h2>一、覆盖率成为团队反馈，而不是本地习惯</h2>
+<p>第 32 课的覆盖率报告只在你的电脑上生成。真正的团队协作中，Pull Request 审查者需要知道这次改动是否让关键路径失去测试保护；CI 正是把这个信号固定到每一次代码变更中的位置。</p>
+<p>CI 的职责不只是“跑一下测试”：它要在干净环境中重复执行命令、在失败时阻止合并，并保存足以定位问题的证据。覆盖率 HTML 报告适合作为 Artifact，运行日志适合快速判断通过或失败，两者各自解决不同问题。</p>
+<table>
+  <tr><th>输出</th><th>适合回答的问题</th><th>保留方式</th></tr>
+  <tr><td>终端摘要</td><td>测试和门槛是否通过？</td><td>GitHub Actions 日志</td></tr>
+  <tr><td>HTML 报告</td><td>具体哪一行、哪个分支未覆盖？</td><td>Actions Artifact</td></tr>
+  <tr><td>阈值失败</td><td>是否低于项目约定的最低质量线？</td><td>CI 失败状态</td></tr>
+</table>
+
+<div class="warn"><strong>先观察，再设门槛。</strong> 当前项目的分支覆盖率仍有明显空白。直接设置很高的全局百分比会把正常开发变成“补数字”，而不是补安全与权限分支。先以当前可重复的基线设线，再随着关键测试增加逐步提高。</div>
+
+<h2>二、门槛是一条可维护的工程约定</h2>
+<p>Vitest 可以在配置中对 statements、branches、functions、lines 设置最低覆盖率。正数表示最低百分比；未达到时命令以非零状态退出，GitHub Actions 随即标记失败。</p>
+<pre>import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      thresholds: {
+        statements: 65,
+        branches: 40,
+        functions: 65,
+        lines: 65,
+      },
+    },
+  },
+})</pre>
+<p>这些数字只是本项目当前状态下的起点示例，不是通用标准。后续增加错误处理、鉴权和会话权限测试后，应结合风险路径和稳定性调整，而不是机械追逐 100%。</p>
+
+<h2>三、动手实践</h2>
+<div class="step">
+  <span class="step-num">1</span><strong>新增 Vitest 配置并先观察基线</strong>
+  <p>在 <code>ai-backend/vitest.config.ts</code> 中配置 V8 provider、<code>text</code> 与 <code>html</code> reporter。先不要写 thresholds，运行一次覆盖率命令并记录四项基线；门槛必须来自真实报告而非猜测。</p>
+  <pre>Set-Location E:\project\AI-Agent\ai-backend
+npm run test:coverage
+Get-ChildItem .\coverage</pre>
+</div>
+<div class="step">
+  <span class="step-num">2</span><strong>为当前项目设置可通过的起始门槛</strong>
+  <p>根据步骤 1 的结果，在 <code>coverage.thresholds</code> 中设置略低于或等于当前稳定基线的数值。四项都要设置，尤其不要漏掉鉴权、404 与权限判断常常影响的 <code>branches</code>。</p>
+  <pre>coverage: {
+  provider: 'v8',
+  reporter: ['text', 'html'],
+  thresholds: {
+    statements: 65,
+    branches: 40,
+    functions: 65,
+    lines: 65,
+  },
+}</pre>
+  <p>再次运行 <code>npm run test:coverage</code>。如果失败，先阅读报告中的未覆盖区域和实际百分比，再决定补测试还是调整一个尚未稳定的基线。</p>
+</div>
+<div class="step">
+  <span class="step-num">3</span><strong>让 CI 保存覆盖率报告</strong>
+  <p>在 <code>.github/workflows/ci.yml</code> 的 <code>npm test</code> 后，运行覆盖率命令，并使用 <code>actions/upload-artifact</code> 上传 <code>ai-backend/coverage</code>。上传步骤使用 <code>if: always()</code>，这样即使门槛失败，也能下载报告排查原因。</p>
+  <pre>- name: 运行覆盖率测试
+  run: npm run test:coverage
+
+- name: 保存覆盖率报告
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: coverage-report
+    path: ai-backend/coverage
+    if-no-files-found: error</pre>
+  <div class="tip">当前 workflow 已设置 <code>working-directory: ai-backend</code>，但 <code>upload-artifact</code> 的 <code>path</code> 相对仓库根目录解析。因此这里使用 <code>ai-backend/coverage</code>，不要只写 <code>coverage</code>。</div>
+</div>
+<div class="step">
+  <span class="step-num">4</span><strong>检查一次真实 CI 运行</strong>
+  <p>提交并推送后，打开 GitHub Actions 的 CI 运行详情。确认“运行覆盖率测试”和“保存覆盖率报告”两个步骤存在；在 Artifacts 区域下载 <code>coverage-report</code>，解压后打开 <code>index.html</code> 查看未覆盖行。</p>
+  <div class="danger"><strong>不要把 <code>coverage/</code> 提交进仓库。</strong> 它是每次测试重新生成的输出，应通过 <code>.gitignore</code> 排除；需要追溯时从 CI Artifact 获取对应那次运行的报告。</div>
+</div>
+
+<h2>四、门槛失败时的排查顺序</h2>
+<ol>
+  <li>先确认失败的是测试断言，还是 coverage threshold；两者的修复方向不同。</li>
+  <li>打开同一次 CI 运行上传的 Artifact，定位未覆盖文件和行号。</li>
+  <li>判断缺口是否属于认证、资源归属、数据库错误等高风险分支；高风险分支优先补 API 测试。</li>
+  <li>若是重构删除了测试可达代码或报告基线本身不稳定，说明原因后再调整阈值，避免无解释地降低质量线。</li>
+</ol>
+
+<h2>五、本课总结</h2>
+<ul>
+  <li>覆盖率报告应在 CI 中生成，使每次提交都拥有可审查的质量反馈。</li>
+  <li>Artifact 保存 HTML 报告，能让失败后的排查回到具体文件与行号。</li>
+  <li>门槛应来自项目实际基线，并随关键风险分支的测试增加逐步提高。</li>
+  <li>质量门槛的目标是保护行为，不是制造漂亮的百分比。</li>
+</ul>
+
+<div class="quiz">
+  <h3>思考题</h3>
+  <p><strong>Q1</strong>：为什么覆盖率报告上传步骤要使用 <code>if: always()</code>，即使覆盖率门槛已经失败也要执行？</p>
+  <p><strong>Q2</strong>：项目当前分支覆盖率为 45%，你计划把门槛设为 80%。在什么情况下这是合理的？在什么情况下会伤害团队开发效率？</p>
+  <p><strong>Q3</strong>：为什么 Artifact 的路径要写 <code>ai-backend/coverage</code>，而不是仅写 <code>coverage</code>？这和 workflow 的 <code>working-directory</code> 有什么区别？</p>
+</div>
+
+<p>下一课将学习<strong>第三十四课：质量门槛的演进与回归测试策略</strong>——如何把覆盖率数字与高风险业务行为结合起来，避免测试套件变成只会阻挡发布、却无法解释风险的负担。</p>
+</body>
+</html>

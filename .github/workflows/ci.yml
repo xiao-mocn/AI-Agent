@@ -20,8 +20,8 @@ jobs:
       - name: 安装 Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
           cache-dependency-path: ai-backend/package-lock.json
 
       - name: 安装依赖
@@ -30,8 +30,16 @@ jobs:
       - name: 类型检查
         run: npx tsc --noEmit
 
-      - name: 运行 API 自动化测试
-        run: npm test
+      - name: 运行覆盖率测试
+        run: npm run test:coverage
+
+      - name: 保存覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ai-backend/coverage
+          if-no-files-found: error
 
       - name: 验证 Docker 镜像能否构建
         run: docker build -t ai-backend:ci .
