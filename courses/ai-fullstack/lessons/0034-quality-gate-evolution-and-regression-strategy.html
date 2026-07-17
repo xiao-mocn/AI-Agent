@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第三十四课：质量门槛的演进与回归测试策略</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; background: #f9fafb; color: #1a1a2e; line-height: 1.7; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; } h2 { font-size: 1.15rem; font-weight: 700; margin: 2rem 0 0.75rem; border-left: 3px solid #3b82f6; padding-left: 0.75rem; } h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #374151; }
+  p { margin: 0.6rem 0; } ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; } li { margin: 0.35rem 0; } code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88em; color: #7c3aed; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1.2rem 1.4rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; margin: 0.75rem 0; } .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+  .goal { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; } .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.2rem 1.4rem; margin: 1rem 0; } .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 0.8rem; font-weight: 700; margin-right: 0.5rem; }
+  .tip { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; } .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; } .danger { background: #fef2f2; border-left: 3px solid #ef4444; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; }
+  .quiz { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 1rem 1.2rem; margin: 1.5rem 0; } .quiz h3 { color: #7c3aed; margin-top: 0; } table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; } th { background: #f3f4f6; padding: 0.6rem 1rem; text-align: left; } td { padding: 0.6rem 1rem; border-top: 1px solid #e5e7eb; }
+</style>
+</head>
+<body>
+<h1>第三十四课：质量门槛的演进与回归测试策略</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★★ · 工程化 · 风险驱动测试</p>
+<div class="goal"><strong>本节课你会学到：</strong><ul><li>为什么覆盖率门槛应随测试能力演进，而不是一次设到理想数字</li><li>如何把认证、资源归属和错误处理识别为高价值回归测试候选</li><li>如何在修复问题时留下最小、稳定的回归用例</li><li>如何避免脆弱测试和“为了覆盖率而测试”</li></ul></div>
+<h2>一、门槛不是数字目标，而是风险承诺</h2>
+<p>第 33 课让 CI 阻止覆盖率跌破当前基线，但基线并不等于质量终点。真正值得提高门槛的信号是：团队已经为高风险行为补上了稳定测试，新的门槛能防止这些保护在未来悄悄消失。</p>
+<table><tr><th>变化</th><th>优先动作</th><th>门槛动作</th></tr><tr><td>发现越权、认证或数据泄漏风险</td><td>先写 API 回归测试</td><td>测试稳定后再提高 branches</td></tr><tr><td>新增正常业务流程</td><td>覆盖成功路径和主要失败路径</td><td>观察 statements / lines 基线</td></tr><tr><td>大规模重构</td><td>先确保既有行为测试仍有意义</td><td>不要为了通过而临时降低门槛</td></tr></table>
+<div class="warn"><strong>不要把门槛当绩效 KPI。</strong> 一个 90% 的项目仍可能漏掉“用户 B 删除用户 A 会话”这样的严重问题；一个 60% 的项目也可能已经覆盖了最危险的权限边界。数字用于发现变化，风险模型决定测试优先级。</div>
+<h2>二、什么值得成为回归测试</h2>
+<p>回归测试记录已经确认的重要行为：它可以来自线上故障、代码审查发现、边界条件或安全假设。它必须先在旧代码上失败，再在修复后通过；否则只能说明测试存在，不能证明它能防止同类问题复发。</p>
+<ul><li><strong>身份边界：</strong>缺少 token、无效 token、用户间资源隔离。</li><li><strong>资源状态：</strong>不存在的会话、删除后的查询、重复操作。</li><li><strong>外部失败：</strong>模型调用异常、数据库不可用、超时后的可预期响应。</li><li><strong>数据完整性：</strong>同一用户的历史记录不会串到另一用户。</li></ul>
+<h2>三、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>从报告中选一个高风险缺口</strong><p>运行 <code>npm run test:coverage</code>，从未覆盖行中优先选择影响身份、资源归属或失败恢复的分支。写下“如果这个分支错误，谁会受到影响、后果是什么”，再开始写测试。</p><pre>npm run test:coverage</pre></div>
+<div class="step"><span class="step-num">2</span><strong>先写能描述风险的 API 测试</strong><p>测试名称写清用户视角和预期结果，而不是内部函数名。例如“未携带 token 时不能读取会话列表”。先运行它确认失败原因符合预期，再实现或修正业务代码。</p><pre>it('未携带 token 时不能读取会话列表', async () =&gt; {
+  const res = await request(server).get('/api/sessions')
+  expect(res.status).toBe(401)
+})</pre><div class="tip">测试辅助函数继续只负责环境和重复操作；业务断言保留在测试文件中，才能看清每个回归风险对应的行为。</div></div>
+<div class="step"><span class="step-num">3</span><strong>确认测试价值而非只看数字</strong><p>运行普通测试与覆盖率测试，确认新用例稳定、断言针对真实响应，并观察它是否覆盖预期的风险分支。只有在新基线多次稳定后，才考虑提高 <code>vitest.config.ts</code> 中的一个阈值。</p><pre>npm test
+npm run test:coverage</pre></div>
+<div class="step"><span class="step-num">4</span><strong>把门槛调整写进变更理由</strong><p>当你提高阈值时，在提交说明或 Pull Request 中写出：新增了哪个风险行为测试、当前基线是多少、为什么这条线足以保护本次改动。</p><div class="danger"><strong>不要用忽略文件、空断言或大量 mock 来抬高覆盖率。</strong> 这些做法会让 CI 通过，却让真正行为缺少保护，削弱质量门槛的可信度。</div></div>
+<h2>四、回归测试的稳定性检查</h2><ol><li>只观察对外可见的状态、响应和持久化结果，不断言偶然的内部实现细节。</li><li>每个测试创建自己的数据，并在结束后清理，避免执行顺序影响结果。</li><li>外部 LLM 等不可控依赖使用最小 mock，但权限、路由和数据库行为尽量通过真实应用调用验证。</li><li>失败时先判断是产品行为回归还是测试环境不稳定，不能靠重试掩盖问题。</li></ol>
+<h2>五、本课总结</h2><ul><li>覆盖率门槛应跟随稳定的风险测试逐步演进。</li><li>高价值回归测试优先保护身份、资源、失败恢复和数据完整性。</li><li>一次真实缺陷的最小复现，是最有价值的长期测试资产。</li><li>测试的可读性和稳定性比表面百分比更重要。</li></ul>
+<div class="quiz"><h3>思考题</h3><p><strong>Q1</strong>：为什么“覆盖率达到 80%”不能单独证明权限模型是安全的？你会如何选择第一批权限回归测试？</p><p><strong>Q2</strong>：一个线上缺陷已经修复，但为它补的测试在旧版本代码上也通过。这个测试缺少了什么证明？你会怎样改进？</p><p><strong>Q3</strong>：什么情况下应该暂时不提高覆盖率门槛，即使新测试让当前百分比变高了？</p></div>
+<p>下一课将学习<strong>第三十五课：依赖安全审计与供应链风险</strong>——让 CI 不只检查你的代码，还能尽早发现第三方依赖中的已知漏洞与高风险升级。</p>
+</body>
+</html>

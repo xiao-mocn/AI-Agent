@@ -34,6 +34,24 @@ afterAll(async () => {
   await cleanupTestDB()
 })
 
+describe('不提供Token', () => {
+  it('没有提供 token，应该返回 401', async () => {
+    const res = await request(server)
+      .get('/api/sessions')
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('无效Token', () => {
+  it('提供无效 token，应该返回 401', async () => {
+
+    const res = await request(server)
+      .get('/api/sessions')
+      .set('Authorization', `Bearer invalid-token`)
+    expect(res.status).toBe(401)
+  })
+})
+
 describe('会话列表', () => {
   it('发一条消息后，会话应该出现在 GET /api/sessions 里', async () => {
     const token = await registerAndLogin(request, server, 'alice')

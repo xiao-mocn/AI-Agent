@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { expect } from 'vitest'
 import path from 'path'
 import fs from 'fs'
 
@@ -21,7 +22,17 @@ export async function cleanupTestDB() {
 // 注册 + 登录，返回可以直接拼进 Authorization 头的 token
 export async function registerAndLogin(request: any, app: any, username: string) {
   const password = 'Test1234!'
-  await request(app).post('/register').send({ username, password })
-  const res = await request(app).post('/login').send({ username, password })
-  return res.body.token as string
+
+  const registerRes = await request(app)
+    .post('/register')
+    .send({ username, password })
+  expect(registerRes.status).toBe(200)
+
+  const loginRes = await request(app)
+    .post('/login')
+    .send({ username, password })
+  expect(loginRes.status).toBe(200)
+  expect(loginRes.body.token).toEqual(expect.any(String))
+
+  return loginRes.body.token
 }
