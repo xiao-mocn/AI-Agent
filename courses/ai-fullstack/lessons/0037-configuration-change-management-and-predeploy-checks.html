@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>第三十七课：配置变更管理与部署前检查</title><style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:10px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style></head><body>
+<h1>第三十七课：配置变更管理与部署前检查</h1><p class="meta">目标时长 1 小时 · 难度 ★★★ · 工程化 · 发布可靠性</p>
+<div class="goal"><strong>本课你会学到：</strong><ul><li>把配置 Schema 转化为团队可审查的运行时配置清单。</li><li>区分可提交的示例文件和绝不能提交的真实密钥。</li><li>在启动服务前执行独立配置检查，缩短部署失败的反馈时间。</li><li>用固定的发布前顺序验证配置、类型与测试。</li></ul></div>
+<h2>一、配置不仅是代码问题</h2><p>第 36 课让应用能拒绝无效配置，但一次部署是否成功还取决于配置从哪里来、谁修改过、是否与代码版本一致。Schema 是机器可执行的契约；示例文件和发布检查则把这份契约交给开发、运维和 CI 使用。没有这些外围约束时，团队仍可能在部署页面漏填新变量，或把旧变量留在环境里却以为它仍有效。</p>
+<table><tr><th>产物</th><th>是否提交 Git</th><th>作用</th></tr><tr><td><code>configSchema.ts</code></td><td>是</td><td>定义程序接受的配置与类型。</td></tr><tr><td><code>.env.example</code></td><td>是</td><td>列出键名和非敏感示例，不含真实值。</td></tr><tr><td><code>.env</code> / 平台密钥</td><td>否</td><td>保存实际凭据，只由本机或部署平台注入。</td></tr><tr><td>部署前检查命令</td><td>是</td><td>让 CI 或人工发布在监听端口前发现配置错误。</td></tr></table>
+<div class="danger"><strong>示例文件不是密钥备份。</strong> 即使是测试或过期的 API Key、数据库 URL、JWT 密钥也不要写进 <code>.env.example</code>。示例的价值在于键名、格式和说明，而不是可直接运行的凭据。</div>
+<h2>二、把配置变更当作接口变更</h2><p>新增、删除或改变环境变量规则时，应同时更新 Schema、示例文件和部署平台的变量清单。这样代码审查能回答三个问题：新配置为什么需要、哪些环境必须提供、如何在发布前验证。变量名、默认值和是否敏感要在同一次变更中审查，避免应用代码与部署说明逐渐漂移。</p>
+<div class="tip">本项目的 <code>parseConfig</code> 是纯函数，因此发布检查与单元测试可以复用完全相同的验证规则，而不是各写一套 if 判断。</div>
+<h2>三、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>创建无密钥的配置清单</strong><p>在 <code>ai-backend/.env.example</code> 中列出当前 Schema 中的键。必填密钥保留空值；可安全默认的键给出示例。每新增一个 Schema 字段，都要同步审查这里。</p><pre>NODE_ENV=production
+PORT=3000
+FRONTEND_URL=https://your-frontend.example.com
+JWT_SECRET=
+DEEPSEEK_API_KEY=
+DATABASE_URL=
+DB_PATH=chat.db
+LOG_LEVEL=info</pre><div class="warn">当前 <code>DATABASE_URL</code> 是可选项，因为项目可回退到 SQLite；不要在示例中制造一个假的生产数据库地址。生产环境若使用 PostgreSQL，部署平台必须显式提供它。</div></div>
+<div class="step"><span class="step-num">2</span><strong>增加独立配置检查命令</strong><p>创建 <code>scripts/check-config.ts</code>。它只加载并验证配置，不启动 HTTP 服务、队列或 WebSocket。校验失败时进程应以非零状态结束；成功时只打印非敏感的环境名称与端口。</p><pre>import 'dotenv/config'
+import { config } from '../src/utils/config'
+
+console.info(
+  `[config-check] ${config.NODE_ENV} configuration is valid on port ${config.PORT}`,
+)</pre><p>然后在 <code>package.json</code> 的 <code>scripts</code> 中加入：</p><pre>"check:config": "tsx scripts/check-config.ts"</pre></div>
+<div class="step"><span class="step-num">3</span><strong>建立发布前固定顺序</strong><p>本地发布或 CI 都按同一顺序执行。先验证外部输入，再验证代码质量，最后才部署；不要让部署成功与否依赖“启动后再看日志”。</p><pre>Set-Location E:\project\AI-Agent\ai-backend
+npm run check:config
+npx tsc --noEmit
+npm test</pre><p>在部署平台中，用该平台的生产变量执行同一条 <code>npm run check:config</code>。若失败，读取键名和格式错误即可修复，绝不把平台变量完整打印到日志。</p></div>
+<div class="step"><span class="step-num">4</span><strong>用变更清单做一次审查</strong><p>假设要新增 <code>MAX_CONTEXT_TOKENS</code>。在提交前依次确认：Schema 是否限定为合理正整数、<code>.env.example</code> 是否说明默认含义、测试是否覆盖非法值、部署平台是否需要显式设置。只有这四项都回答清楚，配置变更才算完成。</p></div>
+<h2>四、发布前检查清单</h2><ol><li>Schema、<code>.env.example</code> 和部署平台变量名是否一致。</li><li>真实密钥是否仅存在于本机安全存储或部署平台，而不在 Git diff 中。</li><li><code>npm run check:config</code> 是否在服务启动前成功。</li><li>类型检查和测试是否在同一代码版本上通过。</li><li>配置失败日志是否仅给出键名与格式问题，不包含值。</li></ol>
+<h2>五、本课总结</h2><ul><li>配置 Schema 解决“程序接受什么”，示例文件解决“部署者需要准备什么”。</li><li>示例文件可以提交，但只能包含键名、格式和非敏感示例。</li><li>独立配置检查把部署失败提前到发布动作之前。</li><li>配置变更应与接口变更一样被审查、测试和记录。</li></ul>
+<div class="quiz"><h3>思考题</h3><p><strong>Q1</strong>：为什么只维护 Schema、却不维护 <code>.env.example</code>，仍然容易造成部署事故？</p><p><strong>Q2</strong>：为什么配置检查脚本不应该启动 HTTP 服务、队列或 WebSocket？</p><p><strong>Q3</strong>：当一个配置变量从“可选”改为“生产必填”时，哪些地方必须同步修改？</p></div>
+<p>下一课将学习<strong>第三十八课：配置审计与密钥轮换</strong>——为配置变更保留可追溯证据，并在密钥泄露或人员变动时安全地完成轮换。</p>
+</body></html>
