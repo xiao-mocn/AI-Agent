@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { serve } from '@hono/node-server'
 import request from 'supertest'
+import jwt from 'jsonwebtoken'
 import path from 'node:path'
 import { config as loadEnv } from 'dotenv'
 import { useTestDB, registerAndLogin, cleanupTestDB } from './helpers'
@@ -36,9 +37,11 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve())
-  })
+  if (server) {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve())
+    })
+  }
   if (databaseInitialized) {
     await cleanupTestDB()
   }
@@ -58,6 +61,18 @@ describe('无效Token', () => {
     const res = await request(server)
       .get('/api/sessions')
       .set('Authorization', `Bearer invalid-token`)
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('密钥轮换', () => {
+  it('使用旧密钥签发的格式正确 token 应返回 401', async () => {
+    const oldToken = jwt.sign({ userId: 1 }, 'old-secret-that-is-not-the-current-signing-key')
+
+    const res = await request(server)
+      .get('/api/sessions')
+      .set('Authorization', `Bearer ${oldToken}`)
+
     expect(res.status).toBe(401)
   })
 })
