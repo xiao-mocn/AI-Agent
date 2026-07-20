@@ -1,8 +1,9 @@
 import Database from 'better-sqlite3'
 import { Pool } from 'pg'
+import { config } from './config'
 
 // 判断是否使用 PostgreSQL
-const DATABASE_URL = process.env.DATABASE_URL
+const DATABASE_URL = config.DATABASE_URL
 export const isPG = !!DATABASE_URL
 
 // — PG 连接池 —
@@ -13,7 +14,7 @@ pool = new Pool({
   ssl: isPG ? { rejectUnauthorized: false } : undefined,
 })
 
-export const db = new Database(process.env.DB_PATH || 'chat.db')
+export const db = new Database(config.DB_PATH || 'chat.db')
 // 开启 WAL 模式
 db.pragma('journal_mode = WAL')
 

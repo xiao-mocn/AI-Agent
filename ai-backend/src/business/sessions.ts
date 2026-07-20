@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
-import { listSessions, renameSession, deleteSession, getHistory } from '../db'
+import { listSessions, renameSession, deleteSession, getHistory } from '../utils/db'
 
 export default function SessionRoutes(app: Hono<AppEnv>) {
   app.get('/api/sessions', async (c) => {

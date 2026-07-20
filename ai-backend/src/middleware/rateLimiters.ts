@@ -1,6 +1,6 @@
 import { rateLimiter } from 'hono-rate-limiter'
 import jwt from 'jsonwebtoken'
-import { JWT_SECRET } from '../config'
+import { config } from '../utils/config'
 
 // 全局限流：每 IP 每分钟 60 次
 export const globalRateLimiter = rateLimiter({
@@ -18,7 +18,7 @@ export const chatRateLimiter = rateLimiter({
     const auth = c.req.header('Authorization')
     if (auth?.startsWith('Bearer ')) {
       try {
-        const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { userId: number }
+        const payload = jwt.verify(auth.slice(7), config.JWT_SECRET) as { userId: number }
         return `user:${payload.userId}`
       } catch { }
     }

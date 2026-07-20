@@ -1,9 +1,10 @@
 import pino from 'pino'
+import { config } from '../utils/config'
 
-const isDev = process.env.NODE_ENV !== 'production'
+const isDev = config.NODE_ENV !== 'production'
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL ?? (isDev ? 'debug' : 'info'),
+  level: config.LOG_LEVEL ?? (isDev ? 'debug' : 'info'),
   // 敏感字段自动脱敏，路径按 pino 的点号语法写
   redact: {
     paths: ['req.headers.authorization', '*.password', '*.token'],

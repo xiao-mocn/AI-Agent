@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>第三十六课：运行时配置校验与生产环境防御</title><style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:10px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style></head><body>
+<h1>第三十六课：运行时配置校验与生产环境防御</h1><p class="meta">目标时长 1 小时 · 难度 ★★★ · 工程化 · 运行时安全</p>
+<div class="goal"><strong>本节课你会学到：</strong><ul><li>为什么环境变量错误应在应用启动时失败，而不是等到请求到来</li><li>如何用 Zod 把字符串环境变量解析为可信的运行时配置</li><li>如何区分开发便利默认值与生产环境必须提供的密钥</li><li>如何让配置错误可定位，同时避免把密钥写进日志</li></ul></div>
+<h2>一、配置是应用的第一份外部输入</h2><p>端口、数据库地址、JWT 密钥和模型 API Key 都在代码之外，却直接决定应用能否安全运行。当前后端的 <code>config.ts</code> 会给 <code>JWT_SECRET</code> 一个开发默认值；本地启动方便，但若部署时忘记覆盖它，应用仍可能启动并使用可预测的密钥。</p><table><tr><th>发现时机</th><th>后果</th><th>首选策略</th></tr><tr><td>收到第一条请求后</td><td>用户先看到 500，排查信息分散</td><td>避免</td></tr><tr><td>启动监听端口前</td><td>部署立即失败，日志指出缺失的配置键</td><td>推荐</td></tr><tr><td>CI 或发布检查时</td><td>能更早发现部署清单错误</td><td>作为补充</td></tr></table>
+<div class="danger"><strong>配置错误不能用“先给一个生产默认值”掩盖。</strong> <code>JWT_SECRET</code>、数据库连接串和第三方 API Key 没有安全的通用默认值。默认值只适合明确无害的本地开发项，例如端口或前端地址。</div>
+<h2>二、把 process.env 变成受约束的数据</h2><p><code>process.env</code> 的所有值都是字符串或未定义。将它散落在路由、数据库和业务模块中，会导致每一处都要猜测类型与缺失行为。集中 Schema 让应用只有一个配置入口，并在模块导入时得到已校验的类型。</p><pre>import { z } from 'zod'
+
+const configSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production'])
+    .default('development'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  FRONTEND_URL: z.url().default('http://localhost:5173'),
+  JWT_SECRET: z.string().min(32),
+  DEEPSEEK_API_KEY: z.string().min(1),
+})
+
+const result = configSchema.safeParse(process.env)
+if (!result.success) {
+  const invalidKeys = result.error.issues
+    .map((issue) =&gt; issue.path.join('.'))
+    .join(', ')
+  throw new Error(`启动配置无效：${invalidKeys}`)
+}
+
+export const config = result.data</pre><div class="tip">错误信息只输出配置键和格式问题，不输出 <code>process.env</code>、完整连接串或 Key 值。运维人员需要知道“缺哪个键”，不需要也不应从日志中看到密钥。</div>
+<h2>三、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>列出真正的运行时依赖</strong><p>先搜索 <code>process.env</code>，把变量按“可公开默认”“必须提供”“仅开发环境使用”分类。不要把测试工具的变量和生产服务凭据混在一个判断里。</p><pre>Set-Location E:\project\AI-Agent\ai-backend
+rg -n "process\.env" src</pre></div>
+<div class="step"><span class="step-num">2</span><strong>创建集中配置模块</strong><p>在 <code>src/config.ts</code> 中用 Schema 解析原始环境变量，再导出 <code>config</code>。端口使用 <code>z.coerce.number()</code>，因为环境变量最初是字符串；密钥设置最小长度，避免空字符串和明显弱值悄悄通过。</p><pre>export const PORT = config.PORT
+export const JWT_SECRET = config.JWT_SECRET
+export const FRONTEND_URL = config.FRONTEND_URL</pre><div class="warn">不要在每个模块里再次读取 <code>process.env.JWT_SECRET</code>。绕过集中配置会重新引入未校验值，也会让测试和部署行为不一致。</div></div>
+<div class="step"><span class="step-num">3</span><strong>让启动入口先校验，再监听端口</strong><p><code>index.ts</code> 已经在启动时加载 dotenv。确保配置模块在调用 <code>serve()</code> 前被导入或显式加载：配置错误应该阻止 HTTP 服务、定时任务和 WebSocket 启动。</p><pre>import 'dotenv/config'
+import { config } from './config'
+
+// 访问 config 会在监听端口之前完成校验
+serve({ fetch: app.fetch, port: config.PORT })</pre></div>
+<div class="step"><span class="step-num">4</span><strong>为缺失配置写最小测试</strong><p>将解析函数导出，并传入对象而不是在测试里直接修改全局 <code>process.env</code>。分别覆盖缺少密钥和非法端口；断言错误包含变量名，但绝不断言或打印测试用密钥。</p><pre>it('缺少 JWT_SECRET 时拒绝启动配置', () =&gt; {
+  const result = parseConfig({
+    NODE_ENV: 'production',
+    PORT: '3000',
+    DEEPSEEK_API_KEY: 'test-key',
+  })
+
+  expect(result.success).toBe(false)
+})</pre></div>
+<h2>四、生产环境检查</h2><ol><li>生产部署清单中是否显式提供每个必需密钥，而不是依赖本地 <code>.env</code>？</li><li>端口是否被解析为 1 到 65535 的整数，而不是任意字符串？</li><li>启动失败日志是否仅包含变量名、环境和修复动作，不包含敏感值？</li><li>配置 Schema 是否在 HTTP 服务、队列和定时任务启动前执行？</li></ol>
+<h2>五、本课总结</h2><ul><li>环境变量是外部输入，应在启动期集中校验并转换类型。</li><li>生产密钥必须显式提供；开发默认值不能成为生产安全策略。</li><li>安全的配置错误信息帮助排查，但不能暴露值本身。</li><li>配置解析函数可独立测试，让部署失败从偶发事故变成可验证行为。</li></ul>
+<div class="quiz"><h3>思考题</h3><p><strong>Q1</strong>：为什么把 <code>JWT_SECRET</code> 设为固定开发默认值，在生产环境中比“应用无法启动”更危险？</p><p><strong>Q2</strong>：为什么配置解析函数应接收一个对象，而不是让测试直接反复修改 <code>process.env</code>？</p><p><strong>Q3</strong>：配置校验报错应包含哪些信息，又必须避免包含哪些信息？为什么？</p></div>
+<p>下一课将学习<strong>第三十七课：配置变更管理与部署前检查</strong>——把环境变量清单、示例文件和发布验证连接起来，让每一次配置变更都可审查、可复现。</p>
+</body></html>

@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { serve } from '@hono/node-server'
 import request from 'supertest'
+import path from 'node:path'
+import { config as loadEnv } from 'dotenv'
 import { useTestDB, registerAndLogin, cleanupTestDB } from './helpers'
+
+loadEnv({
+  path: path.resolve(__dirname, '../.env.test'),
+})
 
 vi.mock('openai', () => ({
   default: class MockOpenAI {
@@ -19,11 +25,13 @@ vi.mock('openai', () => ({
 
 useTestDB()
 let server: ReturnType<typeof serve>
+let databaseInitialized = false
 
 beforeAll(async () => {
-  const { initDB } = await import('../src/db')
+  const { initDB } = await import('../src/utils/db')
   await initDB()
-  const app = (await import('../src/app')).default
+  databaseInitialized = true
+  const app = (await import('../src/utils/app')).default
   server = serve({ fetch: app.fetch, port: 0 })
 })
 
@@ -31,7 +39,9 @@ afterAll(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve())
   })
-  await cleanupTestDB()
+  if (databaseInitialized) {
+    await cleanupTestDB()
+  }
 })
 
 describe('不提供Token', () => {

@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { Hono } from 'hono'
-import { createUser, findUser } from '../db'
+import { createUser, findUser } from '../utils/db'
 import { RegisterSchema, LoginSchema } from './schemas'
-import { JWT_SECRET } from '../config'
+import { config } from '../utils/config'
 import type { AppEnv } from '../types'
 
 export default function createUserRoutes(app: Hono<AppEnv>) {
@@ -34,7 +34,7 @@ export default function createUserRoutes(app: Hono<AppEnv>) {
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) return c.json({ error: '密码错误' }, 401)
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign({ userId: user.id }, config.JWT_SECRET, { expiresIn: '7d' })
     return c.json({ token })
   })
 

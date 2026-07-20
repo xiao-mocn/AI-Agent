@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import type { MiddlewareHandler } from 'hono'
-import { JWT_SECRET } from '../config'
+import { config } from '../utils/config'
 import type { AppEnv } from '../types'
 
 // JWT 鉴权：校验 Authorization: Bearer <token>
@@ -11,7 +11,7 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   }
   const token = authHeader.slice(7)
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { userId: number }
+    const payload = jwt.verify(token, config.JWT_SECRET) as { userId: number }
     c.set('userId', payload.userId)
     return next()
   } catch {

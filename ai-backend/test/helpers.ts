@@ -11,7 +11,7 @@ export function useTestDB() {
 }
 
 export async function cleanupTestDB() {
-  const { closeDB } = await import('../src/db')
+  const { closeDB } = await import('../src/utils/db')
   await closeDB()
 
   for (const suffix of ['', '-wal', '-shm']) {

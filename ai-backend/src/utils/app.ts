@@ -1,17 +1,17 @@
 import { secureHeaders } from 'hono/secure-headers'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { FRONTEND_URL } from './config'
+import { config } from './config'
 import { checkDBHealth } from './db'
-import { logger } from './business/logger'
+import { logger } from '../business/logger'
 import { requestId } from 'hono/request-id'
-import { requestLogger } from './middleware/requestLogger'
-import { requireAuth } from './middleware/auth'
-import { globalRateLimiter, chatRateLimiter } from './middleware/rateLimiters'
-import ChatMessageRoutes from './business/chat'
-import user from './business/user'
-import type { AppEnv } from './types'
-import SessionRoutes from './business/sessions'
+import { requestLogger } from '../middleware/requestLogger'
+import { requireAuth } from '../middleware/auth'
+import { globalRateLimiter, chatRateLimiter } from '../middleware/rateLimiters'
+import ChatMessageRoutes from '../business/chat'
+import user from '../business/user'
+import type { AppEnv } from '../types'
+import SessionRoutes from '../business/sessions'
 
 
 const app = new Hono<AppEnv>()
@@ -21,7 +21,7 @@ app.use('*', requestId())
 
 // CORS（需覆盖 /login /register 等无前缀路由，所以用 * 而非 /api/*）
 app.use('*', cors({
-  origin: FRONTEND_URL,
+  origin: config.FRONTEND_URL,
   allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))

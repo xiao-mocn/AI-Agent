@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import type { Server } from 'http'
 import type { ServerType } from '@hono/node-server'
 import jwt from 'jsonwebtoken'
-import { JWT_SECRET } from '../config'
+import { config } from '../utils/config'
 import { logger } from '../business/logger'
 
 let wss: WebSocketServer | null = null
@@ -24,7 +24,7 @@ export function attachWebSocket(server: ServerType) {
     }
 
     try {
-      jwt.verify(token, JWT_SECRET)
+      jwt.verify(token, config.JWT_SECRET)
     } catch {
       ws.close(1008, 'token 无效或已过期')
       return

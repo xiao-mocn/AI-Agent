@@ -1,5 +1,5 @@
 import cron, { type ScheduledTask } from 'node-cron'
-import { db, isPG } from '../db'
+import { db, isPG } from '../utils/db'
 import { logger } from '../business/logger'
 
 let task: ScheduledTask | null = null

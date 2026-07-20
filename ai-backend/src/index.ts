@@ -1,16 +1,16 @@
 import 'dotenv/config'
-import app from './app'
+import app from './utils/app'
 import { serve } from '@hono/node-server'
 import { logger } from './business/logger'
-import { PORT } from './config'
-import { initDB, closeDB } from './db'
+import { config } from './utils/config'
+import { initDB, closeDB } from './utils/db'
 import { startScheduler, stopScheduler } from './middleware/scheduler'
 import { startWorker, waitForWorker } from './middleware/queue'
 import { attachWebSocket, closeWebSocket } from './middleware/websocket'
 
 
 initDB().then(() => {
-  const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
+  const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
     logger.info(`服务器已启动：http://localhost:${info.port}`)
     startScheduler()
     startWorker()
