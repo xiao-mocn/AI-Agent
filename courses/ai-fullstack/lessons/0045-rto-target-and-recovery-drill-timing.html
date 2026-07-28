@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第四十五课：RTO 目标与恢复演练计时</title>
+<style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:8px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style>
+</head>
+<body>
+<h1>第四十五课：RTO 目标与恢复演练计时</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★☆ · 数据可靠性 · 恢复时效</p>
+
+<div class="goal"><strong>本课你会学到：</strong><ul>
+<li>为 RTO 明确定义计时起点、终点和成功标准。</li>
+<li>把恢复流程拆成可复核的阶段时间线，而不是只记总耗时。</li>
+<li>计算总恢复时间、RTO 余量和最长耗时阶段。</li>
+<li>区分桌面演练、隔离技术恢复与完整服务恢复能够证明的范围。</li>
+</ul></div>
+
+<h2>一、RTO 不是一句“尽快恢复”</h2>
+<p><strong>RTO</strong>（Recovery Time Objective）是业务可接受的恢复时间目标。要让它可测量，必须先写清计时从何时开始、在什么状态结束，以及哪些验证必须通过。例如，本课将起点定义为“确认备份故障需要进入恢复响应”，终点定义为“隔离恢复完成、只读验证通过并形成恢复决策”。</p>
+<p>这个终点还不是生产流量已经恢复，因此本课测得的是<strong>桌面技术恢复时间</strong>，不是完整服务 RTO。若真实目标要求用户重新访问应用，计时还必须包含生产切换、应用启动、健康检查、烟雾测试和业务确认。</p>
+<div class="tip">主阅读资源：<a href="https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/plan-for-disaster-recovery-dr.html">AWS Well-Architected 的灾难恢复规划</a>。平台不同，恢复工具会变化，但 RTO/RPO、演练和证据边界仍然适用。</div>
+
+<h2>二、总耗时告诉你是否达标，阶段耗时告诉你改哪里</h2>
+<table><tr><th>阶段</th><th>本课固定耗时</th><th>主要证据</th></tr>
+<tr><td>确认告警</td><td>4 分钟</td><td>接收时间、事件与负责人。</td></tr>
+<tr><td>评估并选择恢复点</td><td>8 分钟</td><td>最后成功备份、RPO 与选择理由。</td></tr>
+<tr><td>准备隔离目标</td><td>12 分钟</td><td>隔离边界和批准状态。</td></tr>
+<tr><td>执行恢复</td><td>18 分钟</td><td>恢复开始、结束和工具结果。</td></tr>
+<tr><td>只读验证</td><td>9 分钟</td><td>Schema、哨兵记录与摘要断言。</td></tr>
+<tr><td>形成恢复决策</td><td>4 分钟</td><td>风险、结论和审批入口。</td></tr></table>
+<p>六个阶段合计 55 分钟，在 60 分钟目标内只剩 5 分钟余量。虽然总时间达标，但 18 分钟的恢复阶段是当前最大耗时；如果数据量增长或隔离环境准备变慢，5 分钟余量很容易消失。优化应以阶段证据为依据，而不是凭感觉先改最快的步骤。</p>
+
+<h2>三、不同演练层级不能互相冒充</h2>
+<table><tr><th>证据层级</th><th>能够证明</th><th>不能证明</th></tr>
+<tr><td>桌面演练</td><td>角色、顺序、判断条件和计时口径清楚。</td><td>备份真的可恢复，平台耗时符合目标。</td></tr>
+<tr><td>隔离技术恢复</td><td>真实备份可在隔离环境恢复并通过数据验证。</td><td>生产切换后应用和用户流程正常。</td></tr>
+<tr><td>完整服务演练</td><td>从告警到服务恢复的端到端时间与业务结果。</td><td>未来每次事故都一定同样快。</td></tr></table>
+<div class="danger">本课只使用固定时间线做桌面演练，不连接数据库、Render、线上服务或部署平台，不读取环境变量、凭据、真实日志和业务数据。禁止把固定的 55 分钟结果写成生产系统已验证的 RTO。</div>
+
+<h2>四、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>写清计时契约</strong><p>新建 <code>docs/recovery/rto-drill-plan.md</code>，写明目标 RTO 为 60 分钟，计时起点为确认进入恢复响应，计时终点为隔离恢复通过只读验证并形成决策。列出六个阶段、每阶段负责人、开始与结束证据，并明确本次不包含生产切换和用户流量恢复。</p></div>
+
+<div class="step"><span class="step-num">2</span><strong>计算固定时间线</strong><p>从 <code>ai-backend</code> 目录执行下面的命令。它只计算固定虚构时间，不访问文件、数据库、网络或环境变量；结果应为总耗时 55 分钟、RTO 60 分钟、余量 5 分钟，最长阶段为 <code>restore</code> 的 18 分钟。</p>
+<pre>node -e "const phases=[['acknowledge','2026-07-28T08:00:00Z','2026-07-28T08:04:00Z'],['assess-and-select','2026-07-28T08:04:00Z','2026-07-28T08:12:00Z'],['prepare-isolation','2026-07-28T08:12:00Z','2026-07-28T08:24:00Z'],['restore','2026-07-28T08:24:00Z','2026-07-28T08:42:00Z'],['read-only-validate','2026-07-28T08:42:00Z','2026-07-28T08:51:00Z'],['decide','2026-07-28T08:51:00Z','2026-07-28T08:55:00Z']].map(([name,start,end])=&gt;({name,start,end,durationMinutes:(new Date(end)-new Date(start))/60000})); const totalMinutes=(new Date(phases[phases.length-1].end)-new Date(phases[0].start))/60000,rtoMinutes=60,marginMinutes=rtoMinutes-totalMinutes,longest=phases.reduce((a,b)=&gt;a.durationMinutes&gt;b.durationMinutes?a:b),result=totalMinutes&lt;=rtoMinutes?'within-target':'missed-target'; console.log(JSON.stringify({result,totalMinutes,rtoMinutes,marginMinutes,longestPhase:{name:longest.name,durationMinutes:longest.durationMinutes},phases})); if(totalMinutes&gt;rtoMinutes) process.exitCode=1"</pre></div>
+
+<div class="step"><span class="step-num">3</span><strong>解释余量与瓶颈</strong><p>不要只写“55 小于 60，所以通过”。在演练计划中补充：当前仅有 5 分钟余量；恢复阶段耗时最长；隔离目标准备与实际恢复合计占 30 分钟；若要降低风险，应优先验证隔离资源准备能否预置、恢复工具能否自动记录阶段结果。改进项必须保留负责人和验证方式。</p></div>
+
+<div class="step"><span class="step-num">4</span><strong>记录桌面演练证据</strong><p>新建 <code>docs/recovery/2026-07-28-rto-tabletop.md</code>，记录计时契约、六阶段时间线、总耗时、目标、余量、最长阶段、改进项和证据层级。明确写出“本次没有执行真实恢复，因此 55 分钟不是生产 RTO 证明”，且不要写入连接信息、凭据、真实日志或临时绝对路径。</p></div>
+
+<h2>五、验收清单</h2>
+<ol>
+<li>RTO 计划明确计时起点、终点、60 分钟目标与不包含的生产动作。</li>
+<li>固定命令输出六个阶段，总耗时 55 分钟、余量 5 分钟并返回退出码 0。</li>
+<li>记录识别出最长阶段为 18 分钟的恢复步骤，而不是只判断总时间通过。</li>
+<li>改进项包含负责人和验证方式，没有把“更快”写成不可执行的口号。</li>
+<li>桌面记录明确证据层级与限制，不含敏感信息，也不宣称生产 RTO 已验证。</li>
+</ol>
+
+<h2>六、本课总结</h2>
+<ul>
+<li>RTO 必须有一致的计时起点、终点、目标和成功标准。</li>
+<li>总耗时用于判断目标，阶段耗时用于定位瓶颈与制定改进。</li>
+<li>满足目标但余量很小时，数据增长和环境波动仍可能造成下一次超时。</li>
+<li>桌面、隔离技术恢复和完整服务演练提供不同等级的证据，不能互相替代。</li>
+<li>至此，数据持久化、备份保留、失败可见性与恢复时效的小节奏形成完整闭环。</li>
+</ul>
+
+<div class="quiz"><h3>思考题</h3>
+<p><strong>Q1</strong>：为什么 RTO 演练必须预先约定计时起点和终点，而不能事后挑选时间？</p>
+<p><strong>Q2</strong>：即使总耗时 55 分钟满足 60 分钟目标，为什么仍要记录每个恢复阶段的耗时？</p>
+<p><strong>Q3</strong>：为什么固定时间线的桌面演练不能证明生产系统已经达到 60 分钟 RTO？</p>
+</div>
+
+<p>下一课将进入新的节奏，学习<strong>第四十六课：Node.js 主线复盘与上线验收清单</strong>——把安全、测试、部署、可观测性和恢复证据汇总成一份可执行的上线判断，并为后续 Java Spring Boot 副线整理迁移基线。</p>
+</body>
+</html>
