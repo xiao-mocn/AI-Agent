@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第四十四课：备份失败可见性与恢复运行手册</title>
+<style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:8px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style>
+</head>
+<body>
+<h1>第四十四课：备份失败可见性与恢复运行手册</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★☆ · 故障响应 · 可复核证据</p>
+
+<div class="goal"><strong>本课你会学到：</strong><ul>
+<li>让备份任务同时产生进程退出码与结构化结果事件。</li>
+<li>用“最后一次成功备份距今多久”判断数据保护是否逼近 RPO。</li>
+<li>区分日志、告警和恢复运行手册各自承担的责任。</li>
+<li>编写一份要求隔离恢复、只读验证和证据留存的最小运行手册。</li>
+</ul></div>
+
+<h2>一、无人知道的失败，等于没有备份保障</h2>
+<p>定时任务按时启动，只能证明调度器发起过执行。要让自动化结果可见，任务至少要给出机器可判断的退出码，并记录包含状态、备份标识、开始时间、结束时间、耗时和稳定错误码的结构化事件。退出码便于调度器判定成功或失败，结构化事件则让人和监控系统知道失败发生在哪一环。</p>
+<p>错误信息应帮助定位类别，例如 <code>DESTINATION_UNAVAILABLE</code>，但不应包含数据库连接字符串、令牌、密码或原始业务数据。成功事件同样重要：只有连续记录最近一次真正成功的时间，才能判断保护窗口是否正在变旧。</p>
+<div class="tip">主阅读资源：<a href="https://nodejs.org/api/process.html#processexitcode">Node.js process.exitCode 文档</a>。生产任务还要核对实际调度平台如何保存日志、识别非零退出码和发送通知。</div>
+
+<h2>二、单次失败与“备份已经过旧”不是同一个信号</h2>
+<table><tr><th>信号</th><th>回答的问题</th><th>典型动作</th></tr>
+<tr><td>本次退出码非零</td><td>刚才这次执行是否失败？</td><td>记录失败，按重试策略处理。</td></tr>
+<tr><td>结构化失败事件</td><td>失败属于哪一类、发生在何时？</td><td>聚合日志，定位责任边界。</td></tr>
+<tr><td>最后成功时间过旧</td><td>当前数据丢失窗口是否可能超过 RPO？</td><td>触发告警并进入人工响应。</td></tr>
+<tr><td>恢复运行手册</td><td>收到告警后应该按什么顺序行动？</td><td>隔离恢复、验证、决策和留证。</td></tr></table>
+<p>一次任务失败后，下一次重试可能很快成功；反过来，即使没有收到失败事件，调度器停止运行也会让备份持续变旧。因此告警不能只盯着失败次数，还要比较当前时间与最后一次成功时间。若 RPO 是 60 分钟，而最后成功备份已经过去 95 分钟，就必须把它视为数据保护风险。</p>
+
+<h2>三、运行手册把告警变成可执行顺序</h2>
+<p>运行手册不是一段笼统的“恢复数据库”说明。它应写明触发条件、责任人、证据入口、停止条件、隔离恢复步骤、验证标准、升级路径和事后记录。每一步都应让临时接手的人知道做什么、根据什么判断，以及何时不能继续。</p>
+<div class="danger">恢复演练不得直接覆盖生产数据库。先确认影响范围和最近成功备份，在隔离环境恢复，再以只读查询验证结构与确定性数据；涉及生产切换、删除或覆盖时必须单独审批。本课不读取环境变量、凭据、真实数据库或线上日志。</div>
+
+<h2>四、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>模拟成功与失败结果</strong><p>在 <code>ai-backend</code> 目录依次执行下面两条命令。它们只输出固定的虚构事件，不访问文件、数据库、网络或环境变量。第一条应输出成功 JSON 且退出码为 <code>0</code>；第二条应把失败 JSON 写到标准错误且退出码为 <code>1</code>。</p>
+<pre>node -e "const mode=process.argv[1]; const event={event:mode==='failure'?'backup.failed':'backup.completed',status:mode==='failure'?'failed':'succeeded',backupId:'backup-drill-2026-07-27T080000Z',startedAt:'2026-07-27T08:00:00Z',finishedAt:'2026-07-27T08:00:03Z',durationMs:3000}; if(mode==='failure'){event.errorCode='DESTINATION_UNAVAILABLE'; console.error(JSON.stringify(event)); process.exitCode=1}else{console.log(JSON.stringify(event))}" success
+Write-Output "exit=$LASTEXITCODE"
+
+node -e "const mode=process.argv[1]; const event={event:mode==='failure'?'backup.failed':'backup.completed',status:mode==='failure'?'failed':'succeeded',backupId:'backup-drill-2026-07-27T080000Z',startedAt:'2026-07-27T08:00:00Z',finishedAt:'2026-07-27T08:00:03Z',durationMs:3000}; if(mode==='failure'){event.errorCode='DESTINATION_UNAVAILABLE'; console.error(JSON.stringify(event)); process.exitCode=1}else{console.log(JSON.stringify(event))}" failure
+Write-Output "exit=$LASTEXITCODE"</pre></div>
+
+<div class="step"><span class="step-num">2</span><strong>验证基于 RPO 的过旧告警</strong><p>下面的固定输入表示最后成功备份距当前时间 95 分钟，而 RPO 为 60 分钟。命令必须输出 <code>backup.stale</code> 事件并返回退出码 <code>1</code>；这证明告警依据是成功备份的新鲜度，而不是是否碰巧收到了某一条失败日志。</p>
+<pre>node -e "const lastSuccessAt=new Date('2026-07-27T08:00:00Z'),now=new Date('2026-07-27T09:35:00Z'),rpoMinutes=60; const ageMinutes=(now-lastSuccessAt)/60000; const stale=ageMinutes&gt;rpoMinutes; console.log(JSON.stringify({event:stale?'backup.stale':'backup.fresh',lastSuccessAt:lastSuccessAt.toISOString(),ageMinutes,rpoMinutes})); if(stale) process.exitCode=1"
+Write-Output "exit=$LASTEXITCODE"</pre></div>
+
+<div class="step"><span class="step-num">3</span><strong>编写最小恢复运行手册</strong><p>新建 <code>docs/recovery/backup-failure-and-restore-runbook.md</code>，至少包含：触发条件与负责人、最后成功备份和 RPO 的确认方式、禁止直接覆盖生产的停止条件、隔离恢复步骤、只读验证清单、升级与生产切换审批、结束后的证据记录。命令和示例只能使用占位符，不要写入真实连接信息或临时绝对路径。</p></div>
+
+<div class="step"><span class="step-num">4</span><strong>做一次桌面演练并记录证据</strong><p>把第二步的固定过旧事件当作告警输入，按运行手册逐项走读：谁先响应、去哪里找最后成功备份、怎样选择隔离目标、用什么只读断言判断恢复有效、什么条件下升级。将本次桌面演练的输入、关键决策、预期证据和未执行的生产动作写入 <code>docs/recovery/2026-07-27-backup-failure-tabletop.md</code>。</p></div>
+
+<h2>五、验收清单</h2>
+<ol>
+<li>成功模拟返回退出码 0，失败模拟返回退出码 1，且两者都有可解析的结构化事件。</li>
+<li>过旧检测以最后成功时间和 RPO 为输入，固定样例得到 95 分钟大于 60 分钟的告警。</li>
+<li>失败事件与运行手册不含连接字符串、密码、令牌、真实数据或临时绝对路径。</li>
+<li>运行手册明确要求先隔离恢复和只读验证，生产覆盖或切换必须单独审批。</li>
+<li>桌面演练记录能够让另一位工程师复核触发条件、决策顺序、验证标准和限制。</li>
+</ol>
+
+<h2>六、本课总结</h2>
+<ul>
+<li>退出码让调度器判断结果，结构化事件让监控和工程师理解结果。</li>
+<li>最后成功备份的新鲜度比单次失败次数更直接地反映 RPO 风险。</li>
+<li>告警只负责叫醒人，运行手册负责约束收到告警后的安全行动顺序。</li>
+<li>恢复必须先在隔离环境验证；生产切换是独立的高风险决策。</li>
+</ul>
+
+<div class="quiz"><h3>思考题</h3>
+<p><strong>Q1</strong>：为什么备份任务既要返回非零退出码，又要输出结构化失败事件？</p>
+<p><strong>Q2</strong>：为什么“最后一次成功备份距今多久”通常比“最近失败了几次”更接近 RPO 风险？</p>
+<p><strong>Q3</strong>：为什么恢复运行手册必须要求先隔离恢复并只读验证，再讨论生产切换？</p>
+</div>
+
+<p>下一课将学习<strong>第四十五课：RTO 目标与恢复演练计时</strong>——把恢复流程拆成可计时阶段，用证据判断实际恢复耗时能否满足业务目标。</p>
+</body>
+</html>
