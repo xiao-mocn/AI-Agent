@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第四十六课：Node.js 主线复盘与上线验收清单</title>
+<style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:8px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style>
+</head>
+<body>
+<h1>第四十六课：Node.js 主线复盘与上线验收清单</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★☆ · 阶段复盘 · 上线决策</p>
+
+<div class="goal"><strong>本课你会学到：</strong><ul>
+<li>把“功能做过了”转换为可以定位和复核的上线证据。</li>
+<li>用统一状态区分已通过、部分通过、未验证和明确阻塞。</li>
+<li>按风险决定哪些缺口阻止上线，哪些可以带负责人进入后续计划。</li>
+<li>从 Node.js 实现中提炼 Spring Boot 迁移必须保持的行为基线。</li>
+</ul></div>
+
+<h2>一、课程完成度不等于上线就绪度</h2>
+<p>Node.js 主线已经覆盖 API、AI 调用、认证、数据库、测试、CI、容器、配置、可观测性与恢复，但“学过”或“文件存在”都不是上线证据。上线判断需要回答：哪条行为被什么命令或记录验证、证据产生于何时、结果是什么、谁负责缺口，以及缺口是否影响用户或数据安全。</p>
+<p>证据也有时效性。本地测试通过不能代替部署后的烟雾测试，桌面恢复演练不能代替真实隔离恢复，配置示例文件存在也不能证明部署平台已经正确填写变量。复盘的目标不是制造一个漂亮的全绿表格，而是诚实地暴露尚未验证的边界。</p>
+<div class="tip">主阅读资源：<a href="https://sre.google/sre-book/release-engineering/">Google SRE Book：Release Engineering</a>。发布可靠性来自可重复流程和可审计证据，而不是依赖某个人记得检查所有细节。</div>
+
+<h2>二、四种状态让结论不再含糊</h2>
+<table><tr><th>状态</th><th>含义</th><th>上线处理</th></tr>
+<tr><td><code>PASS</code></td><td>验收标准明确，当前证据已通过且可复核。</td><td>记录证据位置和时间。</td></tr>
+<tr><td><code>PARTIAL</code></td><td>部分条件通过，但范围、环境或时效不足。</td><td>说明缺口、负责人和复验方式。</td></tr>
+<tr><td><code>NOT VERIFIED</code></td><td>尚无足够证据，不能推断成功或失败。</td><td>高风险项视为上线阻塞。</td></tr>
+<tr><td><code>BLOCKED</code></td><td>已有证据表明不满足标准，或前置条件不可用。</td><td>修复并重新验收后再判断。</td></tr></table>
+<p><code>NOT VERIFIED</code> 不是较轻的失败，它表示风险仍然未知。认证边界、运行配置、数据库持久化、健康检查和恢复能力一旦未验证，就应默认阻止正式上线；文档措辞或低风险体验问题可以在影响明确时进入后续计划。</p>
+
+<h2>三、证据矩阵要覆盖完整运行链路</h2>
+<table><tr><th>领域</th><th>关键问题</th><th>候选证据</th></tr>
+<tr><td>核心行为</td><td>注册、登录、对话、会话隔离和错误分支是否符合约定？</td><td>自动化测试、接口契约和烟雾测试。</td></tr>
+<tr><td>安全与配置</td><td>认证、输入校验、限流和启动配置是否失效关闭？</td><td>测试、Schema、示例变量和配置检查。</td></tr>
+<tr><td>交付与运行</td><td>CI、镜像、部署、健康检查、日志和回滚是否可复核？</td><td>工作流、构建记录、探针和发布记录。</td></tr>
+<tr><td>数据与恢复</td><td>数据存在哪里，备份是否可恢复，RPO/RTO 证据属于哪一级？</td><td>恢复记录、运行手册和演练结果。</td></tr>
+<tr><td>迁移基线</td><td>换成 Spring Boot 后，哪些外部行为必须保持一致？</td><td>路由、状态码、认证语义、数据模型和日志字段。</td></tr></table>
+<div class="danger">不要读取或复制 <code>ai-backend/.env</code>、<code>chat.db</code>、凭据、真实业务数据或线上日志来填清单。不要因为文件存在就标记 <code>PASS</code>；生产部署、备份恢复和用户流量未实际验证时，必须保留其证据级别和限制。</div>
+
+<h2>四、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>刷新本地代码证据</strong><p>从 <code>ai-backend</code> 目录运行测试与类型检查，记录命令、时间、通过数量或错误摘要。测试证明当前自动化覆盖的行为，类型检查证明静态契约一致；两者都不能替代部署后验收。</p>
+<pre>npm test
+npx tsc --noEmit</pre></div>
+
+<div class="step"><span class="step-num">2</span><strong>盘点本地候选证据</strong><p>从仓库根目录运行下面的只读命令。它只检查八个明确路径是否存在，不读取文件内容、环境变量、数据库或网络；输出 <code>8/8</code> 仍只表示候选证据齐全，不能自动把任何领域标为 <code>PASS</code>。</p>
+<pre>node -e "const fs=require('fs'); const checks=[['test-script','ai-backend/package.json'],['container','ai-backend/Dockerfile'],['ci','.github/workflows/ci.yml'],['config-example','ai-backend/.env.example'],['release-record','docs/releases/2026-07-26-render-database-recovery.md'],['recovery-runbook','docs/recovery/backup-failure-and-restore-runbook.md'],['rto-plan','docs/recovery/rto-drill-plan.md'],['rto-record','docs/recovery/2026-07-28-rto-tabletop.md']].map(([area,path])=&gt;({area,path,present:fs.existsSync(path)})); const present=checks.filter(item=&gt;item.present).length,total=checks.length,result=present===total?'inventory-complete':'inventory-has-gaps'; console.log(JSON.stringify({result,present,total,checks},null,2)); if(present!==total) process.exitCode=1"</pre></div>
+
+<div class="step"><span class="step-num">3</span><strong>建立上线就绪矩阵并作出判断</strong><p>新建 <code>docs/releases/nodejs-go-live-readiness.md</code>。为核心行为、安全与配置、CI 与容器、部署与可观测性、数据与恢复分别写：验收标准、状态、证据位置、限制、负责人和复验方式。任一高风险领域为 <code>NOT VERIFIED</code> 或 <code>BLOCKED</code> 时，当前结论必须是 <code>NO-GO</code>；只有所有阻塞项都有新证据后才能重新评审。</p></div>
+
+<div class="step"><span class="step-num">4</span><strong>提炼 Spring Boot 迁移基线</strong><p>在同一文档增加“Java 迁移基线”章节，至少记录：公开路由与状态码、JWT 鉴权和用户隔离语义、输入校验与错误格式、数据库实体关系、<code>/health</code> 与 <code>/ready</code> 语义、请求 ID 和结构化日志字段、现有回归测试。这里只定义必须保持的外部行为，不创建 Java 项目，也不要求内部类名和 Node.js 文件结构一一对应。</p></div>
+
+<h2>五、验收清单</h2>
+<ol>
+<li>本地测试和类型检查均有新鲜结果，失败时保留真实错误而不是改写结论。</li>
+<li>候选证据盘点命令只读取固定非敏感路径，并明确“存在不等于通过”。</li>
+<li>就绪矩阵覆盖五个领域，每项都有状态、证据、限制、负责人和复验方式。</li>
+<li>高风险的未验证或阻塞项会导出 <code>NO-GO</code>，没有用平均分掩盖关键风险。</li>
+<li>Java 迁移基线描述外部行为与测试，不要求复制 Node.js 内部实现。</li>
+</ol>
+
+<h2>六、本课总结</h2>
+<ul>
+<li>上线判断依赖可复核、带范围和时效的证据，而不是功能清单。</li>
+<li>统一状态让未知风险、部分证据和明确失败得到不同处理。</li>
+<li>关键安全、配置、数据和运行能力没有证据时，应作出 <code>NO-GO</code> 判断。</li>
+<li>Node.js 主线的行为契约和回归测试，将成为 Java 重写时的迁移护栏。</li>
+</ul>
+
+<div class="quiz"><h3>思考题</h3>
+<p><strong>Q1</strong>：为什么“文件存在”只能算候选证据，不能直接把上线检查项标为 <code>PASS</code>？</p>
+<p><strong>Q2</strong>：为什么一个高风险领域为 <code>NOT VERIFIED</code> 时，不能用其他多数项目通过来决定上线？</p>
+<p><strong>Q3</strong>：为什么迁移到 Spring Boot 时应保持外部行为和测试，而不是照搬 Node.js 的目录与类结构？</p>
+</div>
+
+<p>下一课将学习<strong>第四十七课：Spring Boot 项目骨架与健康检查</strong>——建立 Java 副线的第一个可运行服务，用 Spring Web 复现 <code>/health</code> 的最小外部契约，并与 Node.js 实现做行为对照。</p>
+</body>
+</html>
