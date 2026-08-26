@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>第三十九课：生产环境健康检查与可观测性边界</title><style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:8px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style></head><body>
+<h1>第三十九课：生产环境健康检查与可观测性边界</h1><p class="meta">目标时长 1 小时 · 难度 ★★★ · 工程化 · 生产可用性</p>
+<div class="goal"><strong>本课你会学到：</strong><ul><li>区分存活检查（liveness）和就绪检查（readiness）的职责。</li><li>为数据库依赖设计快速、稳定且可判定的就绪检查。</li><li>让探针暴露服务状态，同时隐藏连接串、环境变量、异常堆栈等内部信息。</li><li>用自动化测试锁定状态码和最小响应体。</li></ul></div>
+<h2>一、“进程活着”不等于“可以接流量”</h2><p>生产平台需要两个不同答案：当前进程还能否响应，以及当前实例能否完整处理业务请求。把这两个问题塞进同一个接口，会让恢复动作变得混乱。例如数据库短暂不可用时，重启 Node.js 进程通常解决不了问题；此时应把实例移出流量，而不是不断重启它。</p>
+<table><tr><th>探针</th><th>回答的问题</th><th>失败后的典型动作</th></tr><tr><td><code>GET /health</code></td><td>进程是否仍能响应 HTTP</td><td>平台重启实例。</td></tr><tr><td><code>GET /ready</code></td><td>关键依赖是否可用，实例能否接收流量</td><td>平台暂停向实例转发流量。</td></tr></table>
+<div class="tip"><code>/health</code> 应尽量轻量，不访问数据库和第三方 AI 服务。否则一个外部依赖故障会被误判成进程死亡，引发无效重启。</div>
+<h2>二、就绪检查只验证关键依赖</h2><p>当前项目的业务数据依赖 SQLite 或 PostgreSQL，因此 <code>/ready</code> 调用 <code>checkDBHealth()</code> 执行 <code>SELECT 1</code>。这比读取业务表更稳定：它验证连接和查询能力，却不依赖某条业务数据是否存在。DeepSeek API 不适合作为每次就绪探测的同步依赖，因为高频探针会消耗配额，第三方抖动也可能让整个应用被错误摘流。</p>
+<div class="warn">就绪检查必须有明确超时。当前查询依赖数据库驱动和连接配置的超时策略；部署生产数据库时，应同步核对连接超时，避免 <code>/ready</code> 长时间挂起。</div>
+<h2>三、可观测不代表公开内部结构</h2><p>探针是公开可访问的运维接口，响应应保持低基数、稳定和最小化。客户端只需要知道 <code>ok</code>、<code>ready</code> 或 <code>not ready</code>，详细错误应进入受控日志，由请求 ID、时间和部署版本辅助排查。</p>
+<div class="danger"><strong>不要从探针返回异常对象。</strong> 数据库连接串、主机名、驱动错误、环境变量、文件路径和堆栈都可能帮助攻击者绘制内部系统。失败响应使用固定文案，服务端日志再记录诊断上下文。</div>
+<h2>四、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>核对现有路由的职责边界</strong><p>打开 <code>ai-backend/src/utils/app.ts</code>，确认 <code>/health</code> 只返回进程状态，<code>/ready</code> 才调用数据库检查。还要确认两个路由位于 <code>/api/*</code> 鉴权范围之外，否则部署平台无法在没有用户 JWT 的情况下探测实例。</p><pre>app.get('/health', (c) =&gt; c.json({ status: 'ok' }))
+
+app.get('/ready', async (c) =&gt; {
+  try {
+    await checkDBHealth()
+    return c.json({ status: 'ready' })
+  } catch (err) {
+    logger.error({ err }, '就绪检查失败')
+    return c.json({ status: 'not ready' }, 503)
+  }
+})</pre></div>
+<div class="step"><span class="step-num">2</span><strong>核对数据库探测是否足够小</strong><p>打开 <code>ai-backend/src/utils/db.ts</code>，确认 PostgreSQL 和 SQLite 分支都只执行 <code>SELECT 1</code>，且函数不打印连接信息。使用 PowerShell 搜索时不依赖本机未安装的 <code>rg</code>：</p><pre>Set-Location E:\project\AI-Agent\ai-backend
+Get-ChildItem -Path src -Recurse -File |
+  Select-String -Pattern 'checkDBHealth|SELECT 1'</pre><p>搜索结果应只帮助定位代码；不要为了调试把 <code>DATABASE_URL</code> 或完整配置对象输出到终端。</p></div>
+<div class="step"><span class="step-num">3</span><strong>为探针补充最小响应测试</strong><p>在现有测试服务器启动后，为两个成功路径增加断言。使用 <code>toEqual</code> 精确匹配响应体，这不仅验证功能，也能防止未来无意加入数据库类型、路径或错误详情。</p><pre>describe('健康检查', () =&gt; {
+  it('进程存活时 /health 返回最小响应', async () =&gt; {
+    const res = await request(server).get('/health')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ status: 'ok' })
+  })
+
+  it('数据库可用时 /ready 返回就绪', async () =&gt; {
+    const res = await request(server).get('/ready')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ status: 'ready' })
+  })
+})</pre><p>完成后运行 <code>npm test</code>。失败分支还应保持固定的 <code>503</code> 与 <code>{ status: 'not ready' }</code>；后续可通过依赖替身为该分支增加独立测试。</p></div>
+<div class="step"><span class="step-num">4</span><strong>配置部署平台探针</strong><p>将存活路径配置为 <code>/health</code>，就绪路径配置为 <code>/ready</code>。间隔、超时和失败阈值要给启动与数据库短暂抖动留出空间；不要把业务聊天接口当探针，因为它需要鉴权、会调用 AI，并可能产生数据和费用。</p><div class="warn">如果部署平台只支持一个健康检查路径，优先使用 <code>/ready</code> 判断能否接流量，同时通过平台进程管理能力监控进程退出。要记录这个限制，避免团队误以为存活和就绪已被分别处理。</div></div>
+<h2>五、验收清单</h2><ol><li><code>/health</code> 不访问数据库、AI API 或其他外部依赖。</li><li><code>/ready</code> 成功返回 <code>200</code>，数据库不可用时返回 <code>503</code>。</li><li>两个探针都不要求用户 JWT，也不产生业务数据。</li><li>响应体只有稳定状态，不包含连接信息、配置值、路径、异常或堆栈。</li><li>探针测试精确断言状态码和响应体，<code>npm test</code> 全部通过。</li></ol>
+<h2>六、本课总结</h2><ul><li>存活检查决定是否重启，就绪检查决定是否接收流量。</li><li>就绪检查只验证处理请求所必需的关键依赖，并保持快速、可超时。</li><li>公开响应提供最小状态，详细诊断留在受控日志中。</li><li>精确响应测试既防回归，也能守住信息泄露边界。</li></ul>
+<div class="quiz"><h3>思考题</h3><p><strong>Q1</strong>：为什么数据库故障时让 <code>/health</code> 失败，可能造成比原故障更严重的后果？</p><p><strong>Q2</strong>：为什么不应把 DeepSeek API 调用加入每次 <code>/ready</code> 检查？</p><p><strong>Q3</strong>：探针失败时，哪些信息适合返回给平台，哪些信息只能进入服务端日志？</p></div>
+<p>下一课将学习<strong>第四十课：部署后烟雾测试与回滚判定</strong>——把健康探针与最小业务请求组合成发布验收流程，并为失败发布建立明确的停止和回滚条件。</p>
+</body></html>

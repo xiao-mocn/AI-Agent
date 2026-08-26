@@ -47,6 +47,22 @@ afterAll(async () => {
   }
 })
 
+describe('健康检查', () => {
+  it('进程存活时 /health 返回最小响应且不需要 JWT', async () => {
+    const res = await request(server).get('/health')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ status: 'ok' })
+  })
+
+  it('数据库可用时 /ready 返回就绪状态且不需要 JWT', async () => {
+    const res = await request(server).get('/ready')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ status: 'ready' })
+  })
+})
+
 describe('不提供Token', () => {
   it('没有提供 token，应该返回 401', async () => {
     const res = await request(server)

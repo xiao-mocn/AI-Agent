@@ -21,7 +21,8 @@
         </div>
         <div class="field">
           <label>密码</label>
-          <input v-model="password" placeholder="请输入密码" type="password" autocomplete="current-password" @keydown.enter="submit" />
+          <input v-model="password" placeholder="请输入密码" type="password" autocomplete="current-password"
+            @keydown.enter="submit" />
         </div>
 
         <p v-if="error" class="error">{{ error }}</p>
@@ -107,10 +108,12 @@ async function submit() {
   gap: 8px;
   margin-bottom: 28px;
 }
+
 .logo-icon {
   font-size: 22px;
   color: #667eea;
 }
+
 .logo-text {
   font-size: 20px;
   font-weight: 700;
@@ -126,6 +129,7 @@ async function submit() {
   padding: 4px;
   margin-bottom: 28px;
 }
+
 .tab {
   flex: 1;
   padding: 8px 0;
@@ -138,6 +142,7 @@ async function submit() {
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .tab.active {
   background: #fff;
   color: #667eea;
@@ -151,11 +156,13 @@ async function submit() {
   flex-direction: column;
   gap: 16px;
 }
+
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .field label {
   font-size: 13px;
   font-weight: 500;
@@ -163,6 +170,7 @@ async function submit() {
   text-align: left;
   align-self: flex-start;
 }
+
 .field input {
   padding: 11px 14px;
   border: 1.5px solid #e5e7eb;
@@ -173,11 +181,13 @@ async function submit() {
   transition: border-color 0.2s, box-shadow 0.2s;
   background: #f9fafb;
 }
+
 .field input:focus {
   border-color: #667eea;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
 }
+
 .field input::placeholder {
   color: #9ca3af;
 }
@@ -191,6 +201,7 @@ async function submit() {
   padding: 8px 12px;
   margin: 0;
 }
+
 .success {
   font-size: 13px;
   color: #10b981;
@@ -217,13 +228,16 @@ async function submit() {
   justify-content: center;
   min-height: 46px;
 }
+
 .submit-btn:hover:not(:disabled) {
   opacity: 0.92;
   transform: translateY(-1px);
 }
+
 .submit-btn:active:not(:disabled) {
   transform: translateY(0);
 }
+
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -238,7 +252,10 @@ async function submit() {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
+
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

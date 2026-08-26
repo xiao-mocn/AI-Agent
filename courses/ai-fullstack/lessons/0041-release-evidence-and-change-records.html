@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>第四十一课：发布证据与变更记录</title><style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:8px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style></head><body>
+<h1>第四十一课：发布证据与变更记录</h1><p class="meta">目标时长 1 小时 · 难度 ★★★ · 发布工程化 · 可追溯性</p>
+<div class="goal"><strong>本课你会学到：</strong><ul><li>把一次发布的事实压缩为他人可复查的最小证据。</li><li>区分可记录的版本、探针状态与决策，和绝不能记录的凭据、连接信息与用户数据。</li><li>为数据库替换这类高风险变更写清风险、回滚点和后续事项。</li><li>建立一份能在下一次故障时直接使用的发布记录模板。</li></ul></div>
+<h2>一、发布记录不是日志堆栈</h2><p>发布发生后，最有价值的不是复制一整段控制台输出，而是让之后接手的人能在几分钟内回答：改了什么、何时改的、如何确认可用、失败时回到哪里。日志适合受控排查；发布记录适合留下稳定的决策证据。</p><p>这次 Render 数据库到期就是一个真实例子：根因是外部数据库生命周期，不是聊天代码回归；恢复动作是替换数据库并重新部署；验收证据是存活与就绪探针均返回预期状态。把这三个层次分开，复盘时才不会把猜测当成事实。</p><div class="tip">主阅读资源：<a href="https://render.com/docs">Render 官方文档</a>。平台界面会变化，但“记录变更、验证状态、保留回滚点”的原则不变。</div>
+<h2>二、记录事实，不记录秘密</h2><p>发布记录要足以复现决策，却不能帮助别人进入系统。一个实用的判断是：这条信息是否能够让不了解系统的人定位“何时、何种变更、是否成功”？若答案是肯定的，它通常可以摘要记录；若它能直接连接服务、冒充用户或暴露个人数据，就不应进入文档。</p>
+<table><tr><th>可以记录</th><th>原因</th><th>禁止记录</th><th>风险</th></tr><tr><td>部署日期、版本标识</td><td>帮助定位变更批次。</td><td>连接串、访问令牌</td><td>可直接访问基础设施。</td></tr><tr><td><code>/health</code>、<code>/ready</code> 状态</td><td>说明最小验收结果。</td><td>完整日志与异常堆栈</td><td>可能暴露内部拓扑。</td></tr><tr><td>“替换过期免费数据库”</td><td>说明变更意图和边界。</td><td>用户消息与账户资料</td><td>泄露个人或业务数据。</td></tr><tr><td>回滚条件和最近可用版本</td><td>让故障处理可执行。</td><td>浏览器请求头截图</td><td>可能含会话或身份信息。</td></tr></table>
+<div class="danger"><strong>不要把“为了以后方便”当作记录秘密的理由。</strong> 任何需要连接或授权才能查看的诊断细节，应留在 Render 的受控界面或团队批准的日志系统里；发布记录只放摘要和入口描述。</div>
+<h2>三、六个字段让发布可追溯</h2><p>小型项目不需要复杂的变更管理系统，但需要固定字段。每次发布都填同一组字段，未来才能比较两次发布的差异，也能在出现异常时迅速知道该看哪里的受控日志。</p><pre># 发布记录：[简短主题]
+
+## 部署标识与时间
+## 变更摘要
+## 验收证据
+## 风险与限制
+## 回滚点
+## 后续事项</pre><div class="warn">字段是为了降低遗漏，不是为了写长文。每个字段用 1 到 3 条可验证事实即可；没有证据时写“未验证”，不要把推测包装成通过结果。</div>
+<h2>四、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>收集最小发布证据</strong><p>从这次恢复中只收集四类事实：日期、变更意图、探针状态和本地测试结果。页面状态或探针响应可以记录为 <code>ok</code>、<code>ready</code>，但不要复制平台连接信息、完整日志或截图中的敏感内容。</p></div>
+<div class="step"><span class="step-num">2</span><strong>写出变更摘要</strong><p>创建 <a href="../../../docs/releases/2026-07-26-render-database-recovery.md">本次发布记录</a>。变更摘要写“替换过期的免费 Render 数据库并更新服务连接配置后重新部署”，即可说明发生的事情；不需要写任何配置值。读者应能理解影响范围，但不能借此连接系统。</p></div>
+<div class="step"><span class="step-num">3</span><strong>写清风险与回滚点</strong><p>本次风险是新库不包含旧数据、免费实例可能再次到期、只验证了探针而未执行写入型业务测试。回滚点不是“再试一次”，而是最近一次已验证可用的服务与数据库组合；触发条件是就绪检查失败或服务不能启动。这样的表述能让下一位处理者直接行动。</p></div>
+<div class="step"><span class="step-num">4</span><strong>执行敏感信息检查</strong><p>在项目根目录运行下面的检查。它不会发送网络请求，只在本地扫描发布记录；一旦出现敏感字段，应先删除或改写为安全摘要，再保存。</p><pre>$record = Get-Content -Raw -Encoding UTF8 'docs\releases\2026-07-26-render-database-recovery.md'
+@('DATABASE_URL', 'JWT_SECRET', 'API_KEY', 'postgres://', 'postgresql://', 'Authorization') |
+  ForEach-Object { if ($record -match [regex]::Escape($_)) { throw "发布记录包含敏感字段：$_" } }</pre><p>不确定某段信息是否可记录时，先不要写入；可以向教师提问，再决定保留安全摘要还是将细节留在受控日志系统。</p></div>
+<h2>五、验收清单</h2><ol><li>发布记录包含部署标识与时间、变更摘要、验收证据、风险、回滚点和后续事项。</li><li>记录明确本次是数据库替换与恢复，而不是代码功能修改。</li><li><code>/health</code> 与 <code>/ready</code> 的成功状态已作为验收证据记录。</li><li>记录不含连接信息、令牌、密钥、用户数据、完整日志或请求头。</li><li>回滚条件是可观察的失败信号，而非主观感受。</li></ol>
+<h2>六、本课总结</h2><ul><li>发布记录用最小证据保存决策背景，不替代受控日志。</li><li>固定字段能降低遗漏，也让多次发布可以比较。</li><li>安全摘要让记录可共享，秘密和用户数据必须留在受控系统。</li><li>风险、回滚点和后续事项把一次恢复变成下一次更快的处理能力。</li></ul>
+<div class="quiz"><h3>思考题</h3><p><strong>Q1</strong>：为什么发布记录中写“数据库替换完成”还不够？还需要哪些可验证证据？</p><p><strong>Q2</strong>：如果某段错误日志同时包含排查线索和连接信息，应如何在发布记录中处理？</p><p><strong>Q3</strong>：免费数据库再次到期时，发布记录中的哪些字段能帮助你更快判断是回滚、恢复还是更换长期方案？</p></div>
+<p>下一课将学习<strong>第四十二课：数据持久化策略与恢复演练</strong>——比较本地 SQLite、托管 PostgreSQL 与备份策略，并为数据库不可用和误操作准备可验证的恢复路径。</p>
+</body></html>

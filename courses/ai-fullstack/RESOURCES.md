@@ -23,8 +23,8 @@
 
 ### 部署
 
-- [Railway 文档](https://docs.railway.app/)
-  最接近零配置的后端 PaaS，支持一键部署 Node.js + PostgreSQL。用于：第一次把后端推上线。
+- [Render 文档](https://render.com/docs)
+  托管 Web Service、数据库和部署日志的 PaaS。用于：部署 Node.js 后端并完成发布后的运行状态检查。
 
 - [Vercel 部署文档](https://vercel.com/docs)
   前端和 Serverless Function 的首选平台。用于：部署前端和轻量级 API。

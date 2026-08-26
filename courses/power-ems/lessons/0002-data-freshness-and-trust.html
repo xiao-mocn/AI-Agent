@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 2 课：让监控数据说清楚是否可信</title>
+  <style>
+    :root { --ink:#172127; --muted:#5b6c74; --paper:#f3f5f4; --panel:#ffffff; --line:#d8e0de; --signal:#006f77; --signal-pale:#dff1f0; --fresh:#177245; --fresh-pale:#e4f4e9; --near:#a65c0b; --near-pale:#fff0d8; --stale:#a73e43; --stale-pale:#fbe7e8; --blue:#326a8a; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.7 Georgia, "Noto Serif SC", serif; }
+    main { width:min(940px, calc(100% - 36px)); margin:0 auto; padding:46px 0 80px; }
+    .eyebrow, .kicker, .label { font:700 12px/1.2 "Segoe UI", sans-serif; color:var(--signal); letter-spacing:0; text-transform:uppercase; }
+    h1 { max-width:780px; margin:12px 0; font-size:clamp(32px, 5.4vw, 52px); line-height:1.12; }
+    h2 { margin:42px 0 13px; font:700 24px/1.25 "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .lead { max-width:720px; margin:0; color:var(--muted); }
+    .goal { display:grid; grid-template-columns:160px 1fr; gap:22px; margin-top:32px; padding:20px 22px; background:var(--panel); border:1px solid var(--line); border-left:5px solid var(--signal); }
+    .goal h2 { margin:0; font-size:18px; }
+    .goal ul { margin:0; padding-left:21px; }
+    .goal li { margin:3px 0; }
+    .case { display:grid; grid-template-columns:1.1fr .9fr; gap:18px; margin-top:18px; }
+    .meter, .explain, .lab, .step, .quiz, .note { background:var(--panel); border:1px solid var(--line); }
+    .meter { padding:23px; border-top:4px solid var(--blue); }
+    .meter h3, .explain h3 { margin:0 0 8px; font:700 18px "Segoe UI", sans-serif; }
+    .meter-number { margin:14px 0 2px; font:700 42px/1 "Segoe UI", sans-serif; color:var(--blue); }
+    .meter-sub { color:var(--muted); font:14px "Segoe UI", sans-serif; }
+    .badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+    .badge { padding:4px 8px; font:700 12px "Segoe UI", sans-serif; border-radius:2px; }
+    .badge.warning { color:var(--near); background:var(--near-pale); } .badge.neutral { color:#43616e; background:#eaf0f1; }
+    .explain { padding:23px; }
+    .explain p { margin:8px 0; color:var(--muted); }
+    .rule-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:16px; }
+    .rule { min-height:154px; padding:17px; border-top:4px solid var(--line); background:var(--panel); }
+    .rule.fresh { border-color:var(--fresh); } .rule.near { border-color:var(--near); } .rule.stale { border-color:var(--stale); }
+    .rule h3 { margin:0 0 8px; font:700 17px "Segoe UI", sans-serif; }
+    .rule p { margin:0; color:var(--muted); font-size:14px; }
+    .lab { margin-top:18px; padding:23px; border-top:4px solid var(--signal); }
+    .lab h2 { margin:0 0 6px; }
+    .lab p { margin:0; color:var(--muted); }
+    .controls { display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end; margin-top:18px; }
+    label { display:block; color:var(--muted); font:700 13px "Segoe UI", sans-serif; }
+    input, select { width:100%; min-height:42px; margin-top:5px; padding:8px 10px; border:1px solid var(--line); background:#fff; font:16px "Segoe UI", sans-serif; }
+    button { min-height:42px; padding:9px 14px; color:#fff; background:var(--signal); border:1px solid var(--signal); cursor:pointer; font:700 14px "Segoe UI", sans-serif; }
+    button:hover:not(:disabled) { filter:brightness(.94); } button:disabled { cursor:default; }
+    .result { display:none; margin-top:16px; padding:14px; font:700 15px "Segoe UI", sans-serif; }
+    .result.show { display:block; } .result.fresh { color:var(--fresh); background:var(--fresh-pale); } .result.near { color:var(--near); background:var(--near-pale); } .result.stale { color:var(--stale); background:var(--stale-pale); }
+    .step { display:grid; grid-template-columns:42px 1fr; gap:14px; padding:17px 18px; margin-top:10px; }
+    .step-number { width:32px; height:32px; display:grid; place-items:center; color:#fff; background:var(--signal); border-radius:50%; font:700 14px "Segoe UI", sans-serif; }
+    .step h3 { margin:1px 0 4px; font:700 17px "Segoe UI", sans-serif; } .step p { margin:0; color:var(--muted); font-size:15px; }
+    .quiz { overflow:hidden; margin-top:16px; }
+    .quiz-header { padding:12px 18px; color:var(--muted); background:#edf1f0; font:700 12px "Segoe UI", sans-serif; }
+    .question { padding:19px; border-top:1px solid var(--line); } .question:first-of-type { border-top:0; }
+    .question p { margin-top:0; font-weight:700; }
+    .options { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+    .option { min-height:46px; padding:9px 11px; color:var(--ink); text-align:left; background:#fff; border:1px solid var(--line); }
+    .option.correct { color:var(--fresh); background:var(--fresh-pale); border-color:var(--fresh); } .option.wrong { color:var(--stale); background:var(--stale-pale); border-color:var(--stale); }
+    .feedback { display:none; margin:12px 0 0; padding:10px 12px; font-size:14px; } .feedback.show { display:block; } .feedback.correct { color:var(--fresh); background:var(--fresh-pale); } .feedback.wrong { color:var(--stale); background:var(--stale-pale); }
+    .summary { margin:16px 0 0; padding-left:22px; } .summary li { margin:5px 0; }
+    .note { margin-top:24px; padding:18px 20px; border-left:5px solid var(--near); background:var(--near-pale); color:#69430e; }
+    .source { display:block; padding:13px 0; color:var(--ink); border-bottom:1px solid var(--line); text-decoration:none; } .source:hover { color:var(--signal); } .source small { display:block; color:var(--muted); }
+    @media (max-width:700px) { main { width:min(100% - 28px, 940px); padding-top:30px; } .goal, .case { grid-template-columns:1fr; } .rule-grid { grid-template-columns:1fr; } .controls, .options { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Power EMS / Lesson 02</div>
+    <h1>让监控数据说清楚：它现在是否可信？</h1>
+    <p class="lead">数据新鲜度回答“这个值离现场有多远”。一个数值显示在屏幕上，并不表示它仍来自现场；前端要把“最后一次收到什么”和“现在能否据此操作”明确分开。</p>
+
+    <div class="goal" aria-labelledby="goal-title">
+      <h2 id="goal-title">本课目标</h2>
+      <ul><li>区分实时值、最后值和过期值。</li><li>理解时间戳、质量码、通信状态如何共同决定可信状态。</li><li>把可信状态翻译成页面样式、告警和控制入口的规则。</li></ul>
+    </div>
+
+    <h2>同一个数值，语义可能完全不同</h2>
+    <section class="case" aria-label="数据状态示例">
+      <article class="meter"><div class="kicker">储能功率</div><div class="meter-number">-180 kW</div><div class="meter-sub">最后接收时间：10:12:00</div><div class="badges"><span class="badge warning">当前时间 10:22:00</span><span class="badge neutral">通信状态：未知</span></div></article>
+      <article class="explain"><h3>它不是“实时 -180 kW”</h3><p>这张卡片至少要让用户看到数据停留了多久，以及通信是否正常。数值可以保留，帮助排查最后一次状态；但标签、颜色和可操作性不能继续把它表现为实时读数。</p><p>“10 分钟过期”只是本课演示。真实阈值应来自项目点表、通信协议和控制策略，需按项目约定确认。</p></article>
+    </section>
+
+    <h2>用可信状态驱动页面，而不是只改数字颜色</h2>
+    <section class="rule-grid" aria-label="可信状态规则">
+      <article class="rule fresh"><h3>新鲜</h3><p>时间戳在项目阈值内，质量码正常，通信在线。可以显示实时标签；控制入口仍需再检查权限与联锁。</p></article>
+      <article class="rule near"><h3>临近过期</h3><p>数据仍可阅读，但接近时效阈值。提示刷新时间和风险，不让用户误以为它永远实时。</p></article>
+      <article class="rule stale"><h3>过期或无效</h3><p>数据超时、质量码异常或通信中断。显示最后值与原因；需要控制判断时，应交给项目规则决定禁用或拦截。</p></article>
+    </section>
+
+    <section class="lab" aria-labelledby="lab-title">
+      <div class="kicker">小型判定器</div><h2 id="lab-title">把规则写成前端状态</h2><p>下面的 3 分钟、10 分钟仅用于练习状态映射，不是生产阈值。</p>
+      <div class="controls"><label>距最后更新时间（分钟）<input id="minutes" type="number" min="0" value="0"></label><label>质量状态<select id="quality"><option value="good">正常</option><option value="unknown">未知</option><option value="bad">异常</option></select></label><button type="button" onclick="evaluateState()">判定展示状态</button></div>
+      <div id="result" class="result" aria-live="polite"></div>
+    </section>
+
+    <h2>动手：用一张真实卡片做走查</h2>
+    <div class="step"><div class="step-number">1</div><div><h3>找到时间证据</h3><p>任选当前 EMS 的一个功率或状态卡片，记录它是否展示数据时间戳、通信状态和质量码；没有时先写成待确认项。</p></div></div>
+    <div class="step"><div class="step-number">2</div><div><h3>写出三种可信状态</h3><p>为它定义“新鲜、临近过期、过期”的文案与视觉状态。阈值先标为“需项目确认”，不要编造具体分钟数。</p></div></div>
+    <div class="step"><div class="step-number">3</div><div><h3>追问控制后果</h3><p>问产品、后端或运维：该点过期时，趋势、告警和控制按钮各应该怎么变化？区分前端禁用、后端拦截和仅提示。</p></div></div>
+
+    <h2>检索练习</h2>
+    <div class="quiz" aria-label="本课测验"><div class="quiz-header">选择后立即查看解释</div>
+      <div class="question" id="q1"><p>1. 某功率点有数值，但 15 分钟未更新时间戳，最准确的页面表述是什么？</p><div class="options"><button class="option" onclick="answerQuestion('q1', this, false, '有数值不代表实时；需要同时表达时间和质量。')">实时功率正常</button><button class="option" onclick="answerQuestion('q1', this, true, '正确。最后值可保留，但应显式显示过期或通信风险。')">最后值已过期</button><button class="option" onclick="answerQuestion('q1', this, false, 'SOC 不能证明功率点的新鲜度。')">SOC 同步正常</button><button class="option" onclick="answerQuestion('q1', this, false, '图表样式不等于数据可信。')">趋势图继续绿色</button></div><p class="feedback" data-feedback></p></div>
+      <div class="question" id="q2"><p>2. 下列哪项最适合参与可信状态判定？</p><div class="options"><button class="option" onclick="answerQuestion('q2', this, false, '设备名称用于识别对象，不能说明数据是否有效。')">设备名称和图标</button><button class="option" onclick="answerQuestion('q2', this, true, '正确。时间戳、质量码和通信状态共同提供可信度证据。')">时间戳质量通信</button><button class="option" onclick="answerQuestion('q2', this, false, '页面主题色不能替代数据质量。')">主题颜色和布局</button><button class="option" onclick="answerQuestion('q2', this, false, '电价可能影响策略，但不能证明测点更新。')">电价时段和天气</button></div><p class="feedback" data-feedback></p></div>
+      <div class="question" id="q3"><p>3. 数据过期时，控制按钮正确的通用处理是什么？</p><div class="options"><button class="option" onclick="answerQuestion('q3', this, false, '过期数据不能默认继续支持控制判断。')">继续允许直接控制</button><button class="option" onclick="answerQuestion('q3', this, false, '前端无法自行决定所有按钮都禁用。')">永远禁用所有按钮</button><button class="option" onclick="answerQuestion('q3', this, true, '正确。项目规则决定前端提示、禁用或后端拦截的组合。')">按项目规则处理</button><button class="option" onclick="answerQuestion('q3', this, false, '隐藏数值会妨碍排查最后状态。')">直接隐藏全部数据</button></div><p class="feedback" data-feedback></p></div>
+    </div>
+
+    <h2>本课总结</h2><ul class="summary"><li>实时数值、最后值和可信数据不是同义词。</li><li>可信状态至少依赖时间戳、质量码和通信状态。</li><li>过期数据的展示与控制后果必须由项目规则定义。</li></ul>
+
+    <section aria-label="推荐资源"><div class="kicker">推荐资源</div><h2>把控制边界放回系统语境</h2><a class="source" href="https://www.nrel.gov/grid/microgrids.html" target="_blank" rel="noopener"><strong>NREL: Microgrids</strong><small>用于建立微电网运行和控制的总体语境；项目级时效阈值仍应回到点表与策略确认。</small></a></section>
+    <aside class="note"><strong>工程边界：</strong>本课的状态判定器是教学模型。真实系统中的时效阈值、质量码枚举、按钮禁用和后端拦截规则，均需按项目约定确认。</aside>
+    <p class="lead" style="margin-top:28px">下一课：状态不是一个标签。我们会拆解并网、离网、待机与故障的来源、状态机和中间态。</p>
+  </main>
+  <script>
+    function resolveDisplayState(minutes, quality) {
+      if (quality === 'bad' || minutes > 10) return { state: 'stale', text: '过期或无效：保留最后值，提示原因；控制后果按项目规则处理。' };
+      if (quality === 'unknown' || minutes > 3) return { state: 'near', text: '临近过期：展示刷新风险，继续观察数据质量。' };
+      return { state: 'fresh', text: '数据新鲜：可作为实时展示依据；控制前仍需检查权限和联锁。' };
+    }
+
+    function evaluateState() {
+      const minutes = Number(document.getElementById('minutes').value);
+      const quality = document.getElementById('quality').value;
+      const result = resolveDisplayState(minutes, quality);
+      const element = document.getElementById('result');
+      element.textContent = result.text;
+      element.className = `result show ${result.state}`;
+    }
+
+    function answerQuestion(questionId, button, correct, explanation) {
+      const question = document.getElementById(questionId);
+      if (question.dataset.answered) return;
+      question.dataset.answered = 'true';
+      question.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+      button.classList.add(correct ? 'correct' : 'wrong');
+      const feedback = question.querySelector('[data-feedback]');
+      feedback.textContent = explanation;
+      feedback.className = `feedback show ${correct ? 'correct' : 'wrong'}`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 3 课：站会进展汇报</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #b45309;
+      --bg: #fafaf8;
+      --border: #e2e2dc;
+      --code-bg: #f4f4f0;
+      --success: #16a34a;
+      --warn-bg: #fffbeb;
+      --warn-border: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    .breadcrumb {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 3px;
+      background: #fef3c7;
+      color: var(--accent);
+      margin-bottom: 0.9rem;
+    }
+
+    h1 {
+      font-size: 2.1rem;
+      font-weight: normal;
+      line-height: 1.25;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 2.8rem 0 1rem;
+    }
+
+    p { margin-bottom: 1rem; }
+    strong { font-weight: bold; }
+
+    /* ── 句型卡片 ── */
+    .pattern {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 1.5rem 0 2rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .pattern-row {
+      border-bottom: 1px solid var(--border);
+      padding: 1.1rem 1.25rem;
+    }
+    .pattern-row:last-child { border-bottom: none; }
+
+    .pattern-num {
+      display: inline-flex;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      align-items: center;
+      justify-content: center;
+      margin-right: 0.5rem;
+    }
+
+    .pattern-en {
+      font-family: Georgia, serif;
+      font-size: 1.15rem;
+      margin: 0.5rem 0 0.4rem;
+    }
+
+    .pattern-en .blank {
+      color: var(--accent);
+      border-bottom: 2px dotted var(--accent);
+      padding: 0 3px;
+    }
+
+    .pattern-zh {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .pattern-example {
+      font-size: 0.9rem;
+      background: var(--code-bg);
+      border-left: 3px solid var(--accent);
+      padding: 0.5rem 0.9rem;
+      margin-top: 0.4rem;
+    }
+    .pattern-example .zh {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 0.2rem;
+    }
+
+    /* ── 词汇小抄 ── */
+    .vocab {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin: 1rem 0 2rem;
+    }
+    .vocab-item {
+      display: flex;
+      gap: 1rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      align-items: baseline;
+    }
+    .vocab-word {
+      font-weight: 700;
+      min-width: 130px;
+      color: var(--accent);
+    }
+    .vocab-desc { color: var(--text); }
+
+    /* ── 提示框 ── */
+    .callout {
+      border-left: 3px solid var(--accent);
+      padding: 0.75rem 1.1rem;
+      background: #fffbeb;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .warn {
+      border-left: 3px solid var(--warn-border);
+      padding: 0.75rem 1.1rem;
+      background: var(--warn-bg);
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .warn strong { color: var(--warn-border); }
+
+    /* ── 练习区 ── */
+    .practice-box {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 1.1rem 1.25rem;
+      margin: 1.5rem 0 2rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+    .practice-box textarea {
+      width: 100%;
+      margin-top: 0.7rem;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      padding: 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      resize: vertical;
+      min-height: 90px;
+    }
+    .practice-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    code {
+      font-family: 'Fira Code', Menlo, Consolas, monospace;
+    }
+    p code, li code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+
+    /* ── 测验 ── */
+    .quiz {
+      margin: 1.5rem 0 2rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .quiz-header {
+      background: var(--code-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .quiz-q {
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .quiz-q:last-child { border-bottom: none; }
+
+    .quiz-question {
+      font-size: 0.95rem;
+      margin-bottom: 0.7rem;
+      line-height: 1.6;
+      font-family: Georgia, serif;
+    }
+
+    .quiz-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .quiz-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.83rem;
+      padding: 0.35rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.12s, background 0.12s;
+    }
+
+    .quiz-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .quiz-btn.correct {
+      border-color: var(--success);
+      background: #f0fdf4;
+      color: var(--success);
+    }
+
+    .quiz-btn.wrong {
+      border-color: #dc2626;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .quiz-explain {
+      display: none;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      line-height: 1.5;
+      padding-top: 0.6rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .quiz-explain.show { display: block; }
+    .quiz-explain .correct-label { color: var(--success); font-weight: 600; }
+    .quiz-explain .wrong-label   { color: #dc2626; font-weight: 600; }
+
+    /* ── 资源区 ── */
+    .resources {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .resource-item {
+      display: flex;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      align-items: flex-start;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      transition: color 0.12s;
+    }
+    .resource-item:last-child { border-bottom: none; }
+    .resource-item:hover { color: var(--accent); }
+
+    .resource-icon {
+      font-size: 1rem;
+      min-width: 1.5rem;
+      text-align: center;
+      margin-top: 1px;
+    }
+
+    .resource-body {}
+    .resource-name { font-weight: 600; }
+    .resource-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    .teacher-note {
+      margin-top: 2rem;
+      padding: 1rem 1.1rem;
+      background: #f0fdf4;
+      border-radius: 6px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      border: 1px solid #bbf7d0;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2.5rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="breadcrumb">程序员英语实战 › 第 3 课（共 N 课）</div>
+
+  <div class="tag">第 3 课 · 知识 + 技能</div>
+  <h1>站会（Standup）里的进展汇报句型</h1>
+  <p class="subtitle">昨天做了什么 → 今天打算做什么 → 卡在哪里需要帮助</p>
+
+  <!-- ──────────────────────────────── -->
+  <h2>为什么是这三句话</h2>
+
+  <p>
+    前两课解决了"面试时怎么介绍自己和项目"，这节课换一个场景：<strong>每天的团队站会（daily standup）</strong>。
+    如果团队里有英语工作语言的同事，或者你在远程/外企团队工作，站会汇报几乎是最高频、最日常的英语开口场景——
+    没有面试的紧张感，但同样需要几句话把进展讲清楚。
+  </p>
+
+  <p>
+    站会汇报全球通用的结构就三句话：<strong>昨天做了什么 → 今天打算做什么 → 有没有卡住（blocker）</strong>。
+    这个结构比项目介绍更短、更高频，练熟了几乎每天都能用上。
+  </p>
+
+  <!-- ──────────────────────────────── -->
+  <h2>三个核心句型</h2>
+
+  <div class="pattern">
+    <div class="pattern-row">
+      <div><span class="pattern-num">1</span><strong>说明昨天做了什么</strong></div>
+      <p class="pattern-en">Yesterday, I <span class="blank">___</span>.</p>
+      <p class="pattern-zh">昨天，我 ___（完成的具体工作，用过去式）</p>
+      <div class="pattern-example">
+        Yesterday, I fixed the login bug and reviewed two pull requests.
+        <div class="zh">昨天我修复了登录的 bug，还审查了两个 PR。</div>
+      </div>
+    </div>
+
+    <div class="pattern-row">
+      <div><span class="pattern-num">2</span><strong>说明今天打算做什么</strong></div>
+      <p class="pattern-en">Today, I'm going to <span class="blank">___</span>.</p>
+      <p class="pattern-zh">今天，我打算 ___（计划要做的工作）</p>
+      <div class="pattern-example">
+        Today, I'm going to start working on the payment API.
+        <div class="zh">今天我打算开始做支付 API。</div>
+      </div>
+    </div>
+
+    <div class="pattern-row">
+      <div><span class="pattern-num">3</span><strong>说明卡在哪里（如果没有卡住可以省略这句）</strong></div>
+      <p class="pattern-en">I'm blocked on <span class="blank">___</span>, so I might need help with that.</p>
+      <p class="pattern-zh">我卡在 ___（具体障碍）上了，可能需要帮忙</p>
+      <div class="pattern-example">
+        I'm blocked on the staging environment being down, so I might need help with that.
+        <div class="zh">我卡在测试环境挂了这件事上，可能需要帮忙。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    三句连起来，就是一段完整的站会汇报：<br>
+    <em>"Yesterday, I fixed the login bug and reviewed two pull requests. Today, I'm going to start working on
+    the payment API. I'm blocked on the staging environment being down, so I might need help with that."</em>
+  </div>
+
+  <div class="warn">
+    <strong>时态提醒：</strong>第一句"昨天做了什么"必须用<strong>过去式</strong>（fixed、reviewed、finished），
+    第二句"今天打算做什么"用 <strong>be going to</strong> 或 <strong>will</strong> 表示计划，两者不能混用——
+    这是最容易在站会里说错的地方，也是听者判断你"到底完成没完成"的关键信号。
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>词汇小抄</h2>
+
+  <div class="vocab">
+    <div class="vocab-item">
+      <span class="vocab-word">blocked on</span>
+      <span class="vocab-desc">卡在……上——站会里报告障碍最标准的说法，比 "I have a problem with" 更简洁专业</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">blocker</span>
+      <span class="vocab-desc">阻碍/卡点（名词）——"Any blockers?" 是站会里主持人常问的收尾问题</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">pull request / PR</span>
+      <span class="vocab-desc">合并请求——开发团队日常口语里几乎都直接说 "PR"，不说全称</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">on track</span>
+      <span class="vocab-desc">进度正常——"We're on track to finish by Friday" 表示进度符合预期</span>
+    </div>
+    <div class="vocab-item">
+      <span class="vocab-word">follow up</span>
+      <span class="vocab-desc">后续跟进——"I'll follow up with him after standup" 表示会后单独沟通，不占用站会时间</span>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>轮到你了</h2>
+
+  <div class="practice-box">
+    <p>用今天的三个句型，写一段你今天/昨天的真实站会汇报（没有 blocker 的话可以省略第三句）：</p>
+    <textarea placeholder="Yesterday, I ... Today, I'm going to ... I'm blocked on ..., so I might need help with that."></textarea>
+    <p class="practice-hint">写完后大声读一遍，控制在 15-20 秒内说完——真实站会里每人发言时间通常不超过这个长度。</p>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <h2>练习：检验你的理解</h2>
+
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+
+    <div class="quiz-q" id="q1">
+      <p class="quiz-question">
+        1. Yesterday, I ___ the database migration.
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q1',this,false,'&quot;finish&quot; 是动词原形，站会汇报&quot;昨天做了什么&quot;必须用过去式，不能用原形。')">finish</button>
+        <button class="quiz-btn" onclick="answer('q1',this,true,'正确。&quot;Yesterday&quot; 是明确的过去时间点，谓语动词必须用过去式 &quot;finished&quot;。')">finished</button>
+        <button class="quiz-btn" onclick="answer('q1',this,false,'&quot;finishing&quot; 是现在分词/动名词，不能单独做谓语，前面缺 be 动词或其他助动词。')">finishing</button>
+      </div>
+      <div class="quiz-explain" id="q1-explain"></div>
+    </div>
+
+    <div class="quiz-q" id="q2">
+      <p class="quiz-question">
+        2. Today, I'm going ___ start working on the payment API.
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q2',this,true,'正确。&quot;be going to + 动词原形&quot; 是固定结构，表示提前计划好的打算，start 前必须加 to。')">to</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'&quot;for&quot; 不能用在 &quot;be going to&quot; 这个固定结构里，搭配错误。')">for</button>
+        <button class="quiz-btn" onclick="answer('q2',this,false,'直接省略 to，变成 &quot;going start&quot; 不符合语法，&quot;be going to&quot; 中的 to 不能省。')">（不填）</button>
+      </div>
+      <div class="quiz-explain" id="q2-explain"></div>
+    </div>
+
+    <div class="quiz-q" id="q3">
+      <p class="quiz-question">
+        3. I'm blocked ___ the staging environment being down.
+      </p>
+      <div class="quiz-options">
+        <button class="quiz-btn" onclick="answer('q3',this,true,'正确。&quot;blocked on something&quot; 是固定搭配，on 后面接造成阻碍的具体事情。')">on</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'&quot;blocked by&quot; 语法上可以成立（表被动的施动者），但站会里报告&quot;卡在什么事情上&quot;的标准搭配是 &quot;blocked on&quot;，不是 &quot;blocked by&quot;。')">by</button>
+        <button class="quiz-btn" onclick="answer('q3',this,false,'&quot;blocked with&quot; 不是英语里的固定搭配，母语者不会这样说。')">with</button>
+      </div>
+      <div class="quiz-explain" id="q3-explain"></div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────── -->
+  <hr>
+
+  <div class="resources">
+    <h2>本课推荐资源</h2>
+
+    <a class="resource-item" href="https://speaktechenglish.com/learn-english-for-software-engineers/" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Speak Tech English: 50 Free Resources & Exercises（复习）</div>
+        <div class="resource-desc">同一份资源合集里含真实站会录音，可以精听真人怎么讲 blocker 和进展</div>
+      </div>
+    </a>
+
+    <a class="resource-item" href="https://www.atlassian.com/agile/scrum/standups" target="_blank" rel="noopener">
+      <div class="resource-icon">📖</div>
+      <div class="resource-body">
+        <div class="resource-name">Atlassian: What is a stand-up meeting?</div>
+        <div class="resource-desc">英文原版讲解站会的目的和标准结构，顺便巩固相关词汇（阅读技术文档的练习）</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="teacher-note">
+    <strong>有疑问吗？</strong>
+    比如"blocked on 和 stuck with 有什么区别"、"没有 blocker 时怎么礼貌地跳过第三句"——
+    直接问我。我是你的老师，没有蠢问题。
+    下一课我们会学习怎么在英文里<strong>提问澄清</strong>（clarifying questions）——
+    别人说的技术需求没听懂时，怎么礼貌又准确地追问，而不是硬着头皮点头。
+  </div>
+
+  <script>
+    function answer(qid, btn, isCorrect, explanation) {
+      const container = document.getElementById(qid);
+      if (container.dataset.answered) return;
+      container.dataset.answered = '1';
+
+      container.querySelectorAll('.quiz-btn').forEach(b => { b.disabled = true; });
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+      const explainEl = document.getElementById(qid + '-explain');
+      const label = isCorrect
+        ? '<span class="correct-label">正确。</span> '
+        : '<span class="wrong-label">错误。</span> ';
+      explainEl.innerHTML = label + explanation;
+      explainEl.classList.add('show');
+    }
+  </script>
+</body>
+</html>

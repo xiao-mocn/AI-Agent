@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>第四十七课：Spring Boot 项目骨架与健康检查</title>
+<style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;max-width:860px;margin:0 auto;padding:2rem 1.5rem;background:#f9fafb;color:#1a1a2e;line-height:1.7}h1{font-size:1.6rem;margin-bottom:.25rem}h2{font-size:1.15rem;margin:2rem 0 .75rem;border-left:3px solid #3b82f6;padding-left:.75rem}h3{font-size:1rem;color:#374151}p{margin:.6rem 0}ul,ol{padding-left:1.5rem}li{margin:.35rem 0}code{background:#f3f4f6;padding:.15em .4em;border-radius:4px;color:#7c3aed}pre{background:#1e1e2e;color:#cdd6f4;padding:1.2rem 1.4rem;border-radius:8px;overflow-x:auto}.meta{color:#6b7280;font-size:.9rem;margin-bottom:2rem}.goal{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}.step{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0}.step-num{display:inline-block;background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;font-weight:700;margin-right:.5rem}.tip{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;margin:1rem 0}.warn{background:#fff7ed;border-left:3px solid #f97316;padding:.75rem 1rem;margin:1rem 0}.danger{background:#fef2f2;border-left:3px solid #ef4444;padding:.75rem 1rem;margin:1rem 0}.quiz{background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:1rem 1.2rem;margin:1.5rem 0}.quiz h3{color:#7c3aed}table{width:100%;border-collapse:collapse;margin:1rem 0}th{background:#f3f4f6;padding:.6rem 1rem;text-align:left}td{padding:.6rem 1rem;border-top:1px solid #e5e7eb}
+</style>
+</head>
+<body>
+<h1>第四十七课：Spring Boot 项目骨架与健康检查</h1>
+<p class="meta">目标时长 1 小时 · 难度 ★★☆ · Java 副线 · 第一个 Spring Web 契约</p>
+
+<div class="goal"><strong>本课你会学到：</strong><ul>
+<li>用 Spring Initializr 建立独立的 Java 21 + Maven Wrapper 项目。</li>
+<li>理解 Spring Boot 启动类、Controller、注解路由与依赖管理的职责。</li>
+<li>用 MockMvc 锁定与 Node.js 一致的 <code>/health</code> 外部契约。</li>
+<li>启动 Spring Boot 服务，并用 PowerShell 验证真实 HTTP 响应。</li>
+</ul></div>
+
+<h2>一、迁移从最小外部契约开始</h2>
+<p>第 46 课已经定义 Java 迁移原则：客户端依赖路由、状态码和 JSON，不依赖 Hono 的文件结构。因此第一步不是搬运全部业务代码，而是让一个全新的 Spring Boot 服务精确回答 <code>GET /health</code>，并用自动化测试证明它与 Node.js 契约一致。</p>
+<p>这个切片足够小，却覆盖了 Java 副线最重要的基础：JDK、Maven 项目、Spring Boot 启动、注解路由、JSON 序列化和 Web 层测试。一旦这些环节跑通，后续认证、数据库和 AI 调用都可以沿用“先定义外部行为，再选择 Java 内部结构”的方式迁移。</p>
+<div class="tip">主阅读资源：<a href="https://docs.spring.io/spring-boot/reference/">Spring Boot 官方参考文档</a>。本课只使用 Spring Web 和测试依赖，不引入数据库、Spring Security 或 AI SDK。</div>
+
+<h2>二、把 Hono 概念映射到 Spring Web</h2>
+<table><tr><th>Node.js / Hono</th><th>Spring Boot</th><th>职责</th></tr>
+<tr><td><code>app.get('/health', handler)</code></td><td><code>@GetMapping("/health")</code></td><td>把 HTTP 方法和路径映射到处理函数。</td></tr>
+<tr><td>返回对象给 <code>c.json()</code></td><td>Controller 返回 <code>Map</code> 或 Java record</td><td>由框架序列化为 JSON。</td></tr>
+<tr><td><code>serve(...)</code></td><td><code>SpringApplication.run(...)</code></td><td>启动内嵌 Web 服务器和应用容器。</td></tr>
+<tr><td>Supertest 请求应用</td><td>MockMvc 请求 Controller</td><td>在测试中断言状态码、内容类型和 JSON。</td></tr>
+<tr><td><code>package.json</code></td><td><code>pom.xml</code></td><td>声明依赖、Java 版本和构建插件。</td></tr></table>
+<p><code>@RestController</code> 告诉 Spring：这个类处理 Web 请求，返回值直接写入响应体。<code>@GetMapping</code> 声明一个 GET 路由。Spring 会自动发现启动类所在包及其子包中的组件，因此 Controller 应放在 <code>com.example.ai</code> 的子包下。</p>
+
+<h2>三、版本与构建工具边界</h2>
+<p>本机当前有 JDK 23，可以编译目标为 Java 21 的项目；课程选择 Java 21 是因为它是长期支持版本，也更接近企业项目常见基线。全局没有 Maven 不构成阻塞，Spring Initializr 会生成 <code>mvnw.cmd</code>，它把项目需要的 Maven 版本固定在仓库中。</p>
+<div class="warn">第一次运行 Maven Wrapper 需要从 Maven Central 下载依赖，必须有网络。不要从不明脚本安装 JDK 或 Maven；如果 <code>java -version</code> 不可用或低于 21，先通过受信任的发行版安装 JDK 21，再继续本课。</div>
+<div class="danger">新项目必须放在仓库根目录的 <code>java-backend/</code>，不要覆盖 <code>ai-backend/</code>。不要复制 Node.js 的 <code>.env</code>、数据库、JWT 密钥或 API Key；本课的健康检查不读取任何依赖或敏感配置。</div>
+
+<h2>四、动手实践</h2>
+<div class="step"><span class="step-num">1</span><strong>检查环境并生成项目</strong><p>从仓库根目录运行环境检查。当前机器应显示 Java 23；没有全局 Maven 是预期状态。</p>
+<pre>java -version
+if (Get-Command mvn -ErrorAction SilentlyContinue) { mvn -version } else { '使用项目自带 Maven Wrapper' }</pre>
+<p>打开 <a href="https://start.spring.io/">Spring Initializr</a>，选择 Maven、Java、Spring Boot 3.5.x 最新维护版、Group <code>com.example.ai</code>、Artifact <code>java-backend</code>、Packaging Jar、Java 21，只添加 Spring Web。本课测试代码按 Spring Boot 3.5 的包名编写，不要切换到 4.x。下载后先确认仓库根目录不存在同名目录，再将压缩包解压为 <code>java-backend/</code>。生成结果必须包含 <code>pom.xml</code>、<code>mvnw.cmd</code> 和 <code>src/</code>。</p></div>
+
+<div class="step"><span class="step-num">2</span><strong>实现最小 HealthController</strong><p>新建 <code>java-backend/src/main/java/com/example/ai/health/HealthController.java</code>。返回不可变 Map，让 Jackson 自动生成与 Node.js 相同的 JSON。</p>
+<pre>package com.example.ai.health;
+
+import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HealthController {
+    @GetMapping("/health")
+    public Map&lt;String, String&gt; health() {
+        return Map.of("status", "ok");
+    }
+}</pre></div>
+
+<div class="step"><span class="step-num">3</span><strong>用 MockMvc 锁定外部契约</strong><p>新建 <code>java-backend/src/test/java/com/example/ai/health/HealthControllerTest.java</code>。测试不启动真实端口，也不加载数据库，只验证 Web 层必须保持的三个条件：状态码 200、JSON 内容类型、<code>status=ok</code>。</p>
+<pre>package com.example.ai.health;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(HealthController.class)
+class HealthControllerTest {
+    @Autowired
+    private MockMvc mvc;
+
+    @Test
+    void healthMatchesNodeContract() throws Exception {
+        mvc.perform(get("/health"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.status").value("ok"));
+    }
+}</pre>
+<p>在 <code>java-backend</code> 目录运行 <code>.\mvnw.cmd test</code>。成功标准是构建为 <code>BUILD SUCCESS</code>，且 <code>HealthControllerTest</code> 通过。</p></div>
+
+<div class="step"><span class="step-num">4</span><strong>启动服务并对照真实响应</strong><p>在第一个 PowerShell 窗口从 <code>java-backend</code> 运行 <code>.\mvnw.cmd spring-boot:run</code>。看到应用监听 8080 后，在第二个窗口执行下面命令；不要为了同时运行 Node 服务而改动本课契约。</p>
+<pre>$response = Invoke-RestMethod -Uri 'http://localhost:8080/health'
+$response | ConvertTo-Json -Compress
+if ($response.status -ne 'ok') { throw 'health contract mismatch' }</pre>
+<p>输出必须是 <code>{"status":"ok"}</code>。验证完成后回到第一个窗口按 <code>Ctrl+C</code> 停止服务，并确认没有连接数据库或读取敏感配置。</p></div>
+
+<h2>五、验收清单</h2>
+<ol>
+<li><code>java -version</code> 为 21 或更高，项目目标版本为 Java 21。</li>
+<li><code>java-backend/</code> 独立存在，包含 <code>pom.xml</code>、<code>mvnw.cmd</code> 和 Spring Web 依赖，没有覆盖 Node 项目。</li>
+<li><code>HealthController</code> 只返回存活状态，不查询数据库、环境变量或外部服务。</li>
+<li><code>HealthControllerTest</code> 同时断言 200、JSON 内容类型和 <code>status=ok</code>，Maven 测试通过。</li>
+<li>真实 HTTP 请求返回 <code>{"status":"ok"}</code>，验证后服务已停止。</li>
+<li>没有复制、读取或提交 Node.js 的密钥、数据库和环境配置。</li>
+</ol>
+
+<h2>六、本课总结</h2>
+<ul>
+<li>Java 副线从一个可运行、可测试、可对照的外部契约开始。</li>
+<li>Spring Boot 用启动类管理应用，用 Controller 与映射注解表达 HTTP 路由。</li>
+<li>Maven Wrapper 固定构建工具版本，不要求机器预装全局 Maven。</li>
+<li>MockMvc 提供与 Supertest 相似的契约测试能力，迁移结果由行为而非目录判断。</li>
+<li><code>/health</code> 只证明进程存活，数据库就绪应由独立的 <code>/ready</code> 负责。</li>
+</ul>
+
+<div class="quiz"><h3>思考题</h3>
+<p><strong>Q1</strong>：为什么 Java 副线先复现一个最小外部契约，而不是立即迁移登录、数据库和 AI 对话？</p>
+<p><strong>Q2</strong>：为什么 <code>/health</code> 不应该检查数据库，即使数据库对应用非常重要？</p>
+<p><strong>Q3</strong>：Spring 的注解 Controller 与 Hono 的函数式路由在组织方式上有什么差异，测试为何仍能保持相同目标？</p>
+</div>
+
+<p>下一课将学习<strong>第四十八课：Spring Boot 运行时配置与就绪检查</strong>——用类型化配置和启动校验建立失效关闭边界，再实现会区分依赖状态的 <code>/ready</code> 契约。</p>
+</body>
+</html>
