@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第四十八课：运行时配置与就绪检查</title>
+  <style>
+    :root { --ink:#17242d; --muted:#566570; --paper:#f4f7f8; --panel:#fff; --line:#d8e1e5; --accent:#075f77; --accent-pale:#e1f3f6; --good:#176840; --good-pale:#e3f4e9; --warn:#875500; --warn-pale:#fff3dc; --danger:#9b363c; --code:#17242d; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.76 Georgia,"Noto Serif SC","Microsoft YaHei",serif; }
+    main { width:min(940px,calc(100% - 34px)); margin:0 auto; padding:48px 0 84px; }
+    .eyebrow,.meta,.tag,label,.table-label { font:700 12px/1.4 "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.04em; }
+    .eyebrow { color:var(--accent); text-transform:uppercase; }
+    h1,h2,h3 { font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
+    h1 { margin:11px 0 10px; max-width:820px; font-size:clamp(34px,5.5vw,57px); line-height:1.1; letter-spacing:-.03em; }
+    h2 { margin:48px 0 14px; font-size:26px; line-height:1.28; }
+    h3 { margin:0 0 8px; font-size:18px; line-height:1.4; }
+    p { margin:10px 0; }
+    .lead,.meta { color:var(--muted); }
+    .lead { max-width:790px; font-size:19px; }
+    .goal,.callout,.step,.practice,.checklist,.sources,.trouble,.compare { border:1px solid var(--line); background:var(--panel); }
+    .goal { display:grid; grid-template-columns:150px 1fr; gap:19px; margin-top:29px; padding:22px 24px; border-left:5px solid var(--accent); }
+    .goal h2 { margin:0; font-size:18px; }
+    ul,ol { margin:8px 0; padding-left:24px; }
+    li { margin:6px 0; }
+    .tag { display:inline-block; margin:0 6px 5px 0; padding:4px 8px; border-radius:99px; }
+    .tag.must { color:#075269; background:var(--accent-pale); }
+    .tag.later { color:#704607; background:var(--warn-pale); }
+    .callout { margin-top:18px; padding:17px 19px; border-left:5px solid #d59217; background:var(--warn-pale); color:#694507; }
+    .callout.good { border-left-color:var(--good); background:var(--good-pale); color:#195434; }
+    .callout.info { border-left-color:var(--accent); background:var(--accent-pale); color:#164d5d; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:16px; }
+    .card { padding:17px; border:1px solid var(--line); background:var(--panel); }
+    .card strong { display:block; margin-bottom:6px; font:700 16px "Segoe UI","Microsoft YaHei",sans-serif; }
+    .step { display:grid; grid-template-columns:44px 1fr; gap:14px; margin-top:15px; padding:20px 21px; }
+    .number { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; color:#fff; background:var(--accent); font:700 14px "Segoe UI",sans-serif; }
+    .step-meta { margin:8px 0 12px; color:var(--muted); font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; }
+    code { padding:.1em .35em; border-radius:3px; color:#07566d; background:#eaf1f3; font:14px ui-monospace,Consolas,monospace; }
+    pre { margin:12px 0 7px; padding:16px; overflow:auto; color:#e8edf1; background:var(--code); font:14px/1.6 ui-monospace,Consolas,monospace; }
+    pre code { padding:0; color:inherit; background:transparent; }
+    .why { margin-top:12px; padding:12px 14px; border-left:3px solid var(--accent); background:#f0f6f7; font-size:15px; }
+    .why strong { font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
+    table { width:100%; margin-top:14px; border-collapse:collapse; font-size:15px; }
+    th,td { padding:11px 12px; text-align:left; vertical-align:top; border:1px solid var(--line); }
+    th { color:#294852; background:#edf4f5; font:700 13px "Segoe UI","Microsoft YaHei",sans-serif; }
+    .practice { margin-top:18px; padding:23px; border-top:5px solid var(--accent); }
+    label { display:block; color:var(--muted); }
+    textarea { width:100%; min-height:92px; margin-top:7px; padding:10px; resize:vertical; color:var(--ink); border:1px solid var(--line); background:#fff; font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; }
+    button { min-height:42px; margin-top:12px; padding:9px 14px; color:#fff; border:1px solid var(--accent); background:var(--accent); cursor:pointer; font:700 14px "Segoe UI","Microsoft YaHei",sans-serif; }
+    button:hover:not(:disabled) { filter:brightness(.93); }
+    button:disabled { cursor:default; }
+    .feedback { display:none; margin:14px 0 0; padding:12px 14px; border-left:4px solid var(--accent); color:#164d5d; background:var(--accent-pale); font:15px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; }
+    .feedback.show { display:block; }
+    .feedback.warn { border-color:#d18a13; color:#6a470a; background:var(--warn-pale); }
+    .compare { margin-top:16px; overflow:auto; }
+    .trouble { margin-top:16px; overflow:auto; }
+    .checklist { margin-top:17px; padding:20px 23px; border-left:5px solid var(--good); }
+    .quiz { margin-top:16px; overflow:hidden; border:1px solid var(--line); background:var(--panel); }
+    .quiz-header { padding:12px 18px; color:var(--muted); background:#edf4f5; font:700 12px "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.04em; }
+    .question { padding:20px; border-top:1px solid var(--line); }
+    .question:first-of-type { border-top:0; }
+    .question p { margin-top:0; font-weight:700; }
+    .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .option { min-height:49px; margin:0; color:var(--ink); border-color:var(--line); background:#fff; text-align:left; font-weight:600; }
+    .option.correct { color:var(--good); border-color:var(--good); background:var(--good-pale); }
+    .option.wrong { color:var(--danger); border-color:var(--danger); background:#fbe8e9; }
+    .sources { margin-top:18px; padding:16px 20px; }
+    .source { display:block; padding:10px 0; color:var(--ink); border-bottom:1px solid var(--line); text-decoration:none; }
+    .source:last-child { border-bottom:0; }
+    .source:hover { color:var(--accent); }
+    .source small { display:block; color:var(--muted); }
+    kbd { padding:1px 5px; border:1px solid #bac6ca; border-radius:3px; background:#fff; box-shadow:0 1px 0 #bac6ca; font:13px ui-monospace,Consolas,monospace; }
+    @media (max-width:700px) { main { width:min(100% - 28px,940px); padding-top:32px; } .goal,.grid,.options { grid-template-columns:1fr; } .step { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">AI Full-stack · Java Side Track · Lesson 48</div>
+    <h1>第四十八课：运行时配置与就绪检查</h1>
+    <p class="meta">预计 90–120 分钟 · Java 21 · Spring Boot 4.1.1 · 从第 47 课的 <code>/health</code> 出发</p>
+    <p class="lead">上一课让你的服务能回答 <code>GET /health</code>。这一课要解决一个更真实的问题：<strong>即使程序进程启动了，它是否拿到了正确配置，并且真的应该接收用户请求？</strong></p>
+
+    <section class="goal" aria-labelledby="goal-title">
+      <h2 id="goal-title">本课胜利点</h2>
+      <ul>
+        <li>能说清 <code>application.properties</code> 是什么，以及它为什么不应该只被当成“随便放字符串的文件”。</li>
+        <li>能用一个 Java <code>record</code> 接收配置，并理解每个注解的职责。</li>
+        <li>能证明：缺少关键配置时，应用会在启动时明确失败，而不是带着空值继续提供服务。</li>
+        <li>能区分“进程是否该重启”（liveness）和“实例是否该接流量”（readiness）。</li>
+      </ul>
+    </section>
+
+    <h2>0. 先看问题：启动成功，不代表服务正确</h2>
+    <p>想象你要发布一个后端服务。程序确实启动了，端口也在监听；但本次发布的标识 <code>releaseLabel</code> 没有配置，代码拿到的是空字符串。之后某个接口把它写入日志或返回给前端，排查人员无法判断请求来自哪个版本。</p>
+    <p>这类问题最好的处理时机不是“用户访问接口之后”，而是<strong>启动应用时</strong>。如果服务缺少安全提供功能所必需的信息，就应该拒绝启动；部署系统会立即显示失败，开发者也能从启动日志定位原因。</p>
+    <div class="callout good"><strong>本课的核心判断：</strong>“尽早失败”不是故意让程序难用，而是把配置错误挡在接收真实请求之前。</div>
+
+    <h2>1. 先认识本课的四个角色</h2>
+    <div class="grid">
+      <article class="card"><strong><code>application.properties</code></strong><p>应用的配置清单。这里写“键=值”，例如 <code>app.release-label=local</code>。它不是 Java 代码，而是 Spring Boot 启动时会读取的外部信息。</p></article>
+      <article class="card"><strong><code>pom.xml</code></strong><p>Maven 的依赖清单。它告诉 Maven：这个项目要使用哪些库。就像前端项目的 <code>package.json</code>，但格式是 XML。</p></article>
+      <article class="card"><strong>启动类</strong><p><code>JavaBackendApplication</code> 是 Spring Boot 的入口。它的 <code>main</code> 方法启动应用；它所在的根包也影响 Spring 默认扫描哪些类。</p></article>
+      <article class="card"><strong><code>AppProperties</code></strong><p>即将创建的 Java 类型。它把散落在配置文件里的文字，收拢为有字段名、有校验规则的一个对象。</p></article>
+    </div>
+    <p style="margin-top:18px"><span class="tag must">本课必须掌握</span> 配置键、配置绑定、启动时校验、readiness 的含义。<br><span class="tag later">暂时知道即可</span> Bean Validation 的完整规范、Kubernetes 部署细节、健康组高级定制。</p>
+    <div class="callout info"><strong>和前端的类比：</strong>前端会从环境变量或配置文件读取 API 地址；后端也需要读取配置。区别是后端通常长期运行、会被部署到多套环境，因此更需要在启动边界检查关键配置是否存在。</div>
+
+    <h2>2. 先做一个判断：哪些配置必须存在？</h2>
+    <section class="practice">
+      <h3>不看后面代码，先说理由</h3>
+      <p>请选择一个配置（例如发布标签、数据库地址、页面展示名称），写下：它缺失时应用能否继续安全服务？为什么？</p>
+      <label>你的判断<textarea id="boundary" placeholder="例如：数据库地址必须存在，因为没有它业务数据无法正确读取；展示名称可以有默认值，因为它只影响页面文案。"></textarea></label>
+      <button type="button" onclick="reviewBoundary()">检查我的判断</button>
+      <p id="boundary-feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>3. 第一步：告诉 Maven 我们需要哪些能力</h2>
+    <section class="step">
+      <div class="number">1</div>
+      <div>
+        <h3>修改 <code>java-backend/pom.xml</code></h3>
+        <p class="step-meta">目的：引入生产健康端点和配置校验能力。请保留你已有的 Web MVC 和测试依赖。</p>
+        <p>在 <code>&lt;dependencies&gt;</code> 中增加下面两段：</p>
+        <pre><code>&lt;dependency&gt;
+  &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+  &lt;artifactId&gt;spring-boot-starter-actuator&lt;/artifactId&gt;
+&lt;/dependency&gt;
+
+&lt;dependency&gt;
+  &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+  &lt;artifactId&gt;spring-boot-starter-validation&lt;/artifactId&gt;
+&lt;/dependency&gt;</code></pre>
+        <div class="why"><strong>为什么这样做？</strong>一个 <code>starter</code> 是 Spring Boot 打包好的一组常用依赖。Actuator starter 提供生产运行状态端点；Validation starter 提供 <code>@NotBlank</code> 这类校验注解在运行时所需的实现。Maven 会在构建时下载它们，并将它们放到应用的运行 classpath。</div>
+        <div class="why"><strong>不加会怎样？</strong>没有 Actuator，就没有 <code>/actuator/health/readiness</code>；没有 Validation，配置字段上的“不能为空”规则无法按本课预期运行。</div>
+      </div>
+    </section>
+
+    <h2>4. 第二步：把配置从文本变成 Java 类型</h2>
+    <section class="step">
+      <div class="number">2</div>
+      <div>
+        <h3>创建 <code>config/AppProperties.java</code></h3>
+        <p class="step-meta">新建完整路径：<code>java-backend/src/main/java/com/example/ai/java_backend/config/AppProperties.java</code></p>
+        <pre><code>package com.example.ai.java_backend.config;
+
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+@Validated
+@ConfigurationProperties(prefix = "app")
+public record AppProperties(@NotBlank String releaseLabel) { }</code></pre>
+        <table>
+          <thead><tr><th>代码</th><th>它是什么</th><th>为什么需要 / 不写会怎样</th></tr></thead>
+          <tbody>
+            <tr><td><code>package ...config;</code></td><td>类所在的包名，相当于 Java 的目录归属和命名空间。</td><td>它放在启动类根包 <code>com.example.ai.java_backend</code> 的子包中，后面扫描时才能自然被找到。</td></tr>
+            <tr><td><code>import ...</code></td><td>引入其他库里定义的类型，类似 TypeScript 的 import。</td><td>不引入就不能简写这些注解的类名，编译器会找不到类型。</td></tr>
+            <tr><td><code>record</code></td><td>Java 16 起的简洁数据类型写法。这里它代表“只有一个发布标签的数据”。</td><td>Java 会自动提供构造方法和 <code>releaseLabel()</code> 读取方法。也可用普通 class，但本课没有额外行为时 record 更直接。</td></tr>
+            <tr><td><code>prefix = "app"</code></td><td>配置前缀。</td><td>它告诉 Spring 去寻找 <code>app.</code> 开头的配置。没有前缀，Spring 不知道哪个配置属于这个类型。</td></tr>
+            <tr><td><code>String releaseLabel</code></td><td>Java 字段，保存配置值。</td><td>Spring 会把 kebab-case 的 <code>app.release-label</code> 对应到 camelCase 的 <code>releaseLabel</code>。</td></tr>
+            <tr><td><code>@Validated</code></td><td>要求 Spring 在绑定配置后执行校验。</td><td>不写时，下面的 <code>@NotBlank</code> 不会按这里期待的方式阻止错误启动。</td></tr>
+            <tr><td><code>@NotBlank</code></td><td>校验规则：值不能是 <code>null</code>、空字符串或全空格。</td><td>不写时，空发布标签能悄悄进入程序，错误会被推迟到更难排查的位置。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="number">3</div>
+      <div>
+        <h3>让启动类发现这个配置类型</h3>
+        <p class="step-meta">修改：<code>java-backend/src/main/java/com/example/ai/java_backend/JavaBackendApplication.java</code></p>
+        <p>用下面的完整内容替换启动类：</p>
+        <pre><code>package com.example.ai.java_backend;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+
+@SpringBootApplication
+@ConfigurationPropertiesScan
+public class JavaBackendApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(JavaBackendApplication.class, args);
+  }
+}</code></pre>
+        <div class="why"><strong>为什么加 <code>@ConfigurationPropertiesScan</code>？</strong>你创建了 <code>AppProperties</code>，但 Spring 不会凭空使用它。这个注解表示“启动时扫描根包及子包，找出带 <code>@ConfigurationProperties</code> 的类型并绑定配置”。</div>
+        <div class="why"><strong>为什么路径不能乱放？</strong>启动类在 <code>com.example.ai.java_backend</code>，所以 <code>config</code> 必须是它的子包。如果放到平级或无关包，默认扫描范围可能不包含它。这和你上一课修正启动类与 Controller 包路径的原因相同。</div>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="number">4</div>
+      <div>
+        <h3>写入非敏感配置和探针配置</h3>
+        <p class="step-meta">修改：<code>java-backend/src/main/resources/application.properties</code></p>
+        <pre><code>spring.application.name=java-backend
+
+app.release-label=local
+management.endpoint.health.probes.enabled=true
+management.endpoint.health.probes.add-additional-paths=true</code></pre>
+        <table>
+          <thead><tr><th>配置行</th><th>本课中的作用</th></tr></thead>
+          <tbody>
+            <tr><td><code>app.release-label=local</code></td><td>为 <code>AppProperties.releaseLabel</code> 提供本地开发值。它是演示用的非敏感信息。</td></tr>
+            <tr><td><code>...probes.enabled=true</code></td><td>启用 Actuator 的 liveness 与 readiness 健康组。</td></tr>
+            <tr><td><code>...add-additional-paths=true</code></td><td>除了 Actuator 默认路径，也在主应用端口提供 <code>/livez</code> 和 <code>/readyz</code>。</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><strong>安全边界：</strong>这里绝对不要写数据库密码、API Key、Token 或真实密钥。它们应来自受控环境变量或密钥系统；本课只使用 <code>local</code> 这种无敏感性的示例值。</div>
+      </div>
+    </section>
+
+    <h2>5. 第三步：用“成功”和“预期失败”证明规则有效</h2>
+    <section class="step">
+      <div class="number">5</div>
+      <div>
+        <h3>先正常测试与启动</h3>
+        <p>在 PowerShell 进入 <code>java-backend</code> 目录后，依次执行：</p>
+        <pre><code>.\mvnw.cmd test
+.\mvnw.cmd spring-boot:run</code></pre>
+        <p>第一条命令运行已有测试；预期末尾出现 <code>BUILD SUCCESS</code>。第二条命令启动应用；看到类似 <code>Started JavaBackendApplication</code> 后，让它继续运行。</p>
+        <p>另开一个 PowerShell 窗口，验证上一课的原有接口仍然存在：</p>
+        <pre><code>Invoke-RestMethod http://localhost:8080/health</code></pre>
+        <div class="why"><strong>为什么保留这一步？</strong>第 48 课加的是运行时能力，不能悄悄破坏第 47 课已经承诺的 <code>{"status":"ok"}</code> 健康契约。</div>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="number">6</div>
+      <div>
+        <h3>再做一次受控失败</h3>
+        <p>先在运行应用的窗口按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 停止服务。然后运行：</p>
+        <pre><code>.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--app.release-label="</code></pre>
+        <p>这个命令只对<strong>本次启动</strong>传入一个空的发布标签；它不会修改 <code>application.properties</code>。预期结果不是启动成功，而是启动失败。日志中应出现 <code>app.release-label</code> 或 <code>releaseLabel</code> 相关的绑定/校验错误。</p>
+        <div class="why"><strong>这证明了什么？</strong>配置不是“读到空字符串也算正常”。关键配置缺失会在部署边界暴露，应用不会在不知道版本标识的情况下接收流量。</div>
+      </div>
+    </section>
+
+    <h2>6. Actuator、<code>/health</code> 与 readiness 分别是什么？</h2>
+    <p>它们都和“健康”有关，但负责回答的问题不同。不要把它们当成三个内容完全相同的 URL。</p>
+    <section class="compare">
+      <table>
+        <thead><tr><th>地址</th><th>谁提供</th><th>它在本课中回答什么</th></tr></thead>
+        <tbody>
+          <tr><td><code>/health</code></td><td>你在第 47 课写的 <code>HealthController</code></td><td>项目的最小 HTTP 契约仍然能返回 <code>{"status":"ok"}</code>。</td></tr>
+          <tr><td><code>/actuator/health/readiness</code></td><td>Spring Boot Actuator</td><td>Actuator 的 readiness 健康组认为当前实例是否可以接收流量。</td></tr>
+          <tr><td><code>/readyz</code></td><td>Actuator 的额外主端口路径</td><td>给部署平台或反向代理更方便的 readiness 地址；它表达同一个就绪语义。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="step">
+      <div class="number">7</div>
+      <div>
+        <h3>验证 readiness 地址</h3>
+        <p>用正常配置重新运行 <code>.\mvnw.cmd spring-boot:run</code>。看到启动完成后，在另一个窗口执行：</p>
+        <pre><code>Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+Invoke-RestMethod http://localhost:8080/readyz</code></pre>
+        <p>两次结果都应该是 JSON，并包含 <code>"status":"UP"</code>。这里的 <code>UP</code> 表示“当前健康组认为这个实例可以服务”；它不承诺数据库、LLM 或每一种业务请求永远没有问题。</p>
+      </div>
+    </section>
+
+    <h2>7. 为什么要区分 liveness 和 readiness？</h2>
+    <section class="compare">
+      <table>
+        <thead><tr><th>状态</th><th>它问的问题</th><th>平台通常采取的动作</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Liveness（存活）</strong></td><td>这个 Java 进程自身是否卡死或进入无法恢复的状态？</td><td>如果不存活，平台可能重启这个实例。</td></tr>
+          <tr><td><strong>Readiness（就绪）</strong></td><td>这个实例现在是否应该接收新的用户请求？</td><td>如果未就绪，负载均衡器通常暂时不再把新请求分给它。</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <div class="callout good"><strong>当前项目的选择：</strong>现在不把数据库和 LLM 请求加入 liveness 或 readiness。它们是共享外部依赖；如果数据库短暂故障就导致所有应用实例被重启，故障可能被放大。是否纳入 readiness，要等我们有明确的降级策略和流量策略之后再决定。</div>
+
+    <h2>8. 常见错误：看到现象后先检查哪里？</h2>
+    <section class="trouble">
+      <table>
+        <thead><tr><th>看到的现象</th><th>先检查</th><th>修正方向</th></tr></thead>
+        <tbody>
+          <tr><td>提示找不到 <code>ConfigurationProperties</code> 或 <code>NotBlank</code></td><td><code>pom.xml</code> 是否添加了对应 starter；保存后是否重新执行 Maven 命令。</td><td>补齐 Actuator、Validation 依赖，再执行 <code>.\mvnw.cmd test</code> 让 Maven 下载依赖。</td></tr>
+          <tr><td>应用启动了，但配置校验没有生效</td><td><code>AppProperties</code> 是否有 <code>@Validated</code> 和 <code>@NotBlank</code>；启动类是否有 <code>@ConfigurationPropertiesScan</code>。</td><td>逐字检查注解和包名；不要把 <code>config</code> 放到 <code>com.example.ai.java_backend</code> 之外。</td></tr>
+          <tr><td>提示无法绑定 <code>app.release-label</code></td><td><code>application.properties</code> 中的键是否拼写为 <code>app.release-label</code>。</td><td>配置键使用 kebab-case；Java 字段使用 <code>releaseLabel</code>，不要写成 <code>release-label</code>。</td></tr>
+          <tr><td>请求接口时提示无法连接，或启动说端口被占用</td><td>运行窗口是否仍在启动，或 8080 是否被其他程序占用。</td><td>确认日志出现 Started；必要时停止旧的 Spring Boot 进程后再启动。不要在未启动服务时期待 HTTP 命令成功。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>9. 验收、复述与变式练习</h2>
+    <section class="checklist">
+      <h3>完成标准</h3>
+      <ul>
+        <li><code>.\mvnw.cmd test</code> 正常通过。</li>
+        <li><code>/health</code> 仍然返回第 47 课约定的 <code>{"status":"ok"}</code>。</li>
+        <li>正常配置下，<code>/actuator/health/readiness</code> 与 <code>/readyz</code> 都有 <code>"status":"UP"</code>。</li>
+        <li>临时传入空的 <code>app.release-label</code> 时，应用明确启动失败。</li>
+        <li>没有把任何真实密码、API Key、Token 或数据库凭据写进 <code>application.properties</code>、日志或提交记录。</li>
+      </ul>
+    </section>
+    <section class="practice">
+      <h3>变式练习：必填和可选不是一回事</h3>
+      <p>假设你还要增加 <code>displayName</code>。先不写代码，回答：它是否必须使用 <code>@NotBlank</code>？如果只是页面展示文字，并且有明确的默认值，为什么它可以是可选项；而发布标签在本课的假设下应当必填？</p>
+      <label>我的解释<textarea id="variation" placeholder="提示：从“缺失后的实际后果”出发，而不是从字段名字出发。"></textarea></label>
+      <button type="button" onclick="reviewVariation()">检查我的解释</button>
+      <p id="variation-feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>10. 检索练习：用平台动作理解术语</h2>
+    <section class="quiz" aria-label="本课测验">
+      <div class="quiz-header">选择后立即获得反馈；重点是解释原因，不是背单词。</div>
+      <div class="question" id="q1">
+        <p>1. 为什么 <code>app.release-label</code> 缺失时，本课让应用在启动阶段失败？</p>
+        <div class="options">
+          <button class="option" onclick="answerQuestion('q1',this,true,'正确。它把错误留在部署边界，避免服务带着空的关键配置接收真实请求。')">避免带错接收流量</button>
+          <button class="option" onclick="answerQuestion('q1',this,false,'日志更多不会让配置变完整。校验的目标是让错误在安全边界暴露。')">为了增加日志数量</button>
+          <button class="option" onclick="answerQuestion('q1',this,false,'配置类型的目的正是集中键名和规则，而不是省去类型。')">为了省去配置类型</button>
+          <button class="option" onclick="answerQuestion('q1',this,false,'重启不会自动补全缺失的配置，通常只会重复失败。')">为了让重启修复它</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+      </div>
+      <div class="question" id="q2">
+        <p>2. readiness 返回未就绪时，负载均衡器最合理的首要动作是什么？</p>
+        <div class="options">
+          <button class="option" onclick="answerQuestion('q2',this,false,'未就绪不必然意味着进程损坏。立刻重启可能掩盖或扩大外部依赖故障。')">立刻重启进程</button>
+          <button class="option" onclick="answerQuestion('q2',this,true,'正确。readiness 的直接含义是暂时不要把新的请求路由给这个实例；是否重启取决于具体原因。')">暂时停止分流量</button>
+          <button class="option" onclick="answerQuestion('q2',this,false,'发布版本和运行时就绪状态是两件事。')">把它改成版本号</button>
+          <button class="option" onclick="answerQuestion('q2',this,false,'隐藏状态会让部署平台失去判断依据，不能解决不就绪。')">隐藏健康信息</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+      </div>
+      <div class="question" id="q3">
+        <p>3. 为什么当前不把数据库或 LLM 直接放进 liveness 检查？</p>
+        <div class="options">
+          <button class="option" onclick="answerQuestion('q3',this,false,'数据库和 LLM 很重要；问题在于共享依赖的短暂故障不一定能靠重启应用实例修复。')">因为外部依赖不重要</button>
+          <button class="option" onclick="answerQuestion('q3',this,true,'正确。共享外部依赖短暂失败时，重启多个应用实例可能扩大故障。先要明确降级和流量策略。')">避免放大外部故障</button>
+          <button class="option" onclick="answerQuestion('q3',this,false,'JSON 格式与是否应触发重启没有直接关系。')">因为 JSON 不支持检查</button>
+          <button class="option" onclick="answerQuestion('q3',this,false,'速度不是本课的主要判断依据；关键是状态语义和平台后果。')">因为检查必然太慢</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+      </div>
+    </section>
+
+    <h2>依据与下一课</h2>
+    <section class="sources">
+      <a class="source" href="https://docs.spring.io/spring-boot/reference/features/external-config.html" target="_blank" rel="noopener"><strong>Spring Boot 官方：Externalized Configuration</strong><small>配置来源、类型化绑定与校验的参考。</small></a>
+      <a class="source" href="https://docs.spring.io/spring-boot/reference/actuator/enabling.html" target="_blank" rel="noopener"><strong>Spring Boot 官方：Enabling Production-ready Features</strong><small>Actuator starter 的启用方式。</small></a>
+      <a class="source" href="https://docs.spring.io/spring-boot/reference/actuator/endpoints.html" target="_blank" rel="noopener"><strong>Spring Boot 官方：Endpoints and Kubernetes Probes</strong><small>健康端点、liveness、readiness 与额外路径的说明。</small></a>
+    </section>
+    <p class="lead" style="margin-top:28px">下一课会建立 Service 层和统一错误响应：你会先理解 Controller 为什么不应承担所有业务规则，再把 HTTP 层和业务逻辑分开。</p>
+  </main>
+  <script>
+    function showFeedback(id, text, isWarning) {
+      const feedback = document.getElementById(id);
+      feedback.textContent = text;
+      feedback.className = `feedback show ${isWarning ? 'warn' : ''}`;
+    }
+
+    function reviewBoundary() {
+      const value = document.getElementById('boundary').value.trim();
+      if (!value) {
+        showFeedback('boundary-feedback', '先写下一个配置及其缺失后的实际后果；后果决定它是必填还是可选。', true);
+        return;
+      }
+      showFeedback('boundary-feedback', '判断原则正确：缺失后会影响安全、数据一致性或能否正确提供核心服务的配置，应在启动时校验；只影响展示且有明确安全默认值的配置可以是可选项。');
+    }
+
+    function reviewVariation() {
+      const value = document.getElementById('variation').value.trim();
+      if (!value) {
+        showFeedback('variation-feedback', '请先写出“缺失后有什么后果”。不要只回答“它可选”，要说明为什么。', true);
+        return;
+      }
+      showFeedback('variation-feedback', '对照思路：displayName 若只影响展示且有安全默认值，可以可选；releaseLabel 在本课被定义为追踪发布的关键配置，空值会让运行信息失去意义，所以设为必填。实际项目应由业务后果决定，而不是机械套注解。');
+    }
+
+    function answerQuestion(questionId, button, isCorrect, explanation) {
+      const question = document.getElementById(questionId);
+      if (question.dataset.answered) return;
+      question.dataset.answered = 'true';
+      question.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+      button.classList.add(isCorrect ? 'correct' : 'wrong');
+      const feedback = question.querySelector('[data-feedback]');
+      feedback.textContent = explanation;
+      feedback.className = `feedback show ${isCorrect ? '' : 'warn'}`;
+    }
+  </script>
+</body>
+</html>
