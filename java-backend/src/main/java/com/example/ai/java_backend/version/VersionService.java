@@ -1,24 +1,25 @@
 package com.example.ai.java_backend.version;
 
-import com.example.ai.java_backend.config.AppProperties;
 import org.springframework.stereotype.Service;
 
 @Service
 public class VersionService {
-  private final AppProperties appProperties;
+  // 应用属性组件，用于获取应用配置信息
+  private final ReleaseRepository releaseRepository;
 
-  public VersionService(AppProperties appProperties) {
-    this.appProperties = appProperties;
+  // 发布仓库组件，用于存储和检索版本信息
+  public VersionService(ReleaseRepository releaseRepository) {
+    this.releaseRepository = releaseRepository;
   }
 
+  // 获取当前版本信息
   public VersionResponse currentVersion() {
-    return new VersionResponse("1.0.1");
+    return findForReleaseLabel("local");
   }
 
+  // 根据版本标签查找版本信息
   public VersionResponse findForReleaseLabel(String releaseLabel) {
-    if (!appProperties.releaseLabel().equals(releaseLabel)) {
-      throw new ReleaseNotFoundException(releaseLabel);
-    }
-    return currentVersion();
+    return releaseRepository.findByReleaseLabel(releaseLabel)
+        .orElseThrow(() -> new ReleaseNotFoundException(releaseLabel));
   }
 }
