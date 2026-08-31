@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第四十九课：Service 层与统一错误响应</title>
+  <style>
+    :root { --ink:#17242d; --muted:#566570; --paper:#f4f7f8; --panel:#fff; --line:#d8e1e5; --accent:#075f77; --accent-pale:#e1f3f6; --good:#176840; --good-pale:#e3f4e9; --warn:#875500; --warn-pale:#fff3dc; --danger:#9b363c; --code:#17242d; } * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.76 Georgia,"Noto Serif SC","Microsoft YaHei",serif; } main { width:min(940px,calc(100% - 34px)); margin:0 auto; padding:48px 0 84px; } .eyebrow,.meta,.tag,label { font:700 12px/1.4 "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.04em; } .eyebrow { color:var(--accent); text-transform:uppercase; } h1,h2,h3 { font-family:"Segoe UI","Microsoft YaHei",sans-serif; } h1 { margin:11px 0 10px; max-width:820px; font-size:clamp(34px,5.5vw,57px); line-height:1.1; letter-spacing:-.03em; } h2 { margin:48px 0 14px; font-size:26px; line-height:1.28; } h3 { margin:0 0 8px; font-size:18px; line-height:1.4; } p { margin:10px 0; } .lead,.meta { color:var(--muted); } .lead { max-width:790px; font-size:19px; } .goal,.callout,.step,.practice,.checklist,.sources,.compare,.quiz { border:1px solid var(--line); background:var(--panel); } .goal { display:grid; grid-template-columns:150px 1fr; gap:19px; margin-top:29px; padding:22px 24px; border-left:5px solid var(--accent); } .goal h2 { margin:0; font-size:18px; } ul,ol { margin:8px 0; padding-left:24px; } li { margin:6px 0; } .tag { display:inline-block; margin:0 6px 5px 0; padding:4px 8px; border-radius:99px; } .tag.must { color:#075269; background:var(--accent-pale); } .tag.later { color:#704607; background:var(--warn-pale); } .callout { margin-top:18px; padding:17px 19px; border-left:5px solid #d59217; background:var(--warn-pale); color:#694507; } .callout.good { border-left-color:var(--good); background:var(--good-pale); color:#195434; } .callout.info { border-left-color:var(--accent); background:var(--accent-pale); color:#164d5d; } .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:16px; } .card { padding:17px; border:1px solid var(--line); background:var(--panel); } .card strong { display:block; margin-bottom:6px; font:700 16px "Segoe UI","Microsoft YaHei",sans-serif; } .step { display:grid; grid-template-columns:44px 1fr; gap:14px; margin-top:15px; padding:20px 21px; } .number { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; color:#fff; background:var(--accent); font:700 14px "Segoe UI",sans-serif; } .step-meta { margin:8px 0 12px; color:var(--muted); font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; } code { padding:.1em .35em; border-radius:3px; color:#07566d; background:#eaf1f3; font:14px ui-monospace,Consolas,monospace; } pre { margin:12px 0 7px; padding:16px; overflow:auto; color:#e8edf1; background:var(--code); font:14px/1.6 ui-monospace,Consolas,monospace; } pre code { padding:0; color:inherit; background:transparent; } .why { margin-top:12px; padding:12px 14px; border-left:3px solid var(--accent); background:#f0f6f7; font-size:15px; } table { width:100%; margin-top:14px; border-collapse:collapse; font-size:15px; } th,td { padding:11px 12px; text-align:left; vertical-align:top; border:1px solid var(--line); } th { color:#294852; background:#edf4f5; font:700 13px "Segoe UI","Microsoft YaHei",sans-serif; } .practice { margin-top:18px; padding:23px; border-top:5px solid var(--accent); } label { display:block; color:var(--muted); } textarea { width:100%; min-height:92px; margin-top:7px; padding:10px; resize:vertical; color:var(--ink); border:1px solid var(--line); background:#fff; font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; } button { min-height:42px; margin-top:12px; padding:9px 14px; color:#fff; border:1px solid var(--accent); background:var(--accent); cursor:pointer; font:700 14px "Segoe UI","Microsoft YaHei",sans-serif; } button:disabled { cursor:default; } .feedback { display:none; margin:14px 0 0; padding:12px 14px; border-left:4px solid var(--accent); color:#164d5d; background:var(--accent-pale); font:15px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; } .feedback.show { display:block; } .feedback.warn { border-color:#d18a13; color:#6a470a; background:var(--warn-pale); } .compare { margin-top:16px; overflow:auto; } .checklist { margin-top:17px; padding:20px 23px; border-left:5px solid var(--good); } .quiz { margin-top:16px; overflow:hidden; } .quiz-header { padding:12px 18px; color:var(--muted); background:#edf4f5; font:700 12px "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.04em; } .question { padding:20px; border-top:1px solid var(--line); } .question:first-of-type { border-top:0; } .question p { margin-top:0; font-weight:700; } .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .option { min-height:49px; margin:0; color:var(--ink); border-color:var(--line); background:#fff; text-align:left; font-weight:600; } .option.correct { color:var(--good); border-color:var(--good); background:var(--good-pale); } .option.wrong { color:var(--danger); border-color:var(--danger); background:#fbe8e9; } .sources { margin-top:18px; padding:16px 20px; } .source { display:block; padding:10px 0; color:var(--ink); border-bottom:1px solid var(--line); text-decoration:none; } .source:last-child { border-bottom:0; } .source:hover { color:var(--accent); } .source small { display:block; color:var(--muted); } @media (max-width:700px) { main { width:min(100% - 28px,940px); padding-top:32px; } .goal,.grid,.options { grid-template-columns:1fr; } .step { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">AI Full-stack · Java Side Track · Lesson 49</div>
+    <h1>第四十九课：Service 层与统一错误响应</h1>
+    <p class="meta">预计 90–120 分钟 · 基于第 48 课已验证的 Spring Boot 项目</p>
+    <p class="lead">目前的 <code>VersionController</code> 既接收 HTTP 请求，又决定业务结果。代码很少时看似没问题；一旦要读取配置、判断输入、处理失败，Controller 会迅速变成难测、难改的“大杂烩”。本课把“业务决定”和“HTTP 翻译”分开。</p>
+
+    <section class="goal"><h2>本课胜利点</h2><ul><li>能说清 Controller、Service、全局异常处理器各自只负责什么。</li><li>把 <code>/version</code> 的业务结果移入 <code>VersionService</code>，并通过构造方法注入使用它。</li><li>新增 <code>GET /versions/{releaseLabel}</code>：找不到时返回稳定的 404 JSON，而不是随机的错误页面。</li><li>在 <code>@WebMvcTest</code> 中用 <code>@MockitoBean</code> 替换 Service，分别锁定成功与失败契约。</li></ul></section>
+
+    <h2>0. 先记住：分层不是为了多建文件</h2>
+    <div class="grid"><article class="card"><strong>Controller：HTTP 翻译员</strong><p>接收路径、查询参数、请求体；调用业务；把结果作为 HTTP 响应返回。它不应保存“找不到时怎么办”这类业务决定。</p></article><article class="card"><strong>Service：业务决定者</strong><p>处理规则、组合配置或数据，并在无法完成业务时抛出有业务含义的异常。以后接数据库或 AI 时，复杂性主要放在这里。</p></article><article class="card"><strong>Exception Handler：错误翻译员</strong><p>集中把 Java 异常变成统一 JSON 与正确 HTTP 状态码，避免每个 Controller 手写重复的错误响应。</p></article><article class="card"><strong>Test：外部契约守卫</strong><p>测试客户端真正依赖的 URL、状态码和 JSON 字段。内部类怎么拆可以变化，契约不能悄悄变化。</p></article></div>
+    <p style="margin-top:18px"><span class="tag must">本课必须掌握</span> 构造方法注入、<code>@Service</code>、404、<code>@RestControllerAdvice</code>。<br><span class="tag later">暂时知道即可</span> Repository、事务、RFC 9457 的完整错误规范、依赖注入容器的内部实现。</p>
+    <div class="callout info"><strong>前端类比：</strong>Controller 像 Vue 页面事件处理器，Service 像可复用的业务 composable / SDK 层，异常处理器像统一的 HTTP 拦截器错误映射。相同点是职责分开；不同点是 Spring 负责创建并注入这些 Java 对象。</div>
+
+    <h2>1. 先画数据流，再写代码</h2>
+    <section class="practice"><h3>脱稿练习</h3><p>不看后面的代码，写出一次 <code>GET /versions/local</code> 请求会经过哪些对象；当标签不存在时，谁决定“找不到”，谁把它变成 404？</p><label>我的数据流<textarea id="flow" placeholder="提示：HTTP 请求 → Controller → Service → 异常处理器 → HTTP 响应"></textarea></label><button type="button" onclick="reviewFlow()">检查思路</button><p id="flow-feedback" class="feedback" aria-live="polite"></p></section>
+
+    <h2>2. 第一步：创建 Service，让 Spring 管理它</h2>
+    <section class="step"><div class="number">1</div><div><h3>新建 <code>VersionService.java</code></h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/version/VersionService.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import com.example.ai.java_backend.config.AppProperties;
+import org.springframework.stereotype.Service;
+
+@Service
+public class VersionService {
+  private final AppProperties appProperties;
+
+  public VersionService(AppProperties appProperties) {
+    this.appProperties = appProperties;
+  }
+
+  public VersionResponse currentVersion() {
+    return new VersionResponse("1.0.0");
+  }
+
+  public VersionResponse findForReleaseLabel(String releaseLabel) {
+    if (!appProperties.releaseLabel().equals(releaseLabel)) {
+      throw new ReleaseNotFoundException(releaseLabel);
+    }
+    return currentVersion();
+  }
+}</code></pre><div class="why"><strong><code>@Service</code> 是什么？</strong>它告诉 Spring：这是业务服务，启动时请创建一个对象（bean）并管理它。Spring 官方将 <code>@Service</code> 视为 <code>@Component</code> 的专用角色；不写它，Spring 默认不会有可注入的 <code>VersionService</code>。</div><div class="why"><strong>构造方法为什么只有一个参数？</strong>参数 <code>AppProperties</code> 表示“这个 Service 依赖配置”。Spring 已在第 48 课创建该配置对象，所以能自动传入。字段设为 <code>final</code> 意味着构造后不再换依赖，便于理解和测试。</div></div></section>
+
+    <section class="step"><div class="number">2</div><div><h3>创建一个有业务名称的异常</h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/version/ReleaseNotFoundException.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+public class ReleaseNotFoundException extends RuntimeException {
+  public ReleaseNotFoundException(String releaseLabel) {
+    super("找不到发布标签：" + releaseLabel);
+  }
+}</code></pre><div class="why"><strong>为什么不直接返回 404？</strong>Service 不应该知道 HTTP 的细节；它只表达业务事实：“这个发布标签不存在”。<code>RuntimeException</code> 表示这个方法不在本地恢复该错误，而是交给后面的统一异常处理器翻译为 HTTP。</div></div></section>
+
+    <h2>3. 第二步：让 Controller 只处理 HTTP</h2>
+    <section class="step"><div class="number">3</div><div><h3>替换 <code>VersionController.java</code></h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/version/VersionController.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class VersionController {
+  private final VersionService versionService;
+
+  public VersionController(VersionService versionService) {
+    this.versionService = versionService;
+  }
+
+  @GetMapping("/version")
+  VersionResponse version() {
+    return versionService.currentVersion();
+  }
+
+  @GetMapping("/versions/{releaseLabel}")
+  VersionResponse findVersion(@PathVariable String releaseLabel) {
+    return versionService.findForReleaseLabel(releaseLabel);
+  }
+}</code></pre><table><thead><tr><th>新代码</th><th>作用</th><th>不这样做会怎样</th></tr></thead><tbody><tr><td><code>private final VersionService</code></td><td>保存 Controller 需要调用的业务服务。</td><td>Controller 只能自己实现业务规则，未来每个接口都会重复判断。</td></tr><tr><td>构造方法</td><td>让 Spring 在创建 Controller 时注入 Service。这叫构造方法注入。</td><td>不注入就没有 Service 可调用；也不应在 Controller 中手写 <code>new VersionService(...)</code>，那会绕过 Spring 的依赖管理。</td></tr><tr><td><code>@PathVariable</code></td><td>把 URL 中的 <code>{releaseLabel}</code> 读取为 Java 参数。</td><td>方法不知道用户请求了哪个标签，无法交给 Service 判断。</td></tr></tbody></table></div></section>
+
+    <h2>4. 第三步：把异常统一翻译成 JSON</h2>
+    <section class="step"><div class="number">4</div><div><h3>创建错误响应 record</h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/common/ApiError.java</code></p><pre><code>package com.example.ai.java_backend.common;
+
+public record ApiError(String code, String message) { }</code></pre><p>客户端不应依赖 Java 异常类名或框架默认错误页面。<code>code</code> 是稳定、便于前端判断的机器标识；<code>message</code> 是给人阅读的说明。</p></div></section>
+    <section class="step"><div class="number">5</div><div><h3>创建全局异常处理器</h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/common/ApiExceptionHandler.java</code></p><pre><code>package com.example.ai.java_backend.common;
+
+import com.example.ai.java_backend.version.ReleaseNotFoundException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class ApiExceptionHandler {
+  @ExceptionHandler(ReleaseNotFoundException.class)
+  ResponseEntity&lt;ApiError&gt; handleReleaseNotFound(
+      ReleaseNotFoundException exception) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(new ApiError("RELEASE_NOT_FOUND", exception.getMessage()));
+  }
+}</code></pre><div class="why"><strong><code>@RestControllerAdvice</code> 是什么？</strong>它把类声明为面向 REST Controller 的全局建议器；Spring 会在 Controller 抛异常后寻找匹配的 <code>@ExceptionHandler</code>。它等价于“<code>@ControllerAdvice</code> + 自动写 JSON 响应体”。</div><div class="why"><strong><code>ResponseEntity</code> 为什么出现？</strong>普通返回对象只描述 JSON body；<code>ResponseEntity</code> 同时描述 HTTP 状态、响应头和 body。这里用它明确返回 404，而不是默认的 500。</div></div></section>
+
+    <h2>5. 第四步：用两个请求验证成功和失败</h2>
+    <section class="step"><div class="number">6</div><div><h3>运行测试并启动服务</h3><pre><code>.\mvnw.cmd test
+.\mvnw.cmd spring-boot:run</code></pre><p>测试通过后保留服务运行，另开 PowerShell 窗口执行：</p><pre><code>Invoke-RestMethod http://localhost:8080/version
+Invoke-RestMethod http://localhost:8080/versions/local
+
+try {
+  Invoke-RestMethod http://localhost:8080/versions/missing
+} catch {
+  $_.Exception.Response.StatusCode.value__
+  $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+  $reader.ReadToEnd()
+}</code></pre><p>前两个请求应返回 <code>{"version":"1.0.0"}</code>。第三个请求应显示状态码 <code>404</code>，并包含 <code>{"code":"RELEASE_NOT_FOUND","message":"找不到发布标签：missing"}</code>。停止服务时按 <kbd>Ctrl</kbd> + <kbd>C</kbd>。</p></div></section>
+
+    <h2>6. 第五步：测试 Controller，不让真实 Service 混进来</h2>
+    <section class="step"><div class="number">7</div><div><h3>更新 <code>VersionControllerTest.java</code></h3><p class="step-meta">路径：<code>java-backend/src/test/java/com/example/ai/java_backend/version/VersionControllerTest.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(VersionController.class)
+class VersionControllerTest {
+  @Autowired
+  MockMvc mvc;
+
+  @MockitoBean
+  VersionService versionService;
+
+  @Test
+  void versionMatchesContract() throws Exception {
+    given(versionService.currentVersion()).willReturn(new VersionResponse("1.0.0"));
+
+    mvc.perform(get("/version"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.version").value("1.0.0"));
+  }
+
+  @Test
+  void missingReleaseReturnsStable404Json() throws Exception {
+    given(versionService.findForReleaseLabel("missing"))
+        .willThrow(new ReleaseNotFoundException("missing"));
+
+    mvc.perform(get("/versions/missing"))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.code").value("RELEASE_NOT_FOUND"))
+        .andExpect(jsonPath("$.message").value("找不到发布标签：missing"));
+  }
+}</code></pre><div class="why"><strong><code>@MockitoBean</code> 是什么？</strong>它用 Mockito 生成的假 Service 覆盖测试上下文中的真实 Service。这样这个测试只验证 Controller 的 URL、HTTP 与 JSON 契约，不需要依赖真实配置或业务内部实现。</div></div></section>
+
+    <h2>7. 排错与总结</h2>
+    <section class="compare"><table><thead><tr><th>现象</th><th>优先检查</th><th>原因</th></tr></thead><tbody><tr><td>应用提示没有 <code>VersionService</code> bean</td><td><code>@Service</code>、包路径、启动类根包</td><td>Spring 只会扫描根包及子包中被识别为组件的类。</td></tr><tr><td><code>@WebMvcTest</code> 启动失败</td><td>测试中是否添加 <code>@MockitoBean VersionService</code></td><td>测试切片只加载 Web 层，Controller 的依赖需要用 mock 提供。</td></tr><tr><td>找不到标签时返回 500</td><td><code>ApiExceptionHandler</code> 的 <code>@RestControllerAdvice</code> 与异常类型</td><td>没有匹配处理器时，异常会落到框架默认错误处理。</td></tr><tr><td>路径访问 404 但没有 JSON</td><td>请求是否为 <code>/versions/missing</code>；路径变量名称是否一致</td><td><code>/version</code> 和 <code>/versions/{releaseLabel}</code> 是两个不同路由。</td></tr></tbody></table></section>
+    <section class="checklist"><h3>完成标准</h3><ul><li><code>/version</code> 的响应保持 <code>{"version":"1.0.0"}</code>。</li><li><code>/versions/local</code> 返回 200 与同一 JSON。</li><li><code>/versions/missing</code> 返回 404、<code>RELEASE_NOT_FOUND</code> 和可读 message。</li><li><code>.\mvnw.cmd test</code> 通过，且 404 契约被测试覆盖。</li><li>能不看代码讲出 Controller、Service、异常处理器的职责边界。</li></ul></section>
+
+    <h2>8. 检索练习</h2>
+    <section class="quiz"><div class="quiz-header">选择后立即获得反馈</div><div class="question" id="q1"><p>1. Service 抛出 <code>ReleaseNotFoundException</code> 而不直接返回 404，主要原因是什么？</p><div class="options"><button class="option" onclick="answerQuestion('q1',this,true,'正确。Service 表达业务事实；HTTP 状态码与 JSON 格式由边界层统一翻译。')">让业务不依赖 HTTP</button><button class="option" onclick="answerQuestion('q1',this,false,'Service 的目标不是避免所有异常，而是让异常具有明确业务含义。')">避免使用所有异常</button><button class="option" onclick="answerQuestion('q1',this,false,'404 是客户端可见的 HTTP 语义，Service 不应负责它。')">因为 404 不能返回 JSON</button><button class="option" onclick="answerQuestion('q1',this,false,'文件数量不是分层的目标；职责边界才是。')">为了创建更多文件</button></div><p class="feedback" data-feedback></p></div><div class="question" id="q2"><p>2. 为什么 <code>@WebMvcTest</code> 中要用 <code>@MockitoBean VersionService</code>？</p><div class="options"><button class="option" onclick="answerQuestion('q2',this,false,'测试仍会创建 Web 层；它替换的是 Controller 所依赖的 Service。')">因为它不加载 Controller</button><button class="option" onclick="answerQuestion('q2',this,true,'正确。测试只锁定 HTTP 契约，不让真实 Service 的配置或内部规则干扰 Controller 测试。')">隔离 Controller 契约</button><button class="option" onclick="answerQuestion('q2',this,false,'mock 不是用来改变生产 HTTP 状态码的。')">把 404 自动改为 200</button><button class="option" onclick="answerQuestion('q2',this,false,'它是 Spring TestContext 的 bean 覆盖机制，不负责端口。')">为了启动真实端口</button></div><p class="feedback" data-feedback></p></div><div class="question" id="q3"><p>3. readiness 与本课的 404 错误，分别描述什么？</p><div class="options"><button class="option" onclick="answerQuestion('q3',this,true,'正确。readiness 描述实例能否接流量；404 描述一个已经到达的请求不满足业务查找条件。')">实例状态与单个请求结果</button><button class="option" onclick="answerQuestion('q3',this,false,'两者都可以是 JSON，但语义和使用者不同。')">完全相同的健康状态</button><button class="option" onclick="answerQuestion('q3',this,false,'404 不等于进程崩溃；它是预期的业务失败。')">都应该重启应用</button><button class="option" onclick="answerQuestion('q3',this,false,'Service 不直接处理 readiness 探针的路由。')">都由 Service 直接返回</button></div><p class="feedback" data-feedback></p></div></section>
+
+    <h2>依据与下一课</h2><section class="sources"><a class="source" href="https://docs.spring.io/spring-framework/reference/core/beans/classpath-scanning.html" target="_blank" rel="noopener"><strong>Spring Framework：组件扫描与 stereotype 注解</strong><small><code>@Service</code>、<code>@Controller</code> 等角色注解如何被 Spring 发现。</small></a><a class="source" href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html" target="_blank" rel="noopener"><strong>Spring Framework：Exception Handling</strong><small><code>@ExceptionHandler</code> 与 <code>ResponseEntity</code> 的官方参考。</small></a><a class="source" href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/RestControllerAdvice.html" target="_blank" rel="noopener"><strong>Spring Framework：RestControllerAdvice API</strong><small>它为何会把全局异常处理结果直接写为响应体。</small></a><a class="source" href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/bean/override/mockito/MockitoBean.html" target="_blank" rel="noopener"><strong>Spring Framework：MockitoBean API</strong><small>测试中替换 Spring Bean 的官方说明。</small></a></section>
+    <p class="lead" style="margin-top:28px">下一课：我们会引入 Repository 的最小概念，把 Service 从“内存中的业务规则”延伸到“如何存取数据”，并继续保持错误契约稳定。</p>
+  </main>
+  <script>
+    function showFeedback(id, text, warn) { const element = document.getElementById(id); element.textContent = text; element.className = `feedback show ${warn ? 'warn' : ''}`; }
+    function reviewFlow() { const value = document.getElementById('flow').value.trim(); if (!value) { showFeedback('flow-feedback', '先写出至少 Controller、Service 和异常处理器三个角色，再检查。', true); return; } showFeedback('flow-feedback', '正确的数据流是：请求先到 Controller；Controller 把业务判断交给 Service；若 Service 抛出业务异常，全局异常处理器把它翻译为统一 HTTP 错误。'); }
+    function answerQuestion(questionId, button, isCorrect, explanation) { const question = document.getElementById(questionId); if (question.dataset.answered) return; question.dataset.answered = 'true'; question.querySelectorAll('button').forEach((item) => { item.disabled = true; }); button.classList.add(isCorrect ? 'correct' : 'wrong'); const feedback = question.querySelector('[data-feedback]'); feedback.textContent = explanation; feedback.className = `feedback show ${isCorrect ? '' : 'warn'}`; }
+  </script>
+</body>
+</html>
