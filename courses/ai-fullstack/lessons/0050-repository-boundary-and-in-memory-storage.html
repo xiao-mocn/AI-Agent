@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第五十课：Repository 边界与内存数据源</title>
+  <style>
+    :root { --ink:#17242d; --muted:#566570; --paper:#f4f7f8; --panel:#fff; --line:#d8e1e5; --accent:#075f77; --accent-pale:#e1f3f6; --good:#176840; --good-pale:#e3f4e9; --warn:#875500; --warn-pale:#fff3dc; --danger:#9b363c; --code:#17242d; } * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.76 Georgia,"Noto Serif SC","Microsoft YaHei",serif; } main { width:min(940px,calc(100% - 34px)); margin:0 auto; padding:48px 0 84px; } .eyebrow,.meta,.tag,label { font:700 12px/1.4 "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.04em; } .eyebrow { color:var(--accent); text-transform:uppercase; } h1,h2,h3 { font-family:"Segoe UI","Microsoft YaHei",sans-serif; } h1 { margin:11px 0 10px; max-width:820px; font-size:clamp(34px,5.5vw,57px); line-height:1.1; letter-spacing:-.03em; } h2 { margin:48px 0 14px; font-size:26px; line-height:1.28; } h3 { margin:0 0 8px; font-size:18px; line-height:1.4; } p { margin:10px 0; } .lead,.meta { color:var(--muted); } .lead { max-width:790px; font-size:19px; } .goal,.callout,.step,.practice,.checklist,.sources,.compare,.quiz { border:1px solid var(--line); background:var(--panel); } .goal { display:grid; grid-template-columns:150px 1fr; gap:19px; margin-top:29px; padding:22px 24px; border-left:5px solid var(--accent); } .goal h2 { margin:0; font-size:18px; } ul { margin:8px 0; padding-left:24px; } li { margin:6px 0; } .tag { display:inline-block; margin:0 6px 5px 0; padding:4px 8px; border-radius:99px; } .tag.must { color:#075269; background:var(--accent-pale); } .tag.later { color:#704607; background:var(--warn-pale); } .callout { margin-top:18px; padding:17px 19px; border-left:5px solid #d59217; background:var(--warn-pale); color:#694507; } .callout.good { border-left-color:var(--good); background:var(--good-pale); color:#195434; } .callout.info { border-left-color:var(--accent); background:var(--accent-pale); color:#164d5d; } .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:16px; } .card { padding:17px; border:1px solid var(--line); background:var(--panel); } .card strong { display:block; margin-bottom:6px; font:700 16px "Segoe UI","Microsoft YaHei",sans-serif; } .step { display:grid; grid-template-columns:44px 1fr; gap:14px; margin-top:15px; padding:20px 21px; } .number { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; color:#fff; background:var(--accent); font:700 14px "Segoe UI",sans-serif; } .step-meta { margin:8px 0 12px; color:var(--muted); font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; } code { padding:.1em .35em; border-radius:3px; color:#07566d; background:#eaf1f3; font:14px ui-monospace,Consolas,monospace; } pre { margin:12px 0 7px; padding:16px; overflow:auto; color:#e8edf1; background:var(--code); font:14px/1.6 ui-monospace,Consolas,monospace; } pre code { padding:0; color:inherit; background:transparent; } .why { margin-top:12px; padding:12px 14px; border-left:3px solid var(--accent); background:#f0f6f7; font-size:15px; } table { width:100%; margin-top:14px; border-collapse:collapse; font-size:15px; } th,td { padding:11px 12px; text-align:left; vertical-align:top; border:1px solid var(--line); } th { color:#294852; background:#edf4f5; font:700 13px "Segoe UI","Microsoft YaHei",sans-serif; } .practice { margin-top:18px; padding:23px; border-top:5px solid var(--accent); } label { display:block; color:var(--muted); } textarea { width:100%; min-height:92px; margin-top:7px; padding:10px; resize:vertical; color:var(--ink); border:1px solid var(--line); background:#fff; font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; } button { min-height:42px; margin-top:12px; padding:9px 14px; color:#fff; border:1px solid var(--accent); background:var(--accent); cursor:pointer; font:700 14px "Segoe UI","Microsoft YaHei",sans-serif; } button:disabled { cursor:default; } .feedback { display:none; margin:14px 0 0; padding:12px 14px; border-left:4px solid var(--accent); color:#164d5d; background:var(--accent-pale); font:15px/1.55 "Segoe UI","Microsoft YaHei",sans-serif; } .feedback.show { display:block; } .feedback.warn { border-color:#d18a13; color:#6a470a; background:var(--warn-pale); } .compare { margin-top:16px; overflow:auto; } .checklist { margin-top:17px; padding:20px 23px; border-left:5px solid var(--good); } .quiz { margin-top:16px; overflow:hidden; } .quiz-header { padding:12px 18px; color:var(--muted); background:#edf4f5; font:700 12px "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:.04em; } .question { padding:20px; border-top:1px solid var(--line); } .question:first-of-type { border-top:0; } .question p { margin-top:0; font-weight:700; } .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .option { min-height:49px; margin:0; color:var(--ink); border-color:var(--line); background:#fff; text-align:left; font-weight:600; } .option.correct { color:var(--good); border-color:var(--good); background:var(--good-pale); } .option.wrong { color:var(--danger); border-color:var(--danger); background:#fbe8e9; } .sources { margin-top:18px; padding:16px 20px; } .source { display:block; padding:10px 0; color:var(--ink); border-bottom:1px solid var(--line); text-decoration:none; } .source:last-child { border-bottom:0; } .source:hover { color:var(--accent); } .source small { display:block; color:var(--muted); } @media (max-width:700px) { main { width:min(100% - 28px,940px); padding-top:32px; } .goal,.grid,.options { grid-template-columns:1fr; } .step { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">AI Full-stack · Java Side Track · Lesson 50</div>
+    <h1>第五十课：Repository 边界与内存数据源</h1>
+    <p class="meta">预计 75–100 分钟 · 基于第 49 课已验证的 Service 与错误契约</p>
+    <p class="lead">第 49 课让 Service 不再关心 HTTP。现在还有一个问题：Service 要从哪里拿版本数据？若它自己保存 Map、读取配置、以后又直接写 SQL，它仍会变成难替换的“大杂烩”。这一课先建立 Repository 边界，再用内存实现模拟数据源。</p>
+
+    <section class="goal"><h2>本课胜利点</h2><ul><li>能用一句话解释 Repository：它是业务层获取与保存数据的边界，不等于数据库。</li><li>定义 <code>ReleaseRepository</code> 接口，并用内存 Map 实现它。</li><li>让 <code>VersionService</code> 只依赖接口；找不到数据时仍表达为 <code>ReleaseNotFoundException</code>。</li><li>写一个不启动 Spring 的 Service 单元测试，分别锁定“找到”和“找不到”的业务行为。</li></ul></section>
+
+    <h2>0. 先分清：Repository 不是数据库</h2>
+    <div class="grid"><article class="card"><strong>Repository：数据边界</strong><p>它向业务层提供“按什么条件取到什么数据”的能力。今天的数据在 Map，下一课可换成数据库；Service 的调用方式保持稳定。</p></article><article class="card"><strong>数据库：一种实现细节</strong><p>MySQL、PostgreSQL、H2 都可能成为 Repository 背后的存储方式。它们不是本课要学习的重点。</p></article><article class="card"><strong>Service：业务解释者</strong><p>Repository 返回空结果时，Service 决定这代表“发布标签不存在”，然后抛出业务异常。</p></article><article class="card"><strong>Controller：HTTP 翻译员</strong><p>它继续调用 Service；无论后面是内存 Map 还是 JPA，它的 URL、状态码和 JSON 契约都不需要改变。</p></article></div>
+    <div class="callout info"><strong>前端类比：</strong>Repository 类似你在 Vue 项目中封装的 API client / 数据访问模块。页面或 composable 只调用 <code>getRelease(label)</code>，不应知道数据是本地 mock、HTTP 请求还是 IndexedDB。</div>
+
+    <h2>1. 先画边界，而不是先写 Map</h2>
+    <section class="practice"><h3>脱稿练习</h3><p>不看后面的代码，写出 <code>GET /versions/local</code> 从 HTTP 请求到版本 JSON 的完整对象链。再补一句：若 Repository 没有数据，哪一层把“空”解释为“找不到发布标签”？</p><label>我的数据流<textarea id="flow" placeholder="提示：Controller → Service → Repository → 内存实现 → VersionResponse"></textarea></label><button type="button" onclick="reviewFlow()">检查思路</button><p id="flow-feedback" class="feedback" aria-live="polite"></p></section>
+
+    <h2>2. 第一步：先声明业务需要的数据能力</h2>
+    <section class="step"><div class="number">1</div><div><h3>新建 <code>ReleaseRepository.java</code></h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/version/ReleaseRepository.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import java.util.Optional;
+
+public interface ReleaseRepository {
+  Optional&lt;VersionResponse&gt; findByReleaseLabel(String releaseLabel);
+}</code></pre><div class="why"><strong><code>Optional</code> 是什么？</strong>它明确告诉调用者：“这里可能没有结果。”比起返回 <code>null</code>，调用代码必须选择如何处理空结果，少一次忘记判空的机会。</div><div class="why"><strong>为什么接口没有 <code>@Repository</code>？</strong>接口只描述能力；真正被 Spring 创建的是下一步的实现类。以后换成 JPA 实现时，接口和使用它的 Service 可以不变。</div></div></section>
+
+    <h2>3. 第二步：用内存 Map 模拟一个数据源</h2>
+    <section class="step"><div class="number">2</div><div><h3>新建 <code>InMemoryReleaseRepository.java</code></h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/version/InMemoryReleaseRepository.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class InMemoryReleaseRepository implements ReleaseRepository {
+  private final Map&lt;String, VersionResponse&gt; versions = Map.of(
+      "local", new VersionResponse("1.0.1"));
+
+  @Override
+  public Optional&lt;VersionResponse&gt; findByReleaseLabel(String releaseLabel) {
+    return Optional.ofNullable(versions.get(releaseLabel));
+  }
+}</code></pre><div class="why"><strong><code>@Repository</code> 在这里做什么？</strong>它告诉 Spring 这是一个数据访问组件，启动时创建并管理这个对象。这里用 Map 只是最小可运行实现，不代表生产环境要把业务数据放在内存中。</div><div class="why"><strong><code>Map.of</code> 为什么合适？</strong>本课数据固定且只读。它能让你专注于边界，而不提前引入保存、删除、事务或数据库连接。</div></div></section>
+
+    <h2>4. 第三步：让 Service 只解释业务结果</h2>
+    <section class="step"><div class="number">3</div><div><h3>替换 <code>VersionService.java</code></h3><p class="step-meta">路径：<code>java-backend/src/main/java/com/example/ai/java_backend/version/VersionService.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class VersionService {
+  private final ReleaseRepository releaseRepository;
+
+  public VersionService(ReleaseRepository releaseRepository) {
+    this.releaseRepository = releaseRepository;
+  }
+
+  public VersionResponse currentVersion() {
+    return findForReleaseLabel("local");
+  }
+
+  public VersionResponse findForReleaseLabel(String releaseLabel) {
+    return releaseRepository.findByReleaseLabel(releaseLabel)
+        .orElseThrow(() -> new ReleaseNotFoundException(releaseLabel));
+  }
+}</code></pre><table><thead><tr><th>这一层做什么</th><th>不在这里做什么</th></tr></thead><tbody><tr><td>把空查询结果翻译为“发布标签不存在”的业务异常。</td><td>不读 Map，不写 SQL，不返回 HTTP 404。</td></tr><tr><td>依赖 <code>ReleaseRepository</code> 接口。</td><td>不依赖 <code>InMemoryReleaseRepository</code> 这个具体类。</td></tr></tbody></table></div></section>
+
+    <h2>5. 第四步：单独测试 Service 的业务解释</h2>
+    <section class="step"><div class="number">4</div><div><h3>新建 <code>VersionServiceTest.java</code></h3><p class="step-meta">路径：<code>java-backend/src/test/java/com/example/ai/java_backend/version/VersionServiceTest.java</code></p><pre><code>package com.example.ai.java_backend.version;
+
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+
+@ExtendWith(MockitoExtension.class)
+class VersionServiceTest {
+  @Mock
+  ReleaseRepository releaseRepository;
+
+  VersionService versionService;
+
+  @BeforeEach
+  void setUp() {
+    versionService = new VersionService(releaseRepository);
+  }
+
+  @Test
+  void returnsVersionProvidedByRepository() {
+    given(releaseRepository.findByReleaseLabel("local"))
+        .willReturn(Optional.of(new VersionResponse("1.0.1")));
+
+    assertThat(versionService.findForReleaseLabel("local").version())
+        .isEqualTo("1.0.1");
+  }
+
+  @Test
+  void throwsBusinessExceptionWhenRepositoryHasNoRelease() {
+    given(releaseRepository.findByReleaseLabel("missing"))
+        .willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> versionService.findForReleaseLabel("missing"))
+        .isInstanceOf(ReleaseNotFoundException.class)
+        .hasMessage("找不到发布标签：missing");
+  }
+}</code></pre><div class="why"><strong>为什么这里不启动 Spring？</strong>这个测试只验证 Service 的业务规则。我们手动把假 Repository 传给构造方法，运行更快，也能准确定位失败是在业务解释而不是 Web 或配置层。</div></div></section>
+
+    <h2>6. 验证：外部契约没有变化</h2>
+    <section class="step"><div class="number">5</div><div><h3>运行测试并手动请求</h3><pre><code>.\mvnw.cmd test
+.\mvnw.cmd spring-boot:run</code></pre><p>测试通过后，另开一个 PowerShell 窗口执行：</p><pre><code>Invoke-RestMethod http://localhost:8080/version
+Invoke-RestMethod http://localhost:8080/versions/local
+
+try {
+  Invoke-RestMethod http://localhost:8080/versions/missing
+} catch {
+  $_.Exception.Response.StatusCode.value__
+  $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+  $reader.ReadToEnd()
+}</code></pre><p>前两个请求应返回 <code>{"version":"1.0.1"}</code>；第三个请求仍应返回 <code>404</code> 与 <code>RELEASE_NOT_FOUND</code>。这就是边界的价值：数据来源变了，客户端的使用方式没有变。</p></div></section>
+
+    <h2>7. 易错点与变式练习</h2>
+    <section class="compare"><table><thead><tr><th>现象</th><th>优先检查</th><th>原因</th></tr></thead><tbody><tr><td>Spring 启动时找不到 <code>ReleaseRepository</code></td><td>实现类是否有 <code>@Repository</code>，且在启动类根包下</td><td>接口本身不能被实例化，Spring 需要一个可管理的实现类。</td></tr><tr><td>找不到标签变成 500</td><td><code>orElseThrow</code> 是否抛出 <code>ReleaseNotFoundException</code></td><td>异常类型必须与第 49 课的全局处理器匹配。</td></tr><tr><td>Service 里出现 Map</td><td>Map 是否移动到内存 Repository</td><td>Service 会重新同时承担业务和数据访问两种职责。</td></tr></tbody></table></section>
+    <div class="callout good"><strong>变式练习：</strong>在 <code>versions</code> 中增加 <code>"staging", new VersionResponse("1.1.0-rc1")</code>。不改 Controller、不改 Service，预测 <code>GET /versions/staging</code> 的状态码与 JSON。完成后问我“为什么这次只改一个类？”</div>
+    <section class="checklist"><h3>完成标准</h3><ul><li>能说出 Repository 是“数据边界”，而不是“数据库同义词”。</li><li><code>ReleaseRepository</code> 只声明查询能力，内存实现负责 Map 查询。</li><li><code>VersionService</code> 通过接口查询并把空结果转成业务异常。</li><li>新增的 Service 测试覆盖找到与找不到两种结果。</li><li><code>.\mvnw.cmd test</code> 通过，三个 HTTP 请求的外部契约保持稳定。</li></ul></section>
+
+    <h2>8. 检索练习</h2>
+    <section class="quiz"><div class="quiz-header">选择后立即获得反馈</div><div class="question" id="q1"><p>1. 为什么本课先写自己的 <code>ReleaseRepository</code>，而不直接引入 JPA？</p><div class="options"><button class="option" onclick="answerQuestion('q1',this,true,'正确。先让你看清数据边界，再引入 JPA 的实体、连接和查询细节；否则很容易把 Repository 误解为某个框架注解。')">先理解数据边界</button><button class="option" onclick="answerQuestion('q1',this,false,'Map 只是一种最小实现，本课的目标不是宣布 Map 比数据库更好。')">Map 永远优于数据库</button><button class="option" onclick="answerQuestion('q1',this,false,'Repository 负责数据访问边界；HTTP 仍由 Controller 与异常处理器负责。')">为了让 Repository 返回 404</button><button class="option" onclick="answerQuestion('q1',this,false,'内存实现本身也是一个 Spring 组件。')">因为 Spring 不能管理它</button></div><p class="feedback" data-feedback></p></div><div class="question" id="q2"><p>2. Repository 返回 <code>Optional.empty()</code> 后，谁应决定它是“发布标签不存在”？</p><div class="options"><button class="option" onclick="answerQuestion('q2',this,false,'Repository 只报告查询结果；它不知道业务语义和 HTTP。')">Repository</button><button class="option" onclick="answerQuestion('q2',this,true,'正确。Service 把空结果解释为业务异常，异常处理器再把异常翻译为 HTTP 404。')">Service</button><button class="option" onclick="answerQuestion('q2',this,false,'Controller 不应重复业务判断。')">Controller</button><button class="option" onclick="answerQuestion('q2',this,false,'Map 只是存储结构，不能表达业务失败。')">Map</button></div><p class="feedback" data-feedback></p></div><div class="question" id="q3"><p>3. 将内存实现替换为 JPA 实现时，哪一层理想情况下不需要修改？</p><div class="options"><button class="option" onclick="answerQuestion('q3',this,true,'正确。Controller 依赖 Service 暴露的 HTTP 契约；数据来源替换应被 Repository 边界吸收。')">Controller</button><button class="option" onclick="answerQuestion('q3',this,false,'内存实现会被替换，正是本课希望隔离的细节。')">内存 Repository</button><button class="option" onclick="answerQuestion('q3',this,false,'JPA 需要新的实现与配置。')">持久化实现</button><button class="option" onclick="answerQuestion('q3',this,false,'数据表属于未来的存储细节。')">数据表</button></div><p class="feedback" data-feedback></p></div></section>
+
+    <h2>依据与下一课</h2><section class="sources"><a class="source" href="https://docs.spring.io/spring-data/commons/reference/repositories.html" target="_blank" rel="noopener"><strong>Spring Data Commons：Working with Spring Data Repositories</strong><small>Repository 抽象旨在减少不同持久化存储的数据访问样板代码。</small></a><a class="source" href="https://docs.spring.io/spring-data/jpa/reference/repositories/core-concepts.html" target="_blank" rel="noopener"><strong>Spring Data JPA：Core Concepts</strong><small>了解 Spring Data 中 Repository、领域类型与 CRUD 抽象的正式定义。</small></a><a class="source" href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html" target="_blank" rel="noopener"><strong>Java API：Optional</strong><small>查看 Optional 如何表示可能存在或不存在的值。</small></a></section>
+    <p class="lead" style="margin-top:28px">下一课：我们把内存实现替换为真正的持久化起点——JPA 实体与 H2 数据库，并检验 Repository 边界是否真的保护了上层代码。</p>
+  </main>
+  <script>
+    function showFeedback(id, text, warn) { const element = document.getElementById(id); element.textContent = text; element.className = `feedback show ${warn ? 'warn' : ''}`; }
+    function reviewFlow() { const value = document.getElementById('flow').value.trim(); if (!value) { showFeedback('flow-feedback', '先写出至少 Controller、Service、Repository 与内存实现四个角色，再检查。', true); return; } showFeedback('flow-feedback', '正确。请求由 Controller 接收，Service 解释业务，Repository 提供数据；空结果由 Service 转成业务异常，再由异常处理器转成 HTTP 404。'); }
+    function answerQuestion(questionId, button, isCorrect, explanation) { const question = document.getElementById(questionId); if (question.dataset.answered) return; question.dataset.answered = 'true'; question.querySelectorAll('button').forEach((item) => { item.disabled = true; }); button.classList.add(isCorrect ? 'correct' : 'wrong'); const feedback = question.querySelector('[data-feedback]'); feedback.textContent = explanation; feedback.className = `feedback show ${isCorrect ? '' : 'warn'}`; }
+  </script>
+</body>
+</html>
