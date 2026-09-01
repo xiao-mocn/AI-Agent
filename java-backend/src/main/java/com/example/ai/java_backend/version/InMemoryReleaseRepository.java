@@ -2,9 +2,7 @@ package com.example.ai.java_backend.version;
 
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public class InMemoryReleaseRepository implements ReleaseRepository {
   // 版本信息存储在内存中的映射表
   private final Map<String, VersionResponse> versions = Map.of(
