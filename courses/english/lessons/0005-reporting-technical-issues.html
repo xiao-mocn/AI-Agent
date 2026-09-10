@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 5 课：描述技术问题和报错</title>
+  <style>
+    :root { --text:#1a1a1a; --muted:#6b6b6b; --accent:#b45309; --bg:#fafaf8; --border:#e2e2dc; --code-bg:#f4f4f0; --success:#16a34a; --warn-bg:#fffbeb; --warn-border:#d97706; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Georgia, 'Times New Roman', serif; font-size:18px; line-height:1.7; color:var(--text); background:var(--bg); max-width:680px; margin:0 auto; padding:4rem 2rem 6rem; }
+    .breadcrumb,.tag,h2,.goal,.step,.vocab,.review,.callout,.warn,.practice-box,.quiz,.teacher-note { font-family:'Helvetica Neue',Arial,sans-serif; }
+    .breadcrumb { font-size:.78rem; color:var(--muted); margin-bottom:2.5rem; letter-spacing:.02em; }
+    .tag { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:3px 9px; border-radius:3px; background:#fef3c7; color:var(--accent); margin-bottom:.9rem; }
+    h1 { font-size:2.1rem; font-weight:normal; line-height:1.25; margin-bottom:.4rem; } .subtitle { font-style:italic; color:var(--muted); font-size:1.05rem; margin-bottom:3rem; }
+    h2 { font-size:.82rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:2.8rem 0 1rem; } p { margin-bottom:1rem; }
+    .goal { border:1px solid var(--border); border-radius:8px; padding:1rem 1.25rem; background:white; margin:1.5rem 0 2rem; font-size:.9rem; } .goal ul,.summary ul { padding-left:1.25rem; } .goal li,.summary li { margin:.35rem 0; }
+    .callout,.warn,.step { border-left:3px solid var(--accent); padding:.75rem 1.1rem; background:#fffbeb; margin:1.5rem 0; font-size:.9rem; line-height:1.6; } .warn { border-left-color:var(--warn-border); background:var(--warn-bg); } .warn strong { color:var(--warn-border); } .step strong { color:var(--accent); }
+    .vocab { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin:1rem 0 1.5rem; } .word-card { border:1px solid var(--border); border-radius:7px; padding:.9rem; background:white; cursor:pointer; } .word-card:hover { border-color:var(--accent); } .word { display:block; color:var(--accent); font-weight:700; font-size:1rem; } .pron { color:var(--muted); font-size:.75rem; margin-left:.25rem; } .meaning { display:none; font-size:.83rem; margin-top:.45rem; line-height:1.5; } .word-card.revealed .meaning { display:block; } .word-card small { display:block; color:var(--muted); margin-top:.3rem; font-size:.75rem; }
+    .review { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin:1rem 0 1.5rem; } .review-item { padding:.65rem; background:var(--code-bg); border:1px solid var(--border); border-radius:5px; font-size:.82rem; } .review-item strong { color:var(--accent); }
+    .memory-plan { padding:1rem 1.25rem; border:1px dashed var(--border); border-radius:8px; background:white; font-family:'Helvetica Neue',Arial,sans-serif; font-size:.88rem; } .memory-plan ol { padding-left:1.25rem; } .memory-plan li { margin:.4rem 0; }
+    code { font-family:'Fira Code',Menlo,Consolas,monospace; background:var(--code-bg); border:1px solid var(--border); padding:1px 5px; border-radius:3px; font-size:.88em; }
+    .pattern { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:1.5rem 0 2rem; font-family:'Helvetica Neue',Arial,sans-serif; } .pattern-row { padding:1rem 1.2rem; border-bottom:1px solid var(--border); } .pattern-row:last-child { border-bottom:none; } .pattern-en { font-family:Georgia,serif; font-size:1.08rem; margin:.45rem 0; } .pattern-zh { font-size:.84rem; color:var(--muted); } .blank { color:var(--accent); border-bottom:2px dotted var(--accent); } .example { margin-top:.5rem; padding:.55rem .8rem; background:var(--code-bg); border-left:3px solid var(--accent); font-size:.88rem; }
+    .practice-box { border:1px dashed var(--border); border-radius:8px; padding:1.1rem 1.25rem; margin:1.5rem 0 2rem; } textarea { width:100%; min-height:135px; margin-top:.7rem; padding:.6rem; font-family:Georgia,serif; font-size:1rem; border:1px solid var(--border); border-radius:6px; resize:vertical; } .practice-hint { font-size:.8rem; color:var(--muted); margin-top:.5rem; }
+    .quiz { margin:1.5rem 0 2rem; border:1px solid var(--border); border-radius:8px; overflow:hidden; } .quiz-header { padding:.6rem 1.1rem; background:var(--code-bg); border-bottom:1px solid var(--border); font-size:.72rem; font-weight:700; letter-spacing:.1em; color:var(--muted); } .quiz-q { padding:1rem 1.1rem; border-bottom:1px solid var(--border); } .quiz-q:last-child { border-bottom:none; } .quiz-question { font-family:Georgia,serif; font-size:.95rem; margin-bottom:.7rem; } .quiz-options { display:flex; gap:.5rem; flex-wrap:wrap; } .quiz-btn { padding:.35rem .8rem; border:1px solid var(--border); background:white; border-radius:4px; cursor:pointer; font-size:.82rem; } .quiz-btn.correct { border-color:var(--success); background:#f0fdf4; color:var(--success); } .quiz-btn.wrong { border-color:#dc2626; background:#fef2f2; color:#dc2626; } .quiz-explain { display:none; color:var(--muted); margin-top:.55rem; padding-top:.55rem; border-top:1px dashed var(--border); font-size:.82rem; } .quiz-explain.show { display:block; }
+    hr { border:none; border-top:1px solid var(--border); margin:2.5rem 0; } .teacher-note { padding:1rem 1.1rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; font-size:.88rem; line-height:1.6; }
+    @media (max-width:520px) { .vocab { grid-template-columns:1fr; } .review { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="breadcrumb">程序员英语实战 › 第 5 课（共 N 课）</div>
+  <div class="tag">第 5 课 · 词汇强化 + 团队协作</div>
+  <h1>描述技术问题和报错</h1>
+  <p class="subtitle">先记住关键技术词，再把“哪里坏了、何时发生、试过什么”说清楚。</p>
+
+  <div class="goal"><strong>本课目标</strong><ul><li>记住并能识别 12 个报错与排查场景的高频技术词。</li><li>复习 6 个已学协作词，防止学过就忘。</li><li>能用 3 句话报告一个可定位的技术问题。</li></ul></div>
+
+  <h2>本课先背：12 个新技术词</h2>
+  <p>先遮住中文，读出英文和例句；点击卡片后再核对含义。不要一次只看不回忆——“先想、再看答案”才是在练记忆。</p>
+  <div class="vocab" id="vocab">
+    <div class="word-card"><span class="word">issue <span class="pron">/ˈɪʃuː/</span></span><small>We found an issue in production.</small><div class="meaning">问题、故障（泛指需要处理的技术问题）</div></div>
+    <div class="word-card"><span class="word">error message</span><small>The error message says "Access denied".</small><div class="meaning">错误信息；报告问题时尽量保留原文</div></div>
+    <div class="word-card"><span class="word">reproduce <span class="pron">/ˌriːprəˈduːs/</span></span><small>I can reproduce the issue.</small><div class="meaning">复现（让同一个问题再次发生）</div></div>
+    <div class="word-card"><span class="word">steps to reproduce</span><small>Here are the steps to reproduce.</small><div class="meaning">复现步骤</div></div>
+    <div class="word-card"><span class="word">environment</span><small>It only happens in staging.</small><div class="meaning">运行环境，如本地、测试环境、生产环境</div></div>
+    <div class="word-card"><span class="word">browser</span><small>Which browser are you using?</small><div class="meaning">浏览器</div></div>
+    <div class="word-card"><span class="word">version</span><small>I'm using version 2.4.1.</small><div class="meaning">版本</div></div>
+    <div class="word-card"><span class="word">occur <span class="pron">/əˈkɜːr/</span></span><small>The error occurs after login.</small><div class="meaning">发生、出现（常用于错误或问题）</div></div>
+    <div class="word-card"><span class="word">fail</span><small>The request fails with a 500 error.</small><div class="meaning">失败；请求、测试或部署未成功</div></div>
+    <div class="word-card"><span class="word">log</span><small>I checked the server logs.</small><div class="meaning">日志</div></div>
+    <div class="word-card"><span class="word">screenshot</span><small>I attached a screenshot.</small><div class="meaning">截图</div></div>
+    <div class="word-card"><span class="word">workaround</span><small>We have a temporary workaround.</small><div class="meaning">临时绕过方案，不等于根本修复</div></div>
+  </div>
+
+  <h2>间隔复习：6 个已学词</h2>
+  <p>先说中文再看英文；今天的词会在下一课继续出现。</p>
+  <div class="review"><div class="review-item"><strong>requirement</strong><br>需求</div><div class="review-item"><strong>scope</strong><br>范围</div><div class="review-item"><strong>confirm</strong><br>确认</div><div class="review-item"><strong>repeat</strong><br>重复说一遍</div><div class="review-item"><strong>internal</strong><br>内部的</div><div class="review-item"><strong>ticket</strong><br>工单</div></div>
+  <div class="memory-plan"><strong>今天的 8 分钟背诵法</strong><ol><li>用 3 分钟读 12 张新词卡，点击前先猜中文。</li><li>用 2 分钟遮住英文，按中文说出 6 个复习词。</li><li>用 2 分钟朗读下方 3 句问题报告。</li><li>今晚和明天各再看一遍词卡；忘记的词单独抄到你的复习清单。</li></ol></div>
+
+  <h2>用词汇组织一份问题报告</h2>
+  <p>报错时不必讲复杂语法。让同事能开始排查的最小信息是：现象、发生条件、你已经提供或尝试的线索。</p>
+  <div class="pattern"><div class="pattern-row"><strong>1. 先说现象</strong><p class="pattern-en">I'm seeing an <span class="blank">error</span> when I ___.</p><p class="pattern-zh">当我 ___ 时出现了一个错误。</p><div class="example">I'm seeing an error when I submit the form.</div></div><div class="pattern-row"><strong>2. 补充发生条件</strong><p class="pattern-en">It only <span class="blank">occurs</span> in ___.</p><p class="pattern-zh">它只在 ___ 环境/条件下发生。</p><div class="example">It only occurs in the staging environment.</div></div><div class="pattern-row"><strong>3. 给出线索或已尝试的动作</strong><p class="pattern-en">I checked the <span class="blank">logs</span> and attached a screenshot.</p><p class="pattern-zh">我查看了日志，并附上了截图。</p><div class="example">I can reproduce it with these steps.</div></div></div>
+  <div class="warn"><strong>报告时的底线：</strong>不要只写 <em>It doesn't work.</em>。至少补上一个动作（when I submit...）、一个环境（in staging...）或一条错误信息。细节越可复现，别人越容易帮你。</div>
+
+  <h2>轮到你了</h2>
+  <div class="step"><strong>步骤 1：</strong>从 12 个新词里挑 4 个，遮住中文后说出含义；不会的词在今晚再复习一次。</div>
+  <div class="step"><strong>步骤 2：</strong>选一个真实或虚构问题，例如“登录后提交表单返回 500”。写下发生动作、环境和一条线索。</div>
+  <div class="step"><strong>步骤 3：</strong>用下面的模板写 3 句问题报告，至少使用 3 个本课新词，然后大声读一遍。</div>
+  <div class="practice-box"><p>可直接替换空格中的内容：</p><textarea placeholder="I'm seeing an error when I ...&#10;It only occurs in ...&#10;I checked the logs / attached a screenshot / can reproduce it with these steps."></textarea><p class="practice-hint">不必追求长句。能让同事复现并开始定位，就是一份合格的问题报告。</p></div>
+
+  <h2>词汇与场景测验</h2>
+  <div class="quiz"><div class="quiz-header">快速测验 · 三题</div>
+    <div class="quiz-q" id="q1"><p class="quiz-question">1. “复现步骤”最准确的英文是？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q1',this,true,'正确。steps to reproduce 指让问题再次发生的一系列操作，是 bug 报告的重要信息。')">steps to reproduce</button><button class="quiz-btn" onclick="answer('q1',this,false,'error message 是错误信息，不是操作步骤。')">error message</button><button class="quiz-btn" onclick="answer('q1',this,false,'workaround 是临时绕过方案。')">workaround</button></div><div class="quiz-explain" id="q1-explain"></div></div>
+    <div class="quiz-q" id="q2"><p class="quiz-question">2. The request ___ with a 500 error.</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q2',this,false,'occur 表示发生，不能自然地表示请求未成功。')">occurs</button><button class="quiz-btn" onclick="answer('q2',this,true,'正确。fail 表示请求、测试或部署没有成功；主语 request 是单数，因此用 fails。')">fails</button><button class="quiz-btn" onclick="answer('q2',this,false,'repeat 表示重复，不符合请求失败的语境。')">repeats</button></div><div class="quiz-explain" id="q2-explain"></div></div>
+    <div class="quiz-q" id="q3"><p class="quiz-question">3. 为什么报错时要说明 environment 和 version？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q3',this,true,'正确。环境和版本能帮助同事缩小问题范围，判断是否只在某个平台、浏览器或版本出现。')">帮助缩小复现范围</button><button class="quiz-btn" onclick="answer('q3',this,false,'信息足够具体时，排查通常会更快而不是更慢。')">让排查更慢</button><button class="quiz-btn" onclick="answer('q3',this,false,'它们描述的是问题条件，而不是代码作者。')">说明代码作者</button></div><div class="quiz-explain" id="q3-explain"></div></div>
+  </div>
+  <h2>本课总结</h2><div class="summary"><ul><li>本课的 12 个新词围绕报错、复现和排查，先能认出，再能在报告里用出来。</li><li>每节固定复习 6 个旧词，用短间隔防止词汇快速遗忘。</li><li>问题报告至少说明：现象、发生条件、已有线索或尝试。</li><li><em>workaround</em> 是临时方案；真正修复仍需要找到根因。</li></ul></div>
+  <hr><div class="teacher-note"><strong>有疑问吗？</strong> 例如“issue 和 bug 有什么区别？”或“日志里有敏感信息时应该怎么报告？”都可以问我。<p>下一课我们会学习英文技术文档里的<strong>常见指令词</strong>，继续用新词与旧词复习的节奏，读懂 README 和安装步骤。</p></div>
+  <script>
+    document.querySelectorAll('.word-card').forEach(card => card.addEventListener('click', () => card.classList.toggle('revealed')));
+    function answer(qid, btn, isCorrect, explanation) { const box=document.getElementById(qid); if (box.dataset.answered) return; box.dataset.answered='1'; box.querySelectorAll('.quiz-btn').forEach(b=>b.disabled=true); btn.classList.add(isCorrect?'correct':'wrong'); const exp=document.getElementById(qid+'-explain'); exp.textContent=(isCorrect?'正确。 ':'错误。 ')+explanation; exp.classList.add('show'); }
+  </script>
+</body>
+</html>
