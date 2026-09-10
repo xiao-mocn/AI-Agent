@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 4 课：英文技术澄清提问</title>
+  <style>
+    :root { --text:#1a1a1a; --muted:#6b6b6b; --accent:#b45309; --bg:#fafaf8; --border:#e2e2dc; --code-bg:#f4f4f0; --success:#16a34a; --warn-bg:#fffbeb; --warn-border:#d97706; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Georgia, 'Times New Roman', serif; font-size:18px; line-height:1.7; color:var(--text); background:var(--bg); max-width:680px; margin:0 auto; padding:4rem 2rem 6rem; }
+    .breadcrumb, .tag, h2, .goal, .step, .pattern, .callout, .warn, .practice-box, .quiz, .teacher-note { font-family:'Helvetica Neue', Arial, sans-serif; }
+    .breadcrumb { font-size:.78rem; color:var(--muted); margin-bottom:2.5rem; letter-spacing:.02em; }
+    .tag { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:3px 9px; border-radius:3px; background:#fef3c7; color:var(--accent); margin-bottom:.9rem; }
+    h1 { font-size:2.1rem; font-weight:normal; line-height:1.25; margin-bottom:.4rem; }
+    .subtitle { font-style:italic; color:var(--muted); font-size:1.05rem; margin-bottom:3rem; }
+    h2 { font-size:.82rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:2.8rem 0 1rem; }
+    p { margin-bottom:1rem; } strong { font-weight:bold; }
+    .goal { border:1px solid var(--border); border-radius:8px; padding:1rem 1.25rem; background:white; margin:1.5rem 0 2rem; font-size:.9rem; }
+    .goal ul, .summary ul { padding-left:1.25rem; } .goal li, .summary li { margin:.35rem 0; }
+    .pattern { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:1.5rem 0 2rem; }
+    .pattern-row { border-bottom:1px solid var(--border); padding:1.1rem 1.25rem; } .pattern-row:last-child { border-bottom:none; }
+    .pattern-num { display:inline-flex; width:22px; height:22px; border-radius:50%; background:var(--accent); color:white; font-size:.72rem; font-weight:700; align-items:center; justify-content:center; margin-right:.5rem; }
+    .pattern-en { font-family:Georgia, serif; font-size:1.15rem; margin:.5rem 0 .4rem; } .blank { color:var(--accent); border-bottom:2px dotted var(--accent); padding:0 3px; }
+    .pattern-zh { font-size:.85rem; color:var(--muted); margin-bottom:.6rem; }
+    .pattern-example { font-size:.9rem; background:var(--code-bg); border-left:3px solid var(--accent); padding:.5rem .9rem; margin-top:.4rem; }
+    .zh { color:var(--muted); font-size:.82rem; margin-top:.2rem; }
+    .callout, .warn, .step { border-left:3px solid var(--accent); padding:.75rem 1.1rem; background:#fffbeb; margin:1.5rem 0; font-size:.9rem; line-height:1.6; }
+    .warn { border-left-color:var(--warn-border); background:var(--warn-bg); } .warn strong { color:var(--warn-border); }
+    .step strong { color:var(--accent); } .step code, code { font-family:'Fira Code', Menlo, Consolas, monospace; background:var(--code-bg); border:1px solid var(--border); padding:1px 5px; border-radius:3px; font-size:.88em; }
+    .practice-box { border:1px dashed var(--border); border-radius:8px; padding:1.1rem 1.25rem; margin:1.5rem 0 2rem; }
+    textarea { width:100%; margin-top:.7rem; font-family:Georgia, serif; font-size:1rem; padding:.6rem; border:1px solid var(--border); border-radius:6px; resize:vertical; min-height:110px; }
+    .practice-hint { font-size:.8rem; color:var(--muted); margin-top:.5rem; }
+    .quiz { margin:1.5rem 0 2rem; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .quiz-header { background:var(--code-bg); border-bottom:1px solid var(--border); padding:.6rem 1.1rem; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+    .quiz-q { padding:1rem 1.1rem; border-bottom:1px solid var(--border); } .quiz-q:last-child { border-bottom:none; }
+    .quiz-question { font-size:.95rem; margin-bottom:.7rem; line-height:1.6; font-family:Georgia, serif; }
+    .quiz-options { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .quiz-btn { font-family:'Helvetica Neue', Arial, sans-serif; font-size:.83rem; padding:.35rem .9rem; border:1px solid var(--border); border-radius:4px; background:white; cursor:pointer; }
+    .quiz-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); } .quiz-btn.correct { border-color:var(--success); background:#f0fdf4; color:var(--success); } .quiz-btn.wrong { border-color:#dc2626; background:#fef2f2; color:#dc2626; }
+    .quiz-explain { display:none; font-size:.83rem; color:var(--muted); margin-top:.6rem; line-height:1.5; padding-top:.6rem; border-top:1px dashed var(--border); } .quiz-explain.show { display:block; }
+    .resources { margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border); } .teacher-note { margin-top:2rem; padding:1rem 1.1rem; background:#f0fdf4; border-radius:6px; font-size:.88rem; line-height:1.6; border:1px solid #bbf7d0; }
+    .summary { margin:1.5rem 0; } hr { border:none; border-top:1px solid var(--border); margin:2.5rem 0; }
+  </style>
+</head>
+<body>
+  <div class="breadcrumb">程序员英语实战 › 第 4 课（共 N 课）</div>
+  <div class="tag">第 4 课 · 团队协作</div>
+  <h1>没听懂时，怎样用英文澄清技术需求</h1>
+  <p class="subtitle">不是假装听懂，而是用简短问题把范围、含义和下一步问清楚。</p>
+
+  <div class="goal">
+    <strong>本课目标</strong>
+    <ul>
+      <li>能礼貌地表示自己没有完全听懂。</li>
+      <li>能针对术语、范围和验收标准提出一个具体问题。</li>
+      <li>能在提问后复述理解，避免带着错误假设开始开发。</li>
+    </ul>
+  </div>
+
+  <h2>为什么澄清比猜测更专业</h2>
+  <p>在技术讨论里，听不懂一个词、没听清一个限制条件都很正常。真正危险的不是提问，而是点头后按自己的理解实现，直到评审或上线才发现范围错了。</p>
+  <p>好的澄清问题很短：先说明要确认什么，再只问一个具体点。这样既不打断讨论，也让对方容易直接回答。</p>
+
+  <h2>三个核心句型</h2>
+  <div class="pattern">
+    <div class="pattern-row">
+      <div><span class="pattern-num">1</span><strong>请对方重复或换一种说法</strong></div>
+      <p class="pattern-en">Could you <span class="blank">repeat that</span>, please?</p>
+      <p class="pattern-zh">你可以再说一遍吗？适合没听清整句话或某个关键句。</p>
+      <div class="pattern-example">Could you repeat the requirement for the export feature, please?<div class="zh">你可以再说一遍导出功能的需求吗？</div></div>
+    </div>
+    <div class="pattern-row">
+      <div><span class="pattern-num">2</span><strong>确认一个术语或范围</strong></div>
+      <p class="pattern-en">What do you mean by <span class="blank">___</span>?</p>
+      <p class="pattern-zh">你说的 ___ 是什么意思？把不清楚的词直接放进空格。</p>
+      <div class="pattern-example">What do you mean by "guest users" in this ticket?<div class="zh">这个工单里说的“访客用户”具体指什么？</div></div>
+    </div>
+    <div class="pattern-row">
+      <div><span class="pattern-num">3</span><strong>复述理解并请求确认</strong></div>
+      <p class="pattern-en">Just to confirm, <span class="blank">___</span>, right?</p>
+      <p class="pattern-zh">我确认一下，___，对吗？适合在开始工作前锁定边界。</p>
+      <div class="pattern-example">Just to confirm, we only need the API this sprint, not the UI, right?<div class="zh">我确认一下，这个迭代我们只需要 API，不需要 UI，对吗？</div></div>
+    </div>
+  </div>
+
+  <div class="warn"><strong>一个常见误区：</strong>不要只说 <em>I don't understand.</em> 然后停住。这句话没有错，但信息太少。补上具体对象，例如 <em>I don't understand what "archived" means here.</em>，对方才能高效回答。</div>
+
+  <h2>把问题问得可回答</h2>
+  <p>澄清问题常围绕三类信息：谁会使用它、这次要做哪些部分、怎样才算完成。比起问“这个需求是什么意思”，优先问一个能得到明确答案的小问题。</p>
+  <div class="callout"><strong>实用顺序：</strong>没听清时先请重复；听懂字面但不懂含义时问术语；准备开始做时用 <em>Just to confirm</em> 复述范围。</div>
+
+  <h2>轮到你了</h2>
+  <div class="step"><strong>步骤 1：</strong>想一个你最近见过的模糊需求，例如“支持分享”“优化登录”或“增加管理员权限”。</div>
+  <div class="step"><strong>步骤 2：</strong>选择一个你最需要确认的点：术语含义、用户范围，还是本次是否包含某个功能。</div>
+  <div class="step"><strong>步骤 3：</strong>用下面的三句话写一段迷你澄清对话，并大声读一遍。目标不是句子长，而是问题具体。</div>
+  <div class="practice-box">
+    <p>按这个顺序写：请重复 / 问一个具体含义 / 复述你的理解。</p>
+    <textarea placeholder="Could you repeat ...?&#10;What do you mean by ...?&#10;Just to confirm, ..., right?"></textarea>
+    <p class="practice-hint">如果你不确定某个名词怎么说，可以先保留中文或工单里的英文原词；先把澄清动作做出来，比硬翻译更重要。</p>
+  </div>
+
+  <h2>练习：检验你的理解</h2>
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+    <div class="quiz-q" id="q1"><p class="quiz-question">1. 你没听清同事刚才说的范围，最合适的开头是？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q1',this,true,'正确。Could you repeat that, please? 礼貌、直接，适合请对方重复刚才的信息。')">Could you repeat that, please?</button><button class="quiz-btn" onclick="answer('q1',this,false,'这句话没有提出问题，也没有说明你需要对方做什么。')">I don't know.</button><button class="quiz-btn" onclick="answer('q1',this,false,'这不是请求重复的自然表达。')">Repeat again.</button></div><div class="quiz-explain" id="q1-explain"></div></div>
+    <div class="quiz-q" id="q2"><p class="quiz-question">2. What do you mean ___ "internal users"?</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q2',this,false,'about 不能和 mean 组成这个固定问法。')">about</button><button class="quiz-btn" onclick="answer('q2',this,true,'正确。What do you mean by ...? 是询问词语或说法具体含义的固定句型。')">by</button><button class="quiz-btn" onclick="answer('q2',this,false,'with 不符合 What do you mean by ...? 这个搭配。')">with</button></div><div class="quiz-explain" id="q2-explain"></div></div>
+    <div class="quiz-q" id="q3"><p class="quiz-question">3. 为什么在开发前说 Just to confirm, we only need the API, right? 很有价值？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q3',this,true,'正确。复述你的理解并请对方确认，能在投入开发前发现范围误解。')">确认范围，减少返工</button><button class="quiz-btn" onclick="answer('q3',this,false,'这句话不是为了拖延，而是为了快速消除不确定性。')">让会议更长</button><button class="quiz-btn" onclick="answer('q3',this,false,'它询问的是需求范围，不是个人评价。')">评价对方英语</button></div><div class="quiz-explain" id="q3-explain"></div></div>
+  </div>
+
+  <h2>本课总结</h2>
+  <div class="summary"><ul><li><em>Could you repeat that, please?</em>：没听清时请求重复。</li><li><em>What do you mean by ...?</em>：把模糊术语问具体。</li><li><em>Just to confirm, ..., right?</em>：复述范围并获得确认。</li><li>一次只澄清一个关键点，让对方容易回答。</li></ul></div>
+
+  <hr>
+  <div class="teacher-note"><strong>有疑问吗？</strong> 例如“Could you explain that again 和 Could you repeat that 有什么区别？”或“怎样不显得频繁打断别人？”都可以直接问我。<p>下一课我们会学习怎么在英文里<strong>描述技术问题和报错</strong>——把“哪里坏了、什么时候发生、我试过什么”说清楚，让同事更快帮你定位问题。</p></div>
+  <script>
+    function answer(qid, btn, isCorrect, explanation) { const container = document.getElementById(qid); if (container.dataset.answered) return; container.dataset.answered = '1'; container.querySelectorAll('.quiz-btn').forEach(b => b.disabled = true); btn.classList.add(isCorrect ? 'correct' : 'wrong'); const explainEl = document.getElementById(qid + '-explain'); explainEl.innerHTML = (isCorrect ? '正确。' : '错误。') + ' ' + explanation; explainEl.classList.add('show'); }
+  </script>
+</body>
+</html>
