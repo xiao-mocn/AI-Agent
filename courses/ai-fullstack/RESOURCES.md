@@ -2,7 +2,36 @@
 
 ## Knowledge
 
+### 公司项目一手资料（本地只读）
+
+- `E:\project\eao-api\README.md` 与 `E:\project\eao-api\pom.xml`
+  eao-api 的模块职责、构建边界和 Maven 聚合关系。用于：第 53 课绘制项目地图，不作为 Java 语法教材。
+
+- `E:\project\eao-front\src\api\iot\brand\index.ts`
+  品牌管理前端 API 地址与 HTTP 方法的一手来源。用于：从熟悉的 TypeScript 调用反查后端入口。
+
+- `E:\project\eao-api\domains\eao-model\src\main\java\com\dgc\ems\hmi\model\controller\admin\brand\BrandController.java`
+  品牌管理 HTTP 入口。用于：识别 Controller、参数绑定、校验和统一响应包装。
+
+- `E:\project\eao-api\domains\eao-model\src\main\java\com\dgc\ems\hmi\model\service\model\brand\BrandService.java` 与 `BrandServiceImpl.java`
+  品牌管理业务接口和实现。用于：识别依赖注入、业务校验、事务和 Mapper 调用。
+
+- `E:\project\eao-api\domains\eao-model\src\main\java\com\dgc\ems\hmi\model\dal\dataobject\model\brand\BrandInfoDO.java` 与 `dal\mapper\model\brand\BrandInfoMapper.java`
+  品牌数据对象和 MyBatis-Plus 查询入口。用于：理解 DO、表映射和分页查询条件。
+
+- `E:\project\eao-api\domains\eao-model\src\main\java\com\dgc\ems\hmi\model\convert\device\BrandConvert.java`
+  MapStruct 对象转换边界。用于：理解请求/响应 VO 与数据库 DO 为什么不直接混用。
+
 ### 后端基础
+
+- [Apache Maven：多模块项目指南](https://maven.apache.org/guides/mini/guide-multiple-modules.html)
+  Maven 官方说明 Reactor 如何收集、排序和构建多个模块。用于：理解 `eao-api` 根 POM 与四个子模块的构建关系。
+
+- [Apache Maven：POM 与项目聚合](https://maven.apache.org/guides/introduction/introduction-to-the-pom.html#project-aggregation)
+  Maven 官方说明 `packaging=pom`、`modules`、继承和聚合的区别。用于：阅读父 POM 和模块 POM。
+
+- [Spring Boot：组织代码结构](https://docs.spring.io/spring-boot/reference/using/structuring-your-code.html)
+  Spring Boot 官方说明主应用类、根包和组件扫描之间的关系。用于：理解 `app` 为什么能够发现领域模块中的组件。
 
 - [Node.js 官方入门指南](https://nodejs.org/en/learn/getting-started/introduction-to-nodejs)
   官方文档，覆盖事件循环、模块系统、HTTP 基础。用于：第一次写 Node.js 时的参考基准。
