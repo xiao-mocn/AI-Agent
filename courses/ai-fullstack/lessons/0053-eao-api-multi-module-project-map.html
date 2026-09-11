@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>第五十三课：eao-api 多模块项目地图</title>
+  <style>
+    :root {
+      --ink: #e8f0f2;
+      --muted: #9babb2;
+      --paper: #0b1419;
+      --panel: #111e24;
+      --panel-strong: #17272e;
+      --line: #2a3e47;
+      --accent: #ffb454;
+      --accent-soft: #332718;
+      --cyan: #67d8d1;
+      --cyan-soft: #14302f;
+      --good: #8bd17c;
+      --danger: #ff8585;
+      --system: #ffb454;
+      --infra: #67d8d1;
+      --model: #ec8fc8;
+      --app: #8eb5ff;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(103, 216, 209, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(103, 216, 209, .035) 1px, transparent 1px),
+        radial-gradient(circle at 18% 3%, rgba(255, 180, 84, .12), transparent 28rem),
+        var(--paper);
+      background-size: 28px 28px, 28px 28px, auto, auto;
+      font: 17px/1.78 Cambria, "Noto Serif SC", "Microsoft YaHei", serif;
+    }
+
+    main { width: min(1040px, calc(100% - 34px)); margin: 0 auto; padding: 42px 0 90px; }
+    h1, h2, h3, .eyebrow, .meta, button, .tag, th, .kicker {
+      font-family: Bahnschrift, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    }
+    h1 { max-width: 900px; margin: 12px 0 14px; font-size: clamp(38px, 6vw, 68px); line-height: 1.04; letter-spacing: -.045em; }
+    h2 { margin: 58px 0 16px; font-size: clamp(25px, 4vw, 34px); line-height: 1.2; }
+    h3 { margin: 0 0 9px; font-size: 19px; line-height: 1.35; }
+    p { margin: 10px 0; }
+    a { color: var(--cyan); }
+    code { padding: .12em .36em; border: 1px solid rgba(103, 216, 209, .16); border-radius: 4px; color: #a9eeea; background: #0c191e; font: 14px/1.5 Consolas, monospace; }
+    pre { margin: 14px 0 8px; padding: 17px 19px; overflow: auto; border: 1px solid var(--line); color: #dbe6e9; background: #081115; font: 14px/1.65 Consolas, monospace; }
+    pre code { padding: 0; border: 0; color: inherit; background: transparent; }
+    .eyebrow, .meta, .kicker, .tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .eyebrow { color: var(--accent); }
+    .meta, .lead { color: var(--muted); }
+    .lead { max-width: 840px; font-size: 20px; }
+    .phase-banner { display: flex; gap: 12px; align-items: center; margin: 28px 0 0; padding: 14px 17px; border: 1px solid #574125; color: #ffd69d; background: rgba(51, 39, 24, .76); }
+    .phase-banner strong { font-family: Bahnschrift, "Microsoft YaHei UI", sans-serif; }
+    .tag { display: inline-block; padding: 4px 8px; border-radius: 99px; color: var(--paper); background: var(--accent); white-space: nowrap; }
+    .goal, .callout, .step, .practice, .summary, .sources, .quiz, .map-shell, .routing-lab {
+      border: 1px solid var(--line);
+      background: rgba(17, 30, 36, .94);
+      box-shadow: var(--shadow);
+    }
+    .goal { display: grid; grid-template-columns: 170px 1fr; gap: 22px; margin-top: 25px; padding: 24px 26px; border-left: 5px solid var(--accent); }
+    .goal h2 { margin: 0; font-size: 18px; }
+    ul { margin: 8px 0; padding-left: 23px; }
+    li { margin: 7px 0; }
+    .callout { margin-top: 17px; padding: 17px 20px; border-left: 5px solid var(--cyan); }
+    .callout.warn { border-left-color: var(--accent); background: rgba(51, 39, 24, .84); }
+    .callout.good { border-left-color: var(--good); background: rgba(24, 53, 34, .84); }
+    .map-shell { position: relative; overflow: hidden; padding: 26px; }
+    .map-shell::before { content: "PROJECT MAP / 01"; position: absolute; top: 13px; right: 16px; color: #45606b; font: 700 11px Consolas, monospace; letter-spacing: .12em; }
+    .project-map { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; margin-top: 18px; }
+    .tree { margin: 0; padding: 20px; border: 1px solid var(--line); background: #0a151a; font: 14px/1.78 Consolas, monospace; white-space: pre-wrap; }
+    .tree .root { color: var(--accent); font-weight: 700; }
+    .tree .system { color: var(--system); }
+    .tree .infra { color: var(--infra); }
+    .tree .model { color: var(--model); }
+    .tree .app { color: var(--app); }
+    .station-list { display: grid; gap: 10px; }
+    .station { width: 100%; min-height: 60px; margin: 0; padding: 13px 15px; border: 1px solid var(--line); color: var(--ink); background: var(--panel-strong); text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+    .station:hover, .station:focus-visible { transform: translateX(5px); border-color: var(--cyan); outline: none; }
+    .station.active { color: #081115; border-color: currentColor; background: var(--cyan); }
+    .station strong { display: block; margin-bottom: 3px; font-size: 16px; }
+    .station small { opacity: .76; }
+    .module-detail { min-height: 112px; margin-top: 14px; padding: 16px 18px; border: 1px dashed #45606b; background: #0a151a; }
+    .module-detail strong { color: var(--accent); font-family: Bahnschrift, "Microsoft YaHei UI", sans-serif; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { padding: 18px; border: 1px solid var(--line); background: rgba(17, 30, 36, .94); }
+    .card strong { display: block; margin-bottom: 6px; color: var(--accent); font-family: Bahnschrift, "Microsoft YaHei UI", sans-serif; }
+    .step { display: grid; grid-template-columns: 48px 1fr; gap: 15px; margin-top: 15px; padding: 22px; }
+    .number { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font: 700 14px Consolas, monospace; }
+    .step-meta { color: var(--muted); font: 14px/1.6 Bahnschrift, "Microsoft YaHei UI", sans-serif; }
+    table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 15px; }
+    th, td { padding: 12px 13px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--accent); background: #0a151a; font-size: 13px; }
+    .practice, .routing-lab { margin-top: 18px; padding: 23px; border-top: 5px solid var(--cyan); }
+    label { display: block; margin-top: 14px; color: var(--muted); font: 700 13px/1.5 Bahnschrift, "Microsoft YaHei UI", sans-serif; }
+    textarea { width: 100%; min-height: 104px; margin-top: 7px; padding: 12px; resize: vertical; border: 1px solid var(--line); color: var(--ink); background: #081115; font: 14px/1.6 Consolas, monospace; }
+    button.action { min-height: 43px; margin-top: 12px; padding: 9px 15px; border: 1px solid var(--cyan); color: #081115; background: var(--cyan); cursor: pointer; font-weight: 800; }
+    button.action:hover, button.action:focus-visible { filter: brightness(1.08); outline: 3px solid rgba(103, 216, 209, .2); }
+    .feedback { display: none; margin: 14px 0 0; padding: 13px 15px; border-left: 4px solid var(--cyan); color: #b8f2ee; background: var(--cyan-soft); }
+    .feedback.show { display: block; }
+    .feedback.warn { border-left-color: var(--accent); color: #ffd69d; background: var(--accent-soft); }
+    .route-items { display: grid; gap: 13px; margin-top: 16px; }
+    .route-item { padding: 16px; border: 1px solid var(--line); background: #0a151a; }
+    .route-item p { margin-top: 0; font-weight: 700; }
+    .route-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .route-options button, .options button { min-height: 48px; margin: 0; padding: 9px 10px; border: 1px solid var(--line); color: var(--ink); background: var(--panel-strong); cursor: pointer; font-weight: 700; }
+    .route-options button:hover, .options button:hover { border-color: var(--cyan); }
+    .route-options button.correct, .option.correct { color: #0b1a0e; border-color: var(--good); background: var(--good); }
+    .route-options button.wrong, .option.wrong { color: #260707; border-color: var(--danger); background: var(--danger); }
+    button:disabled { cursor: default; }
+    .quiz { overflow: hidden; }
+    .quiz-header { padding: 13px 18px; color: var(--muted); background: #0a151a; font: 700 12px Bahnschrift, sans-serif; letter-spacing: .08em; }
+    .question { padding: 20px; border-top: 1px solid var(--line); }
+    .question:first-of-type { border-top: 0; }
+    .question > p:first-child { margin-top: 0; font-weight: 700; }
+    .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .summary { margin-top: 18px; padding: 22px 24px; border-left: 5px solid var(--good); }
+    .sources { margin-top: 18px; padding: 17px 21px; }
+    .source { display: block; padding: 11px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+    .source:last-child { border-bottom: 0; }
+    .source:hover { color: var(--cyan); }
+    .source small { display: block; margin-top: 3px; color: var(--muted); }
+    .path { overflow-wrap: anywhere; }
+    .next { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--muted); }
+    .reveal { animation: rise .55s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+    @media (max-width: 760px) {
+      main { width: min(100% - 26px, 1040px); padding-top: 28px; }
+      .goal, .project-map, .grid, .options { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 1fr; }
+      .route-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media print {
+      :root { --ink: #18252a; --muted: #52636b; --paper: #fff; --panel: #fff; --panel-strong: #f5f8f8; --line: #bcc9ce; }
+      body { background: #fff; }
+      .goal, .callout, .step, .practice, .summary, .sources, .quiz, .map-shell, .routing-lab { box-shadow: none; }
+      button { border: 1px solid #777 !important; color: #222 !important; background: #fff !important; }
+      pre, .tree, .module-detail, textarea { color: #17242d; background: #f4f7f8; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">AI Full-stack · eao-api Onboarding · Lesson 53</div>
+    <h1>第五十三课：<br>eao-api 多模块项目地图</h1>
+    <p class="meta">预计 60～90 分钟 · 两周后端上岗桥接 · 第 1 天</p>
+    <p class="lead">今天不追求看懂 800 多个 Java 文件。你只做一件事：建立一张足够可靠的项目地图，让一个需求出现时，你能先走进正确的模块，而不是在整个仓库里碰运气。</p>
+
+    <div class="phase-banner reveal"><span class="tag">新主线</span><strong>第 52 课保留为数据库选修；从本课开始，近期目标切换为读懂并安全修改公司后端。</strong></div>
+
+    <div class="goal reveal">
+      <h2>本课胜利点</h2>
+      <ul>
+        <li>能解释根 <code>pom.xml</code> 为什么是“总目录”，而不是启动程序。</li>
+        <li>能说出 <code>eao-system</code>、<code>eao-infra</code>、<code>eao-model</code>、<code>app</code> 的职责。</li>
+        <li>看到一个简单需求时，能先判断应该进入哪个模块查找。</li>
+        <li>能解释为什么业务代码在 <code>domains</code>，启动类却在 <code>app</code>。</li>
+        <li>知道本阶段哪些目录只需识别，不必立即深入。</li>
+      </ul>
+    </div>
+
+    <h2>0. 先换一种看代码的方式</h2>
+    <div class="callout warn"><strong>不要从第一行开始读仓库。</strong>大型项目不是一本从第一页读到最后一页的书，更像一座城市。你先认主干道和城区，再根据任务进入一条街。今天的四个“城区”就是三个领域模块和一个启动模块。</div>
+
+    <div class="grid">
+      <article class="card"><strong>前端类比：Vite 工程</strong><p>根目录的 <code>package.json</code> 能组织依赖和脚本，但真正的页面代码分散在 <code>views</code>、<code>api</code>、<code>components</code>。后端多模块项目也有“总控”和“业务实现”的分工。</p></article>
+      <article class="card"><strong>今天必须掌握</strong><p>模块名称、模块职责、启动入口、根 POM 的聚合作用，以及“需求先路由到模块”的方法。</p></article>
+      <article class="card"><strong>今天只需认识</strong><p>公司 Starter、Feign、Quartz、Prometheus、Docker、数据库脚本等名字。它们存在，但不进入本课主线。</p></article>
+      <article class="card"><strong>今天绝不修改</strong><p><code>eao-api</code> 与 <code>eao-front</code> 都保持只读。练习结果写在本页文本框或你的笔记里。</p></article>
+    </div>
+
+    <h2>1. 一张图看懂四个模块</h2>
+    <section class="map-shell">
+      <p class="kicker">点击右侧站点，查看它负责什么</p>
+      <div class="project-map">
+        <pre class="tree" aria-label="eao-api 目录树"><span class="root">eao-api/</span>
+├─ README.md          # 项目边界说明
+├─ pom.xml            # 聚合四个模块
+├─ domains/
+│  ├─ <span class="system">eao-system/</span>  # 身份与系统管理
+│  ├─ <span class="infra">eao-infra/</span>   # 平台基础设施
+│  └─ <span class="model">eao-model/</span>   # 能源业务模型
+├─ <span class="app">app/</span>             # 组装并启动
+├─ database/          # 数据库脚本
+└─ files/             # 项目辅助文件</pre>
+        <div>
+          <div class="station-list" role="group" aria-label="模块说明">
+            <button class="station" type="button" data-module="system"><strong>01 · eao-system</strong><small>IAM、租户、组织、权限、字典、通知</small></button>
+            <button class="station" type="button" data-module="infra"><strong>02 · eao-infra</strong><small>平台配置、文件、访问日志、错误日志</small></button>
+            <button class="station" type="button" data-module="model"><strong>03 · eao-model</strong><small>资产、设备、站点、拓扑、策略、告警写入</small></button>
+            <button class="station" type="button" data-module="app"><strong>04 · app</strong><small>依赖三个领域模块并启动 Spring Boot</small></button>
+          </div>
+          <div id="module-detail" class="module-detail" aria-live="polite"><strong>先点一个模块。</strong><p>你会看到它接收哪类需求，以及现在应读到什么深度。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="callout good"><strong>一句话地图：</strong><code>system</code> 管“谁能做什么”，<code>infra</code> 管“平台靠什么运行”，<code>model</code> 管“能源业务是什么”，<code>app</code> 负责“把它们装起来并启动”。这不是绝对规则，但足够作为第一轮导航。</div>
+
+    <h2>2. 第一步：根 pom.xml 是模块总目录</h2>
+    <div class="step">
+      <div class="number">01</div>
+      <div>
+        <h3>只读打开两个文件</h3>
+        <p class="step-meta path">路径：<code>E:\project\eao-api\README.md</code> 与 <code>E:\project\eao-api\pom.xml</code></p>
+        <p><code>POM</code> 是 Maven 的 Project Object Model，也就是构建项目时读取的 XML 配置。根 POM 中最关键的不是成百上千个依赖，而是下面这几行：</p>
+        <pre><code>&lt;artifactId&gt;eao-api-parent&lt;/artifactId&gt;
+&lt;packaging&gt;pom&lt;/packaging&gt;
+
+&lt;modules&gt;
+    &lt;module&gt;domains/eao-system&lt;/module&gt;
+    &lt;module&gt;domains/eao-infra&lt;/module&gt;
+    &lt;module&gt;domains/eao-model&lt;/module&gt;
+    &lt;module&gt;app&lt;/module&gt;
+&lt;/modules&gt;</code></pre>
+        <table>
+          <thead><tr><th>标签</th><th>通俗解释</th><th>本项目中的结论</th></tr></thead>
+          <tbody>
+            <tr><td><code>artifactId</code></td><td>这个 Maven 项目的名字</td><td>根项目叫 <code>eao-api-parent</code></td></tr>
+            <tr><td><code>packaging=pom</code></td><td>它主要负责组织构建，不产出可运行服务包</td><td>不要在根目录寻找启动类</td></tr>
+            <tr><td><code>modules</code></td><td>参与同一次 Maven 构建的子项目目录</td><td>三个领域模块加一个 app</td></tr>
+          </tbody>
+        </table>
+        <p class="callout"><strong>重要区别：</strong>“父 POM”和“聚合 POM”不是同一个概念。当前根 POM 同时承接了项目继承关系并列出模块，但你今天只需掌握聚合：从根目录执行 Maven 构建时，Maven Reactor 会收集模块并根据依赖关系安排顺序。</p>
+      </div>
+    </div>
+
+    <h2>3. 第二步：app 是组装点，也是唯一启动入口</h2>
+    <div class="step">
+      <div class="number">02</div>
+      <div>
+        <h3>沿依赖看“组装”，沿 main 看“启动”</h3>
+        <p class="step-meta path">路径：<code>E:\project\eao-api\app\pom.xml</code> 与 <code>E:\project\eao-api\app\src\main\java\com\dgc\eao\api\EaoApiApplication.java</code></p>
+        <p><code>app/pom.xml</code> 的打包方式是 <code>jar</code>，并依赖 <code>eao-system</code>、<code>eao-infra</code>、<code>eao-model</code>。这意味着业务实现被拆在三个模块中，app 再把它们组合进一个可运行应用。</p>
+        <pre><code>@SpringBootApplication(
+    scanBasePackages = {"com.dgc.eao.api", "com.dgc.ems.hmi"},
+    exclude = QuartzAutoConfiguration.class
+)
+public class EaoApiApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(EaoApiApplication.class, args);
+    }
+}</code></pre>
+        <table>
+          <thead><tr><th>代码</th><th>运行时作用</th><th>现在要记住什么</th></tr></thead>
+          <tbody>
+            <tr><td><code>@SpringBootApplication</code></td><td>组合自动配置、组件扫描和应用配置身份</td><td>这是 Spring Boot 启动类标志</td></tr>
+            <tr><td><code>scanBasePackages</code></td><td>告诉 Spring 去哪些 Java 包查找受管理组件</td><td>三个领域模块的包也会被扫描</td></tr>
+            <tr><td><code>main</code></td><td>Java 进程入口，调用 Spring Boot 启动应用</td><td>运行服务从这里开始</td></tr>
+            <tr><td><code>exclude</code></td><td>排除一项自动配置</td><td>先知道它是显式关闭 Quartz，不追内部原因</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><strong>容易误解：</strong><code>app</code> 负责让业务代码“进入同一个应用”，不代表所有 Controller 和 Service 都应该写在 app。你接到品牌、设备、权限或文件需求时，第一站通常仍是对应的 <code>domains</code> 模块。</div>
+      </div>
+    </div>
+
+    <h2>4. 第三步：把需求先路由到模块</h2>
+    <section class="routing-lab">
+      <h3>任务分流台</h3>
+      <p>不要搜索具体类名。先判断每个需求最可能属于哪个模块。每组四个答案都保持相同长度，避免格式泄露答案。</p>
+      <div class="route-items">
+        <article class="route-item" id="route-1">
+          <p>需求 A：角色新增一个菜单权限。</p>
+          <div class="route-options">
+            <button type="button" onclick="routeAnswer('route-1', this, true, '正确。角色、菜单和权限属于 IAM/系统管理边界，第一站是 eao-system。')">系统领域模块</button>
+            <button type="button" onclick="routeAnswer('route-1', this, false, '文件、配置和日志才优先进入基础设施模块。')">基础设施模块</button>
+            <button type="button" onclick="routeAnswer('route-1', this, false, '设备、站点和能源策略才优先进入能源模型模块。')">能源模型模块</button>
+            <button type="button" onclick="routeAnswer('route-1', this, false, 'app 负责组装启动，不是角色权限的主要实现位置。')">应用启动模块</button>
+          </div>
+          <p class="feedback"></p>
+        </article>
+        <article class="route-item" id="route-2">
+          <p>需求 B：文件上传需要保存新的元数据。</p>
+          <div class="route-options">
+            <button type="button" onclick="routeAnswer('route-2', this, false, '用户与权限属于 system，但文件存储适配属于 infra。')">系统领域模块</button>
+            <button type="button" onclick="routeAnswer('route-2', this, true, '正确。文件元数据和存储适配属于平台基础设施边界。')">基础设施模块</button>
+            <button type="button" onclick="routeAnswer('route-2', this, false, '能源设备模型与文件基础设施是两个不同边界。')">能源模型模块</button>
+            <button type="button" onclick="routeAnswer('route-2', this, false, 'app 引入 infra，但不承载文件业务实现。')">应用启动模块</button>
+          </div>
+          <p class="feedback"></p>
+        </article>
+        <article class="route-item" id="route-3">
+          <p>需求 C：设备型号分页增加一个筛选条件。</p>
+          <div class="route-options">
+            <button type="button" onclick="routeAnswer('route-3', this, false, '这不是用户、角色或权限需求。')">系统领域模块</button>
+            <button type="button" onclick="routeAnswer('route-3', this, false, '这不是文件、配置或日志基础设施需求。')">基础设施模块</button>
+            <button type="button" onclick="routeAnswer('route-3', this, true, '正确。设备型号属于资产与设备模型，第一站是 eao-model。')">能源模型模块</button>
+            <button type="button" onclick="routeAnswer('route-3', this, false, 'app 组装 eao-model，但不实现设备分页。')">应用启动模块</button>
+          </div>
+          <p class="feedback"></p>
+        </article>
+      </div>
+    </section>
+
+    <h2>5. 动手：用 PowerShell 验证地图</h2>
+    <div class="step">
+      <div class="number">03</div>
+      <div>
+        <h3>只读执行三组命令</h3>
+        <p class="step-meta">这些命令不会修改文件。每执行一组，都先预测输出，再核对。</p>
+        <pre><code># 1. 看根项目有哪些一级入口
+Get-ChildItem 'E:\project\eao-api' -Force
+
+# 2. 从根 POM 抽出模块与打包方式
+rg -n '&lt;packaging&gt;|&lt;module&gt;' 'E:\project\eao-api\pom.xml'
+
+# 3. 找唯一的 Spring Boot 启动调用
+rg -n 'SpringApplication\.run' 'E:\project\eao-api' -g '*.java'</code></pre>
+        <p>预期看到：根 POM 的打包方式是 <code>pom</code>，声明四个模块；<code>SpringApplication.run</code> 位于 app 的 <code>EaoApiApplication.java</code>。</p>
+        <div class="callout"><strong>为什么用 <code>rg</code>？</strong>你不需要记住所有目录。真实工作中先用 URL、类名、方法名或注解快速缩小范围，再阅读少量相关文件，比在 IDE 目录树中逐层展开更可靠。</div>
+      </div>
+    </div>
+
+    <section class="practice">
+      <h3>脱稿练习：画出你自己的项目地图</h3>
+      <p>不向上滚动，用 4～6 行写出：根 POM、三个 domains 模块和 app 分别负责什么。最后回答：“品牌分页需求为什么先去 eao-model，而不是 app？”</p>
+      <label for="map-answer">我的项目地图</label>
+      <textarea id="map-answer" placeholder="不要追求术语精确，先写出你的理解。"></textarea>
+      <button class="action" type="button" onclick="reviewMap()">检查地图是否完整</button>
+      <p id="map-feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>6. 先忽略这些，不等于永远不学</h2>
+    <table>
+      <thead><tr><th>看到的内容</th><th>今天的处理方式</th><th>什么时候再深入</th></tr></thead>
+      <tbody>
+        <tr><td>公司内部 Starter</td><td>只记录它提供的大致能力</td><td>实际需求经过该组件时</td></tr>
+        <tr><td>Feign、MQ、MQTT</td><td>先识别为跨服务或消息通信</td><td>普通 Controller 链路稳定后</td></tr>
+        <tr><td>Quartz 排除配置</td><td>知道 API 服务不承担定时任务</td><td>学习服务职责边界时</td></tr>
+        <tr><td>Prometheus、Docker、CI</td><td>知道属于运行与交付支撑</td><td>恢复部署与运维主线时</td></tr>
+        <tr><td><code>database/</code>、<code>files/</code></td><td>知道不是 Java 业务包</td><td>需求明确涉及脚本或文件时</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn"><strong>认知边界：</strong>本课的模块判断是“第一站”，不是最终结论。真实需求可能跨模块，例如删除设备前查询权限。正确做法是先进入最可能的业务模块，再沿实际调用关系扩展范围。</div>
+
+    <h2>7. 检索练习</h2>
+    <div class="quiz">
+      <div class="quiz-header">三题全部来自今天的项目地图 · 选项长度保持一致</div>
+      <div class="question" id="q1">
+        <p>1. 根 <code>pom.xml</code> 使用 <code>packaging=pom</code> 的核心作用是什么？</p>
+        <div class="options">
+          <button class="option" type="button" onclick="answerQuestion('q1', this, true, '正确。根 POM 列出子模块，让 Maven Reactor 收集并按依赖关系构建它们。')">聚合多个模块</button>
+          <button class="option" type="button" onclick="answerQuestion('q1', this, false, '启动服务的是 app 中的 EaoApiApplication，不是根 POM。')">启动后端服务</button>
+          <button class="option" type="button" onclick="answerQuestion('q1', this, false, '业务数据由数据库与数据访问层处理。')">保存业务数据</button>
+          <button class="option" type="button" onclick="answerQuestion('q1', this, false, '前端页面位于独立的 eao-front 项目。')">提供前端页面</button>
+        </div>
+        <p class="feedback" aria-live="polite"></p>
+      </div>
+      <div class="question" id="q2">
+        <p>2. <code>app</code> 模块最准确的职责是什么？</p>
+        <div class="options">
+          <button class="option" type="button" onclick="answerQuestion('q2', this, true, '正确。app 依赖三个领域模块，并提供唯一的 Spring Boot 启动入口。')">组合领域模块</button>
+          <button class="option" type="button" onclick="answerQuestion('q2', this, false, '用户与权限主要属于 eao-system。')">保存系统用户</button>
+          <button class="option" type="button" onclick="answerQuestion('q2', this, false, '文件元数据和存储适配主要属于 eao-infra。')">实现文件存储</button>
+          <button class="option" type="button" onclick="answerQuestion('q2', this, false, '设备与能源模型主要属于 eao-model。')">维护设备模型</button>
+        </div>
+        <p class="feedback" aria-live="polite"></p>
+      </div>
+      <div class="question" id="q3">
+        <p>3. “设备型号分页增加筛选条件”第一站应该去哪里？</p>
+        <div class="options">
+          <button class="option" type="button" onclick="answerQuestion('q3', this, false, 'system 主要处理用户、组织、角色与权限。')">系统领域模块</button>
+          <button class="option" type="button" onclick="answerQuestion('q3', this, false, 'infra 主要处理配置、文件与日志等平台能力。')">基础设施模块</button>
+          <button class="option" type="button" onclick="answerQuestion('q3', this, true, '正确。设备、型号、站点和策略等能源业务首先进入 eao-model。')">能源模型模块</button>
+          <button class="option" type="button" onclick="answerQuestion('q3', this, false, 'app 负责组装启动，不是设备分页的主要实现位置。')">应用启动模块</button>
+        </div>
+        <p class="feedback" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <h2>8. 本课总结</h2>
+    <div class="summary">
+      <ul>
+        <li>根 <code>pom.xml</code> 通过 <code>packaging=pom</code> 和 <code>modules</code> 聚合四个 Maven 模块。</li>
+        <li><code>eao-system</code> 处理身份与系统管理，<code>eao-infra</code> 处理平台基础设施，<code>eao-model</code> 处理能源业务模型。</li>
+        <li><code>app</code> 依赖三个领域模块，提供唯一的 Spring Boot 启动入口，并扫描领域包中的组件。</li>
+        <li>接到需求先判断业务模块，再用 URL、类名、方法名或注解缩小范围。</li>
+        <li>本阶段先掌握普通 HTTP 业务链路，公司 Starter 和复杂中间件只识别职责。</li>
+      </ul>
+    </div>
+
+    <h2>一手资料</h2>
+    <section class="sources">
+      <a class="source" href="file:///E:/project/eao-api/README.md"><strong>本地：eao-api README</strong><small>项目明确声明三个领域模块、app 的职责及 API 服务不承担的边界。</small></a>
+      <a class="source" href="file:///E:/project/eao-api/pom.xml"><strong>本地：eao-api 根 pom.xml</strong><small>确认根项目的 packaging、parent 与四个 modules。</small></a>
+      <a class="source" href="file:///E:/project/eao-api/app/src/main/java/com/dgc/eao/api/EaoApiApplication.java"><strong>本地：EaoApiApplication.java</strong><small>确认唯一启动入口、组件扫描范围和 Quartz 自动配置排除。</small></a>
+      <a class="source" href="https://maven.apache.org/guides/mini/guide-multiple-modules.html" target="_blank" rel="noopener"><strong>Apache Maven：Guide to Working with Multiple Modules</strong><small>官方说明 Reactor 如何收集、排序并构建多模块项目。</small></a>
+      <a class="source" href="https://maven.apache.org/guides/introduction/introduction-to-the-pom.html#project-aggregation" target="_blank" rel="noopener"><strong>Apache Maven：POM 与 Project Aggregation</strong><small>官方说明 packaging=pom、modules 和项目聚合的含义。</small></a>
+      <a class="source" href="https://docs.spring.io/spring-boot/reference/using/structuring-your-code.html" target="_blank" rel="noopener"><strong>Spring Boot：Structuring Your Code</strong><small>官方说明主应用类、根包和组件扫描之间的关系。</small></a>
+    </section>
+
+    <div class="callout"><strong>卡住时请直接问我。</strong>把具体路径、类名或看不懂的代码片段发出来，我会先告诉你它在地图上的位置，再解释语法，不会默认你已经掌握 Java。</div>
+
+    <p class="next">下一课：从你熟悉的 <code>eao-front</code> 品牌分页请求出发，根据 URL 与 HTTP 方法找到 <code>BrandController</code>，完成第一次真实的前后端入口定位。</p>
+  </main>
+
+  <script>
+    const moduleDetails = {
+      system: '<strong>eao-system · 系统领域</strong><p>第一站：用户、角色、菜单、组织、租户、字典、通知。当前只需能按业务词进入对应 controller/service 子目录。</p>',
+      infra: '<strong>eao-infra · 基础设施领域</strong><p>第一站：平台配置、文件元数据、存储适配、访问日志、错误日志。它支撑业务，但不等于 Java 的所有“基础代码”。</p>',
+      model: '<strong>eao-model · 能源模型领域</strong><p>第一站：品牌、设备、站点、拓扑、策略、告警写入。桥接第一周的品牌管理链路就在这里。</p>',
+      app: '<strong>app · 应用组装与启动</strong><p>第一站：启动类、运行配置、模块依赖和打包。普通业务需求通常不会首先在这里写 Controller。</p>'
+    };
+
+    document.querySelectorAll('.station').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.station').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById('module-detail').innerHTML = moduleDetails[button.dataset.module];
+      });
+    });
+
+    function routeAnswer(questionId, button, isCorrect, explanation) {
+      const question = document.getElementById(questionId);
+      if (question.dataset.answered) return;
+      question.dataset.answered = 'true';
+      question.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+      button.classList.add(isCorrect ? 'correct' : 'wrong');
+      const feedback = question.querySelector('.feedback');
+      feedback.textContent = explanation;
+      feedback.className = `feedback show ${isCorrect ? '' : 'warn'}`;
+    }
+
+    function reviewMap() {
+      const answer = document.getElementById('map-answer').value.trim().toLowerCase();
+      const feedback = document.getElementById('map-feedback');
+      if (!answer) {
+        feedback.textContent = '请先脱稿写出四个模块和根 POM 的职责。写错没关系，空白无法形成检索练习。';
+        feedback.className = 'feedback show warn';
+        return;
+      }
+      const keys = ['system', 'infra', 'model', 'app'];
+      const matched = keys.filter((key) => answer.includes(key)).length;
+      if (matched < 4) {
+        feedback.textContent = `你已经写到了 ${matched}/4 个模块。请补齐 system、infra、model、app，并说明根 POM 负责聚合。`;
+        feedback.className = 'feedback show warn';
+        return;
+      }
+      feedback.textContent = '四个模块已经齐全。现在检查最后一句：品牌属于设备模型，因此先进入 eao-model；app 只负责把领域模块组装并启动。';
+      feedback.className = 'feedback show';
+    }
+
+    function answerQuestion(questionId, button, isCorrect, explanation) {
+      const question = document.getElementById(questionId);
+      if (question.dataset.answered) return;
+      question.dataset.answered = 'true';
+      question.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+      button.classList.add(isCorrect ? 'correct' : 'wrong');
+      const feedback = question.querySelector('.feedback');
+      feedback.textContent = explanation;
+      feedback.className = `feedback show ${isCorrect ? '' : 'warn'}`;
+    }
+  </script>
+</body>
+</html>
