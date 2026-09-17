@@ -20,13 +20,21 @@ DECK = Path(__file__).with_name("0002-week-01-quantity-modeling-and-patterns.ppt
 if DECK.exists():
     presentation = Presentation(DECK)
     count = len(presentation.slides)
-    assert 22 <= count <= 28, f"教师 PPT 页数应为 22–28 页，当前为 {count} 页"
+    assert 14 <= count <= 20, f"紧凑双课时 PPT 页数应为 14–20 页，当前为 {count} 页"
     deck_text = "\n".join(
         shape.text for slide in presentation.slides for shape in slide.shapes
         if hasattr(shape, "text")
     )
+    assert deck_text.count("经典例题：") == 1, "每周合并 PPT 只能有 1 道完整经典例题"
     for marker in (
-        "课内提升｜8 分钟关键复习", "课内主例题｜完整题干", "课内主例题｜建模", "课内主例题｜关键突破", "课内主例题｜规范解答与检验", "课内变式迁移｜完整题干",
-        "思维主例题｜完整题干", "思维主例题｜建模", "思维主例题｜关键突破", "思维主例题｜规范解答与检验", "思维变式一｜完整题干", "思维变式二｜完整题干",
+        "第 1 节｜易错点检测", "第 1 节｜新内容经典例题", "静想一下", "第 1 节｜例题分析",
+        "第 2 节｜新内容检测", "第 2 节｜检测反馈", "第 2 节｜迁移检测", "第 2 节｜课末预习",
     ):
-        assert marker in deck_text, f"缺少例题先行课堂环节：{marker}"
+        assert marker in deck_text, f"缺少连续双课时环节：{marker}"
+    for forbidden in ("教师版", "教师复盘", "记录学生", "下次调整", "教师提示"):
+        assert forbidden not in deck_text, f"学生 PPT 不应包含教师内容：{forbidden}"
+    slide_texts = ["\n".join(shape.text for shape in slide.shapes if hasattr(shape, "text")) for slide in presentation.slides]
+    def index_of(marker):
+        return next(index for index, value in enumerate(slide_texts) if marker in value)
+    assert index_of("第 1 节｜易错点检测") < index_of("第 1 节｜新内容经典例题") < index_of("第 2 节｜新内容检测")
+    assert index_of("第 2 节｜新内容检测") < index_of("第 2 节｜检测反馈") < index_of("第 2 节｜迁移检测") < index_of("第 2 节｜课末预习")
