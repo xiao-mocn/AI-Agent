@@ -33,6 +33,12 @@
 - [Spring Boot：组织代码结构](https://docs.spring.io/spring-boot/reference/using/structuring-your-code.html)
   Spring Boot 官方说明主应用类、根包和组件扫描之间的关系。用于：理解 `app` 为什么能够发现领域模块中的组件。
 
+- [Spring Framework：请求映射](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html)
+  Spring MVC 官方说明类级共享路径、方法级映射及 `@GetMapping`、`@PostMapping` 等快捷注解。用于：根据 HTTP 方法和 URL 定位 Controller 方法。
+
+- [Spring Framework：注解式 Controller](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann.html)
+  Spring MVC 官方说明 `@RestController` 的组件身份和响应体语义。用于：识别 Java 类是否为 HTTP 请求入口。
+
 - [Node.js 官方入门指南](https://nodejs.org/en/learn/getting-started/introduction-to-nodejs)
   官方文档，覆盖事件循环、模块系统、HTTP 基础。用于：第一次写 Node.js 时的参考基准。
 

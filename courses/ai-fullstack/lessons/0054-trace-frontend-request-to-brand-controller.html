@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>第五十四课：从前端请求定位 BrandController</title>
+  <style>
+    :root { --ink:#e8f0f2; --muted:#9babb2; --paper:#0b1419; --panel:#111e24; --panel-strong:#17272e; --line:#2a3e47; --accent:#ffb454; --accent-soft:#332718; --cyan:#67d8d1; --cyan-soft:#14302f; --good:#8bd17c; --danger:#ff8585; --shadow:0 24px 70px rgba(0,0,0,.28); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:linear-gradient(rgba(103,216,209,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(103,216,209,.035) 1px,transparent 1px),radial-gradient(circle at 18% 3%,rgba(255,180,84,.12),transparent 28rem),var(--paper); background-size:28px 28px,28px 28px,auto,auto; font:17px/1.78 Cambria,"Noto Serif SC","Microsoft YaHei",serif; }
+    main { width:min(1040px,calc(100% - 34px)); margin:0 auto; padding:42px 0 90px; }
+    h1,h2,h3,.eyebrow,.meta,button,.tag,th,.kicker,label { font-family:Bahnschrift,"Microsoft YaHei UI","Microsoft YaHei",sans-serif; }
+    h1 { max-width:920px; margin:12px 0 14px; font-size:clamp(38px,6vw,68px); line-height:1.04; letter-spacing:-.045em; }
+    h2 { margin:58px 0 16px; font-size:clamp(25px,4vw,34px); line-height:1.2; }
+    h3 { margin:0 0 9px; font-size:19px; line-height:1.35; }
+    p { margin:10px 0; }
+    a { color:var(--cyan); }
+    code { padding:.12em .36em; border:1px solid rgba(103,216,209,.16); border-radius:4px; color:#a9eeea; background:#0c191e; font:14px/1.5 Consolas,monospace; }
+    pre { margin:14px 0 8px; padding:17px 19px; overflow:auto; border:1px solid var(--line); color:#dbe6e9; background:#081115; font:14px/1.65 Consolas,monospace; }
+    pre code { padding:0; border:0; color:inherit; background:transparent; }
+    .eyebrow,.meta,.kicker,.tag { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    .eyebrow { color:var(--accent); }
+    .meta,.lead { color:var(--muted); }
+    .lead { max-width:860px; font-size:20px; }
+    .tag { display:inline-block; padding:4px 8px; border-radius:99px; color:var(--paper); background:var(--accent); white-space:nowrap; }
+    .goal,.callout,.step,.practice,.summary,.sources,.quiz,.signal-board,.evidence-card { border:1px solid var(--line); background:rgba(17,30,36,.94); box-shadow:var(--shadow); }
+    .goal { display:grid; grid-template-columns:170px 1fr; gap:22px; margin-top:25px; padding:24px 26px; border-left:5px solid var(--accent); }
+    .goal h2 { margin:0; font-size:18px; }
+    ul { margin:8px 0; padding-left:23px; }
+    li { margin:7px 0; }
+    .callout { margin-top:17px; padding:17px 20px; border-left:5px solid var(--cyan); }
+    .callout.warn { border-left-color:var(--accent); background:rgba(51,39,24,.84); }
+    .callout.good { border-left-color:var(--good); background:rgba(24,53,34,.84); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .card { padding:18px; border:1px solid var(--line); background:rgba(17,30,36,.94); }
+    .card strong { display:block; margin-bottom:6px; color:var(--accent); font-family:Bahnschrift,"Microsoft YaHei UI",sans-serif; }
+    .step { display:grid; grid-template-columns:48px 1fr; gap:15px; margin-top:15px; padding:22px; }
+    .number { display:grid; place-items:center; width:36px; height:36px; border:1px solid var(--accent); border-radius:50%; color:var(--accent); font:700 14px Consolas,monospace; }
+    .step-meta { color:var(--muted); font:14px/1.6 Bahnschrift,"Microsoft YaHei UI",sans-serif; }
+    table { width:100%; margin-top:15px; border-collapse:collapse; font-size:15px; }
+    th,td { padding:12px 13px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { color:var(--accent); background:#0a151a; font-size:13px; }
+    .signal-board { position:relative; overflow:hidden; padding:25px; }
+    .signal-board::after { content:"TRACE / HTTP-054"; position:absolute; top:13px; right:16px; color:#45606b; font:700 11px Consolas,monospace; letter-spacing:.12em; }
+    .signal-flow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-top:18px; }
+    .signal { position:relative; min-height:126px; padding:16px 14px; border:1px solid var(--line); background:#0a151a; cursor:pointer; transition:transform .18s ease,border-color .18s ease; }
+    .signal:not(:last-child)::after { content:"→"; position:absolute; top:47px; right:-17px; z-index:2; color:var(--accent); font:700 21px Consolas,monospace; }
+    .signal:hover,.signal:focus-visible { transform:translateY(-5px); border-color:var(--cyan); outline:none; }
+    .signal.active { border-color:var(--cyan); background:var(--cyan-soft); }
+    .signal b { display:block; margin-bottom:7px; color:var(--cyan); font:700 13px Bahnschrift,"Microsoft YaHei UI",sans-serif; }
+    .signal span { display:block; color:var(--muted); font:13px/1.5 Consolas,monospace; overflow-wrap:anywhere; }
+    .signal-detail { min-height:86px; margin-top:14px; padding:15px 17px; border:1px dashed #45606b; background:#081115; }
+    .equation { display:grid; grid-template-columns:1fr auto 1fr auto 1.2fr; gap:10px; align-items:center; margin:18px 0; text-align:center; }
+    .equation .piece { padding:16px 10px; border:1px solid var(--line); background:#081115; font:700 15px Consolas,monospace; }
+    .equation .operator { color:var(--accent); font:700 22px Consolas,monospace; }
+    .practice { margin-top:18px; padding:23px; border-top:5px solid var(--cyan); }
+    label { display:block; margin-top:14px; color:var(--muted); font-size:13px; font-weight:700; }
+    textarea,input { width:100%; margin-top:7px; padding:12px; border:1px solid var(--line); color:var(--ink); background:#081115; font:14px/1.6 Consolas,monospace; }
+    textarea { min-height:104px; resize:vertical; }
+    button.action { min-height:43px; margin-top:12px; padding:9px 15px; border:1px solid var(--cyan); color:#081115; background:var(--cyan); cursor:pointer; font-weight:800; }
+    button.action:hover,button.action:focus-visible { filter:brightness(1.08); outline:3px solid rgba(103,216,209,.2); }
+    .feedback { display:none; margin:14px 0 0; padding:13px 15px; border-left:4px solid var(--cyan); color:#b8f2ee; background:var(--cyan-soft); }
+    .feedback.show { display:block; }
+    .feedback.warn { border-left-color:var(--accent); color:#ffd69d; background:var(--accent-soft); }
+    .evidence-card { margin-top:18px; padding:22px; }
+    .evidence-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .quiz { overflow:hidden; }
+    .quiz-header { padding:13px 18px; color:var(--muted); background:#0a151a; font:700 12px Bahnschrift,sans-serif; letter-spacing:.08em; }
+    .question { padding:20px; border-top:1px solid var(--line); }
+    .question:first-of-type { border-top:0; }
+    .question>p:first-child { margin-top:0; font-weight:700; }
+    .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .option { min-height:48px; margin:0; padding:9px 10px; border:1px solid var(--line); color:var(--ink); background:var(--panel-strong); cursor:pointer; font-weight:700; }
+    .option:hover { border-color:var(--cyan); }
+    .option.correct { color:#0b1a0e; border-color:var(--good); background:var(--good); }
+    .option.wrong { color:#260707; border-color:var(--danger); background:var(--danger); }
+    button:disabled { cursor:default; }
+    .summary { margin-top:18px; padding:22px 24px; border-left:5px solid var(--good); }
+    .sources { margin-top:18px; padding:17px 21px; }
+    .source { display:block; padding:11px 0; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; }
+    .source:last-child { border-bottom:0; }
+    .source:hover { color:var(--cyan); }
+    .source small { display:block; margin-top:3px; color:var(--muted); }
+    .path { overflow-wrap:anywhere; }
+    .next { margin-top:30px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); }
+    @media (max-width:860px) { .signal-flow { grid-template-columns:1fr; } .signal:not(:last-child)::after { content:"↓"; top:auto; right:50%; bottom:-20px; } }
+    @media (max-width:700px) { main { width:min(100% - 26px,1040px); padding-top:28px; } .goal,.grid,.options,.evidence-grid { grid-template-columns:1fr; } .step { grid-template-columns:1fr; } .equation { grid-template-columns:1fr; } .equation .operator { transform:rotate(90deg); } }
+    @media print { :root { --ink:#18252a; --muted:#52636b; --paper:#fff; --panel:#fff; --panel-strong:#f5f8f8; --line:#bcc9ce; } body { background:#fff; } .goal,.callout,.step,.practice,.summary,.sources,.quiz,.signal-board,.evidence-card { box-shadow:none; } pre,.signal-detail,textarea,input { color:#17242d; background:#f4f7f8; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">AI Full-stack · eao-api Onboarding · Lesson 54</div>
+    <h1>第五十四课：<br>从前端请求定位 BrandController</h1>
+    <p class="meta">预计 60～90 分钟 · 两周后端上岗桥接 · 第 2 天</p>
+    <p class="lead">上一课你建立了模块地图。今天接到第一张“工单”：品牌分页列表来自哪个 Java 方法？你将从熟悉的 TypeScript 请求出发，用 URL 和 HTTP 方法组成坐标，精确找到后端入口。</p>
+
+    <div class="goal">
+      <h2>本课胜利点</h2>
+      <ul>
+        <li>能从页面调用定位到前端 API 函数，并提取 HTTP 方法与 URL。</li>
+        <li>能解释完整 URL 为什么在 Controller 中被拆成两段。</li>
+        <li>能用“类级前缀 + 方法级后缀 + HTTP 方法”确认唯一入口。</li>
+        <li>能写出一条包含文件、注解和方法名的定位证据链。</li>
+        <li>能识别 <code>@RequestBody</code> 是请求体入口，但不在本课展开 VO 字段。</li>
+      </ul>
+    </div>
+
+    <h2>0. 先从上一课取回地图</h2>
+    <section class="practice">
+      <h3>30 秒检索</h3>
+      <p>不看答案：“设备型号分页增加筛选条件”第一站应该进入哪个模块？为什么不是 app？</p>
+      <div class="options" id="warmup">
+        <button class="option" type="button" onclick="warmup(this,false,'system 处理身份和系统管理，不是设备模型。')">系统领域模块</button>
+        <button class="option" type="button" onclick="warmup(this,false,'infra 处理平台配置、文件和日志，不是设备模型。')">基础设施模块</button>
+        <button class="option" type="button" onclick="warmup(this,true,'正确。品牌与设备属于 eao-model；app 只负责组合领域模块并启动。')">能源模型模块</button>
+        <button class="option" type="button" onclick="warmup(this,false,'app 是组装入口，不承载品牌分页的主要业务代码。')">应用启动模块</button>
+      </div>
+      <p class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>1. 请求定位需要三个坐标</h2>
+    <div class="grid">
+      <article class="card"><strong>坐标一：HTTP 方法</strong><p><code>GET</code>、<code>POST</code>、<code>PUT</code>、<code>DELETE</code> 不是装饰。同一路径理论上可以按不同方法映射到不同处理函数。</p></article>
+      <article class="card"><strong>坐标二：URL 路径</strong><p>前端看到完整路径；后端常把公共前缀放在类上，把具体动作放在方法上。</p></article>
+      <article class="card"><strong>坐标三：Controller 方法</strong><p>找到注解还不够，要记录 Java 类名、方法名和参数类型，形成可复查证据。</p></article>
+      <article class="card"><strong>暂时不追踪</strong><p>Service、Mapper、VO 内部字段留给后续课程。本课只确保你找对 HTTP 入口。</p></article>
+    </div>
+
+    <section class="signal-board">
+      <p class="kicker">点击信号节点，查看每一步留下的证据</p>
+      <div class="signal-flow">
+        <button class="signal" type="button" data-detail="view"><b>01 · 页面动作</b><span>handleQuery()</span></button>
+        <button class="signal" type="button" data-detail="api"><b>02 · 前端 API</b><span>BrandApi.getBrandPage()</span></button>
+        <button class="signal" type="button" data-detail="request"><b>03 · HTTP 坐标</b><span>POST /model/brand/page</span></button>
+        <button class="signal" type="button" data-detail="mapping"><b>04 · 后端映射</b><span>/model/brand + /page</span></button>
+        <button class="signal" type="button" data-detail="method"><b>05 · Java 入口</b><span>BrandController.getBrandPage()</span></button>
+      </div>
+      <div id="signal-detail" class="signal-detail" aria-live="polite"><strong>先点击任一节点。</strong> 不要试图一次读完所有代码，只收集当前定位所需证据。</div>
+    </section>
+
+    <h2>2. 第一步：从页面找到前端 API</h2>
+    <div class="step">
+      <div class="number">01</div>
+      <div>
+        <h3>先看调用者，再看请求封装</h3>
+        <p class="step-meta path">页面：<code>E:\project\eao-front\src\views\resource\brand\index.vue</code></p>
+        <pre><code>function handleQuery() {
+  loading.value = true
+  BrandApi.getBrandPage({
+    ...searchParams,
+  }).then((res) =&gt; {
+    tableData.value = res.list || []
+    total.value = res.total || 0
+  }).finally(() =&gt; {
+    loading.value = false
+  })
+}</code></pre>
+        <p>这段代码给出三个业务线索：动作是“查询”，入参来自 <code>searchParams</code>，返回值有 <code>list</code> 和 <code>total</code>。它还没有告诉你真实 URL，所以继续进入 <code>BrandApi.getBrandPage</code>。</p>
+        <p class="step-meta path">API：<code>E:\project\eao-front\src\api\iot\brand\index.ts</code></p>
+        <pre><code>getBrandPage: async (data: any) =&gt; {
+  return await request.post({
+    url: `/model/brand/page`,
+    data
+  })
+}</code></pre>
+        <div class="callout good"><strong>定位卡片：</strong>HTTP 方法是 <code>POST</code>，URL 是 <code>/model/brand/page</code>，数据通过请求体发送。先把这三项写下，再打开后端仓库。</div>
+      </div>
+    </div>
+
+    <h2>3. 第二步：完整 URL 搜不到，不代表没有接口</h2>
+    <div class="step">
+      <div class="number">02</div>
+      <div>
+        <h3>先做一次“预期失败”的搜索</h3>
+        <p class="step-meta">在 PowerShell 中执行，只读，不修改公司代码。</p>
+        <pre><code>rg -n '/model/brand/page' `
+  'E:\project\eao-api' `
+  -g '*.java'</code></pre>
+        <p>预期结果：没有匹配。原因不是接口不存在，而是 Java 代码里没有完整的 <code>/model/brand/page</code> 字符串。</p>
+        <div class="equation" aria-label="URL 组合关系">
+          <div class="piece">@RequestMapping<br>"/model/brand"</div>
+          <div class="operator">+</div>
+          <div class="piece">@PostMapping<br>"/page"</div>
+          <div class="operator">=</div>
+          <div class="piece">POST<br>/model/brand/page</div>
+        </div>
+        <p>Spring MVC 允许在类级别声明共享映射，再由方法级注解缩小到具体端点。<code>@PostMapping</code> 是指定 HTTP 方法的快捷注解，所以路径与请求方法必须一起核对。</p>
+        <div class="callout warn"><strong>关键习惯：</strong>搜索无结果也是证据，但只说明“这个字符串没有原样出现”。不要据此断言接口不存在。先拆 URL，再搜索最稳定的业务前缀。</div>
+      </div>
+    </div>
+
+    <h2>4. 第三步：先命中类，再确认方法</h2>
+    <div class="step">
+      <div class="number">03</div>
+      <div>
+        <h3>搜索类级前缀</h3>
+        <pre><code>rg -n '/model/brand' `
+  'E:\project\eao-api' `
+  -g '*.java'</code></pre>
+        <p>预期命中：</p>
+        <pre><code>BrandController.java:33:@RequestMapping("/model/brand")</code></pre>
+        <p class="step-meta path">文件：<code>E:\project\eao-api\domains\eao-model\src\main\java\com\dgc\ems\hmi\model\controller\admin\brand\BrandController.java</code></p>
+        <pre><code>@RestController
+@RequestMapping("/model/brand")
+public class BrandController {
+
+    @PostMapping("/page")
+    public CommonResult&lt;PageResult&lt;BrandRespVO&gt;&gt; getBrandPage(
+            @RequestBody BrandPageReqVO pageReqVO) {
+        return success(brandService.getBrandPage(pageReqVO));
+    }
+}</code></pre>
+        <table>
+          <thead><tr><th>证据</th><th>它证明什么</th><th>它暂时不证明什么</th></tr></thead>
+          <tbody>
+            <tr><td><code>@RestController</code></td><td>这个类是返回响应体的 Web Controller</td><td>不证明具体 URL</td></tr>
+            <tr><td><code>@RequestMapping("/model/brand")</code></td><td>类内端点共享路径前缀</td><td>不证明具体 HTTP 方法</td></tr>
+            <tr><td><code>@PostMapping("/page")</code></td><td>该方法接收 POST，并补上路径后缀</td><td>不解释请求体字段</td></tr>
+            <tr><td><code>getBrandPage(...)</code></td><td>Java 入口方法及参数、返回类型</td><td>不证明 Service 如何查询</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>5. 建立可复查的定位证据链</h2>
+    <section class="evidence-card">
+      <h3>不要只说“我找到了”</h3>
+      <p>工作中应该留下别人可以复核的证据。填写下面四项，再让页面检查是否完整。</p>
+      <div class="evidence-grid">
+        <label>HTTP 方法<input id="e-method" placeholder="例如 POST"></label>
+        <label>完整 URL<input id="e-url" placeholder="例如 /model/brand/page"></label>
+        <label>Controller 类<input id="e-controller" placeholder="例如 BrandController"></label>
+        <label>Java 方法<input id="e-handler" placeholder="例如 getBrandPage"></label>
+      </div>
+      <label>我的推导过程<textarea id="e-reason" placeholder="用一句话说明类级路径和方法级路径如何组合。"></textarea></label>
+      <button class="action" type="button" onclick="reviewEvidence()">检查证据链</button>
+      <p id="e-feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>6. 同一个 Controller 中的端点坐标</h2>
+    <table>
+      <thead><tr><th>前端函数</th><th>HTTP 坐标</th><th>后端方法注解</th></tr></thead>
+      <tbody>
+        <tr><td><code>createBrand</code></td><td><code>POST /model/brand/create</code></td><td><code>@PostMapping("/create")</code></td></tr>
+        <tr><td><code>updateBrand</code></td><td><code>PUT /model/brand/update</code></td><td><code>@PutMapping("/update")</code></td></tr>
+        <tr><td><code>deleteBrand</code></td><td><code>DELETE /model/brand/delete</code></td><td><code>@DeleteMapping("/delete")</code></td></tr>
+        <tr><td><code>getBrand</code></td><td><code>GET /model/brand/get</code></td><td><code>@GetMapping("/get")</code></td></tr>
+        <tr><td><code>getBrandPage</code></td><td><code>POST /model/brand/page</code></td><td><code>@PostMapping("/page")</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><strong>方法名不是 URL。</strong>前端函数和后端方法恰好都叫 <code>getBrandPage</code>，但这只是项目命名习惯。Spring 真正用来匹配请求的是映射注解中的路径、HTTP 方法以及其他约束。</div>
+
+    <h2>7. 动手验收：不看正文完成定位</h2>
+    <section class="practice">
+      <h3>目标：定位品牌详情接口</h3>
+      <p>前端函数是 <code>BrandApi.getBrand</code>。请回到真实代码，只使用下列提示完成定位：</p>
+      <ol>
+        <li>在前端 API 文件提取 HTTP 方法和完整 URL。</li>
+        <li>不要直接搜索完整 URL；先搜索共享业务前缀。</li>
+        <li>在命中的 Controller 中，用后缀和 HTTP 方法确认 Java 方法。</li>
+        <li>记录 Controller 文件、注解和方法名。</li>
+      </ol>
+      <label for="detail-answer">我的定位证据</label>
+      <textarea id="detail-answer" placeholder="HTTP 方法 + URL → 类级注解 + 方法级注解 → Controller.java#方法名"></textarea>
+      <button class="action" type="button" onclick="reviewDetail()">检查定位结果</button>
+      <p id="detail-feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>8. 检索练习</h2>
+    <div class="quiz">
+      <div class="quiz-header">先定位，后解释 · 每题选项长度保持一致</div>
+      <div class="question" id="q1">
+        <p>1. 为什么在 Java 文件中搜索完整的 <code>/model/brand/page</code> 没有结果？</p>
+        <div class="options">
+          <button class="option" type="button" onclick="answerQuestion('q1',this,true,'正确。共享前缀写在类级 RequestMapping，/page 写在方法级 PostMapping，运行时才组合。')">路径拆成两段</button>
+          <button class="option" type="button" onclick="answerQuestion('q1',this,false,'接口真实存在，问题只是完整字符串没有原样写在一个注解中。')">接口尚未创建</button>
+          <button class="option" type="button" onclick="answerQuestion('q1',this,false,'Controller 是 Java 文件，只是路径被拆在两个注解里。')">文件不是源码</button>
+          <button class="option" type="button" onclick="answerQuestion('q1',this,false,'分页接口确实使用 POST，而不是因为请求方法写错。')">请求方法错误</button>
+        </div>
+        <p class="feedback" aria-live="polite"></p>
+      </div>
+      <div class="question" id="q2">
+        <p>2. 确认 Controller 入口时，为什么还必须核对 HTTP 方法？</p>
+        <div class="options">
+          <button class="option" type="button" onclick="answerQuestion('q2',this,true,'正确。请求映射同时受路径与 HTTP 方法约束，只看路径不能完整确认端点。')">方法也是坐标</button>
+          <button class="option" type="button" onclick="answerQuestion('q2',this,false,'Java 方法名可以与 URL 不同，真正的匹配依据是映射注解。')">方法名即路径</button>
+          <button class="option" type="button" onclick="answerQuestion('q2',this,false,'数据库列与 HTTP 入口定位无关。')">方法决定列名</button>
+          <button class="option" type="button" onclick="answerQuestion('q2',this,false,'模块由业务边界决定，不由 GET 或 POST 决定。')">方法选择模块</button>
+        </div>
+        <p class="feedback" aria-live="polite"></p>
+      </div>
+      <div class="question" id="q3">
+        <p>3. 找到 <code>getBrandPage</code> 后，下节课首先深入哪个对象？</p>
+        <div class="options">
+          <button class="option" type="button" onclick="answerQuestion('q3',this,true,'正确。BrandPageReqVO 是 @RequestBody 的参数类型，决定分页请求如何进入 Java。')">请求参数类型</button>
+          <button class="option" type="button" onclick="answerQuestion('q3',this,false,'Service 实现要到之后的业务规则课程再深入。')">业务服务实现</button>
+          <button class="option" type="button" onclick="answerQuestion('q3',this,false,'Mapper 位于更下游，本课刚定位到 HTTP 入口。')">数据库映射器</button>
+          <button class="option" type="button" onclick="answerQuestion('q3',this,false,'应用启动入口已在上一课完成，不是当前请求的数据入口。')">应用启动入口</button>
+        </div>
+        <p class="feedback" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <h2>9. 本课总结</h2>
+    <div class="summary">
+      <ul>
+        <li>从页面的 <code>handleQuery</code> 找到 <code>BrandApi.getBrandPage</code>，得到 <code>POST /model/brand/page</code>。</li>
+        <li>完整 URL 在后端被拆为类级 <code>@RequestMapping("/model/brand")</code> 与方法级 <code>@PostMapping("/page")</code>。</li>
+        <li>搜索完整 URL 无结果不代表接口不存在；拆路径后搜索稳定前缀。</li>
+        <li>确认入口必须同时核对 HTTP 方法、组合路径、Controller 类和 Java 方法。</li>
+        <li>当前入口是 <code>BrandController#getBrandPage</code>，请求体类型是 <code>BrandPageReqVO</code>。</li>
+      </ul>
+    </div>
+
+    <h2>一手资料</h2>
+    <section class="sources">
+      <a class="source" href="file:///E:/project/eao-front/src/api/iot/brand/index.ts"><strong>本地：eao-front 品牌 API</strong><small>确认前端函数、HTTP 方法、URL 以及 data/params 的传递方式。</small></a>
+      <a class="source" href="file:///E:/project/eao-front/src/views/resource/brand/index.vue"><strong>本地：eao-front 品牌页面</strong><small>确认页面动作如何调用 BrandApi，并消费 list 与 total。</small></a>
+      <a class="source" href="file:///E:/project/eao-api/domains/eao-model/src/main/java/com/dgc/ems/hmi/model/controller/admin/brand/BrandController.java"><strong>本地：eao-api BrandController</strong><small>确认类级路径、方法级映射、Java 方法及请求参数类型。</small></a>
+      <a class="source" href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html" target="_blank" rel="noopener"><strong>Spring Framework：Mapping Requests</strong><small>官方说明类级共享映射、方法级端点映射和 HTTP 方法快捷注解。</small></a>
+      <a class="source" href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann.html" target="_blank" rel="noopener"><strong>Spring Framework：Annotated Controllers</strong><small>官方说明 @RestController 作为 Web 组件并直接写入响应体。</small></a>
+    </section>
+
+    <div class="callout"><strong>卡住时请直接问我。</strong>告诉我你搜索了什么、命中了什么、在哪里失去线索。我会按“目录 → 类名 → 方法 → 代码解释”逐层提示。</div>
+
+    <p class="next">下一课：进入 <code>BrandPageReqVO</code> 与 <code>BrandRespVO</code>，看懂 <code>@RequestBody</code> 如何接收分页条件，以及 <code>CommonResult&lt;PageResult&lt;BrandRespVO&gt;&gt;</code> 如何描述响应结构。</p>
+  </main>
+
+  <script>
+    const details = {
+      view: '<strong>页面证据</strong>：resource/brand/index.vue 的 handleQuery() 调用 BrandApi.getBrandPage(searchParams)。',
+      api: '<strong>API 证据</strong>：src/api/iot/brand/index.ts 定义 getBrandPage，并使用 request.post。',
+      request: '<strong>请求坐标</strong>：HTTP 方法 POST，完整路径 /model/brand/page，请求数据放在 data 中。',
+      mapping: '<strong>映射证据</strong>：类上的 /model/brand 与方法上的 /page 组合；PostMapping 同时限定 POST。',
+      method: '<strong>入口结论</strong>：BrandController#getBrandPage(@RequestBody BrandPageReqVO pageReqVO)。'
+    };
+
+    document.querySelectorAll('.signal').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.signal').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById('signal-detail').innerHTML = details[button.dataset.detail];
+      });
+    });
+
+    function markSingle(container, button, isCorrect, explanation) {
+      if (container.dataset.answered) return;
+      container.dataset.answered = 'true';
+      container.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+      button.classList.add(isCorrect ? 'correct' : 'wrong');
+      const feedback = container.querySelector('.feedback');
+      feedback.textContent = explanation;
+      feedback.className = `feedback show ${isCorrect ? '' : 'warn'}`;
+    }
+
+    function warmup(button, isCorrect, explanation) {
+      markSingle(document.getElementById('warmup').parentElement, button, isCorrect, explanation);
+    }
+
+    function answerQuestion(questionId, button, isCorrect, explanation) {
+      markSingle(document.getElementById(questionId), button, isCorrect, explanation);
+    }
+
+    function reviewEvidence() {
+      const method = document.getElementById('e-method').value.trim().toUpperCase();
+      const url = document.getElementById('e-url').value.trim();
+      const controller = document.getElementById('e-controller').value.trim().toLowerCase();
+      const handler = document.getElementById('e-handler').value.trim().toLowerCase();
+      const reason = document.getElementById('e-reason').value.trim();
+      const feedback = document.getElementById('e-feedback');
+      const correct = method === 'POST' && url === '/model/brand/page' && controller.includes('brandcontroller') && handler.includes('getbrandpage') && reason.length >= 8;
+      if (!correct) {
+        feedback.textContent = '证据链还不完整。检查：POST、/model/brand/page、BrandController、getBrandPage，以及“类级前缀 + 方法级后缀”的推导。';
+        feedback.className = 'feedback show warn';
+        return;
+      }
+      feedback.textContent = '证据链完整。你现在不是凭印象说“应该是这里”，而是能用 HTTP 方法、组合路径、类名和方法名证明入口。';
+      feedback.className = 'feedback show';
+    }
+
+    function reviewDetail() {
+      const answer = document.getElementById('detail-answer').value.trim().toLowerCase();
+      const feedback = document.getElementById('detail-feedback');
+      const keys = ['get', '/model/brand/get', 'brandcontroller', 'getbrand'];
+      const matched = keys.filter((key) => answer.includes(key)).length;
+      if (matched < 4) {
+        feedback.textContent = `当前命中 ${matched}/4 个关键证据。完整答案需要 GET、/model/brand/get、BrandController 和 getBrand。`;
+        feedback.className = 'feedback show warn';
+        return;
+      }
+      feedback.textContent = '定位正确：GET /model/brand/get = 类级 /model/brand + 方法级 @GetMapping("/get")，入口是 BrandController#getBrand。';
+      feedback.className = 'feedback show';
+    }
+  </script>
+</body>
+</html>

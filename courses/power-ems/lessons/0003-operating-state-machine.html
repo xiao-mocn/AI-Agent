@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 3 课：把 EMS 运行状态读成状态机</title>
+  <style>
+    :root { --ink:#172127; --muted:#5b6c74; --paper:#f3f5f4; --panel:#ffffff; --line:#d8e0de; --signal:#006f77; --signal-pale:#dff1f0; --fresh:#177245; --fresh-pale:#e4f4e9; --near:#a65c0b; --near-pale:#fff0d8; --stale:#a73e43; --stale-pale:#fbe7e8; --blue:#326a8a; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.7 Georgia, "Noto Serif SC", serif; }
+    main { width:min(940px, calc(100% - 36px)); margin:0 auto; padding:46px 0 80px; }
+    .eyebrow, .kicker, .label { font:700 12px/1.2 "Segoe UI", sans-serif; color:var(--signal); letter-spacing:0; text-transform:uppercase; }
+    h1 { max-width:780px; margin:12px 0; font-size:clamp(32px, 5.4vw, 52px); line-height:1.12; }
+    h2 { margin:42px 0 13px; font:700 24px/1.25 "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .lead { max-width:720px; margin:0; color:var(--muted); }
+    .goal { display:grid; grid-template-columns:160px 1fr; gap:22px; margin-top:32px; padding:20px 22px; background:var(--panel); border:1px solid var(--line); border-left:5px solid var(--signal); }
+    .goal h2 { margin:0; font-size:18px; }.goal ul { margin:0; padding-left:21px; }.goal li { margin:3px 0; }
+    .case { display:grid; grid-template-columns:1.1fr .9fr; gap:18px; margin-top:18px; }.state-card, .explain, .lab, .step, .quiz, .note { background:var(--panel); border:1px solid var(--line); }
+    .state-card { padding:23px; border-top:4px solid var(--blue); }.state-card h3, .explain h3 { margin:0 0 8px; font:700 18px "Segoe UI", sans-serif; }
+    .state-name { margin:14px 0 2px; font:700 38px/1 "Segoe UI", sans-serif; color:var(--blue); }.state-sub { color:var(--muted); font:14px "Segoe UI", sans-serif; }
+    .badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }.badge { padding:4px 8px; font:700 12px "Segoe UI", sans-serif; border-radius:2px; }.badge.warning { color:var(--near); background:var(--near-pale); }.badge.neutral { color:#43616e; background:#eaf0f1; }
+    .explain { padding:23px; }.explain p { margin:8px 0; color:var(--muted); }
+    .rule-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:16px; }.rule { min-height:162px; padding:17px; border-top:4px solid var(--line); background:var(--panel); }.rule.confirmed { border-color:var(--fresh); }.rule.transition { border-color:var(--near); }.rule.unknown { border-color:var(--stale); }.rule h3 { margin:0 0 8px; font:700 17px "Segoe UI", sans-serif; }.rule p { margin:0; color:var(--muted); font-size:14px; }
+    .lab { margin-top:18px; padding:23px; border-top:4px solid var(--signal); }.lab h2 { margin:0 0 6px; }.lab p { margin:0; color:var(--muted); }.controls { display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end; margin-top:18px; }
+    label { display:block; color:var(--muted); font:700 13px "Segoe UI", sans-serif; } select { width:100%; min-height:42px; margin-top:5px; padding:8px 10px; border:1px solid var(--line); background:#fff; font:16px "Segoe UI", sans-serif; } button { min-height:42px; padding:9px 14px; color:#fff; background:var(--signal); border:1px solid var(--signal); cursor:pointer; font:700 14px "Segoe UI", sans-serif; } button:hover:not(:disabled) { filter:brightness(.94); } button:disabled { cursor:default; }
+    .result { display:none; margin-top:16px; padding:14px; font:700 15px "Segoe UI", sans-serif; }.result.show { display:block; }.result.confirmed { color:var(--fresh); background:var(--fresh-pale); }.result.transition { color:var(--near); background:var(--near-pale); }.result.unknown { color:var(--stale); background:var(--stale-pale); }
+    .step { display:grid; grid-template-columns:42px 1fr; gap:14px; padding:17px 18px; margin-top:10px; }.step-number { width:32px; height:32px; display:grid; place-items:center; color:#fff; background:var(--signal); border-radius:50%; font:700 14px "Segoe UI", sans-serif; }.step h3 { margin:1px 0 4px; font:700 17px "Segoe UI", sans-serif; }.step p { margin:0; color:var(--muted); font-size:15px; }
+    .quiz { overflow:hidden; margin-top:16px; }.quiz-header { padding:12px 18px; color:var(--muted); background:#edf1f0; font:700 12px "Segoe UI", sans-serif; }.question { padding:19px; border-top:1px solid var(--line); }.question:first-of-type { border-top:0; }.question p { margin-top:0; font-weight:700; }.options { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }.option { min-height:46px; padding:9px 11px; color:var(--ink); text-align:left; background:#fff; border:1px solid var(--line); }.option.correct { color:var(--fresh); background:var(--fresh-pale); border-color:var(--fresh); }.option.wrong { color:var(--stale); background:var(--stale-pale); border-color:var(--stale); }.feedback { display:none; margin:12px 0 0; padding:10px 12px; font-size:14px; }.feedback.show { display:block; }.feedback.correct { color:var(--fresh); background:var(--fresh-pale); }.feedback.wrong { color:var(--stale); background:var(--stale-pale); }
+    .summary { margin:16px 0 0; padding-left:22px; }.summary li { margin:5px 0; }.note { margin-top:24px; padding:18px 20px; border-left:5px solid var(--near); background:var(--near-pale); color:#69430e; }.source { display:block; padding:13px 0; color:var(--ink); border-bottom:1px solid var(--line); text-decoration:none; }.source:hover { color:var(--signal); }.source small { display:block; color:var(--muted); }
+    @media (max-width:700px) { main { width:min(100% - 28px, 940px); padding-top:30px; }.goal, .case { grid-template-columns:1fr; }.rule-grid { grid-template-columns:1fr; }.controls, .options { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Power EMS / Lesson 03</div>
+    <h1>把运行状态读成状态机：它从哪里来，何时才算确认</h1>
+    <p class="lead">“并网”“离网”“待机”“故障”不是装饰标签。它们是设备、保护、通信和调度信号共同形成的业务结论；前端要展示结论的证据与不确定性，而不是用一个颜色替代复杂过程。</p>
+
+    <div class="goal" aria-labelledby="goal-title"><h2 id="goal-title">本课目标</h2><ul><li>分清运行状态、通信状态与页面展示状态的职责。</li><li>理解状态机中的进入条件、退出条件、来源和中间态。</li><li>把“状态待确认”转成前端可执行的文案、证据与操作规则。</li></ul></div>
+
+    <h2>同一枚“并网”标签，可能来自完全不同的证据</h2>
+    <section class="case" aria-label="运行状态示例"><article class="state-card"><div class="kicker">站点运行模式</div><div class="state-name">并网</div><div class="state-sub">状态源：运行模式枚举；最后确认：10:12:00</div><div class="badges"><span class="badge warning">通信状态：待确认</span><span class="badge neutral">切换指令：10:11:50</span></div></article><article class="explain"><h3>这不必然表示“当前稳定并网”</h3><p>模式枚举、开关量、保护状态、通信质量和控制回执可能来自不同系统、不同周期。若切换指令刚下发，或关键证据已过期，页面应把“上一次已确认的状态”和“当前仍待确认的切换”分开。</p><p>“并网”的定义、判断信号和超时窗口必须按项目点表、保护方案与运行策略确认；本课只提供前端梳理方法，不提供现场操作结论。</p></article></section>
+
+    <h2>状态机让页面不再只有“正常”与“异常”</h2>
+    <section class="rule-grid" aria-label="展示状态规则"><article class="rule confirmed"><h3>已确认状态</h3><p>状态源可信、关键证据新鲜，且没有进行中的冲突事件。可展示“并网”“离网”或“待机”，同时保留数据来源与更新时间供追溯。</p></article><article class="rule transition"><h3>切换或待确认</h3><p>收到指令、检测到状态变化，或证据尚未收敛。展示“切换中／状态待确认”、开始时间和待确认原因，不把目标状态提前当作事实。</p></article><article class="rule unknown"><h3>未知或故障待核实</h3><p>关键状态源失效、互相矛盾或质量异常。保留最后确认状态与原因；故障等级、告警升级和控制处理均须遵循项目规则。</p></article></section>
+
+    <section class="lab" aria-labelledby="lab-title"><div class="kicker">小型判定器</div><h2 id="lab-title">把设备结论和证据质量分开表达</h2><p>下面的结果仅演示页面文案映射。它不替代现场状态机、保护逻辑或控制联锁。</p><div class="controls"><label>最近一次状态信号<select id="mode"><option value="grid">并网</option><option value="island">离网</option><option value="standby">待机</option><option value="fault">故障</option></select></label><label>证据情况<select id="evidence"><option value="confirmed">已确认且新鲜</option><option value="transition">切换中或等待回执</option><option value="unknown">过期、冲突或不可用</option></select></label><button type="button" onclick="evaluateState()">判定展示状态</button></div><div id="result" class="result" aria-live="polite"></div></section>
+
+    <h2>动手：为一张运行状态卡补齐状态机问题</h2>
+    <div class="step"><div class="step-number">1</div><div><h3>列出状态而非颜色</h3><p>任选当前 EMS 的运行状态卡，写出它可能出现的业务状态，例如并网、离网、待机、故障和状态待确认。不要先用“绿、黄、红”替代状态含义。</p></div></div>
+    <div class="step"><div class="step-number">2</div><div><h3>追问每个状态的证据</h3><p>为每个状态记录来源字段、更新时间、质量码和责任系统；再询问进入／退出条件是否需要多个信号共同成立。拿不到定义时，标为“需按项目约定确认”。</p></div></div>
+    <div class="step"><div class="step-number">3</div><div><h3>画出一个中间态</h3><p>选择一次“并网到离网”或“待机到运行”的切换，增加“切换中／待确认”状态，并定义页面应展示的时间、原因和允许操作。后端拦截、权限与联锁规则不要由前端猜测。</p></div></div>
+
+    <h2>检索练习</h2>
+    <div class="quiz" aria-label="本课测验"><div class="quiz-header">选择后立即查看解释</div>
+      <div class="question" id="q1"><p>1. 页面刚收到“切换到离网”的指令，但关键状态信号尚未回执，最合适的展示是什么？</p><div class="options"><button class="option" onclick="answerQuestion('q1', this, false, '目标状态还未获得关键证据确认，不能提前展示为事实。')">已稳定离网</button><button class="option" onclick="answerQuestion('q1', this, true, '正确。把切换中和待确认原因展示出来，能避免把控制目标误读为当前事实。')">切换中，等待状态确认</button><button class="option" onclick="answerQuestion('q1', this, false, '隐藏状态会丢失排查所需的上下文。')">直接隐藏运行状态</button><button class="option" onclick="answerQuestion('q1', this, false, '颜色无法说明状态来源和证据是否充分。')">改成绿色即可</button></div><p class="feedback" data-feedback></p></div>
+      <div class="question" id="q2"><p>2. 为什么要把运行状态与通信状态分开？</p><div class="options"><button class="option" onclick="answerQuestion('q2', this, true, '正确。设备可能仍处于某个运行状态，但前端对该状态的当前可信度取决于通信和数据质量。')">它们回答不同问题，需要分别给出证据</button><button class="option" onclick="answerQuestion('q2', this, false, '通信在线不自动证明模式枚举、保护状态或现场结论正确。')">通信在线就能证明设备正常</button><button class="option" onclick="answerQuestion('q2', this, false, '两者不能简单互相替代。')">运行状态等同于通信状态</button><button class="option" onclick="answerQuestion('q2', this, false, '即使通信异常，最后确认状态和异常原因也有排查价值。')">通信异常时应隐藏全部信息</button></div><p class="feedback" data-feedback></p></div>
+      <div class="question" id="q3"><p>3. 状态源互相矛盾时，前端的通用处理原则是什么？</p><div class="options"><button class="option" onclick="answerQuestion('q3', this, false, '前端不能凭主观选择某个数据源覆盖其他证据。')">选择看起来更合理的一个</button><button class="option" onclick="answerQuestion('q3', this, true, '正确。保留最后确认状态和冲突原因，并按项目定义触发提示、禁用或后端拦截。')">标为待确认并呈现证据冲突</button><button class="option" onclick="answerQuestion('q3', this, false, '故障结论同样需要项目定义的证据与等级规则。')">无条件判定为设备故障</button><button class="option" onclick="answerQuestion('q3', this, false, '静默处理会掩盖重要的数据质量问题。')">不显示，等待它自行恢复</button></div><p class="feedback" data-feedback></p></div>
+    </div>
+
+    <h2>本课总结</h2><ul class="summary"><li>运行状态、通信状态和页面展示状态不应混为一谈。</li><li>状态机需要明确状态来源、进入／退出条件与中间态。</li><li>证据不足或冲突时，展示“待确认”比猜测一个确定状态更安全、更利于排查。</li></ul>
+    <section aria-label="推荐资源"><div class="kicker">推荐资源</div><h2>从系统运行语境理解状态边界</h2><a class="source" href="https://www.nrel.gov/grid/microgrids.html" target="_blank" rel="noopener"><strong>NREL: Microgrids</strong><small>用于建立微电网运行模式、控制与韧性的整体语境；具体状态枚举和切换条件仍需回到项目点表与策略确认。</small></a></section>
+    <aside class="note"><strong>工程边界：</strong>并网、离网、待机、故障等术语在不同站点、设备和厂商协议中可能含义不同。任何控制入口的可用性、告警等级和状态切换判据，都必须按项目权限、联锁与现场审批执行。</aside>
+    <p class="lead" style="margin-top:28px">下一课：告警不只是红点。我们会区分设备故障、通信异常与策略限制，练习把告警的来源、影响范围和下一步处理说清楚。</p>
+  </main>
+  <script>
+    function resolveDisplayState(mode, evidence) {
+      const labels = { grid: '并网', island: '离网', standby: '待机', fault: '故障' };
+      if (evidence === 'unknown') return { state: 'unknown', text: `状态待确认：最近一次信号为“${labels[mode]}”，但关键证据已过期、冲突或不可用。保留来源与时间，后续处理按项目规则执行。` };
+      if (evidence === 'transition') return { state: 'transition', text: `切换中：目标或最近信号为“${labels[mode]}”，正在等待关键状态、保护或回执证据确认。不要把目标状态当作已稳定事实。` };
+      return { state: 'confirmed', text: `已确认：当前可展示为“${labels[mode]}”。仍应保留状态源、更新时间和通信质量，控制入口另按权限与联锁判断。` };
+    }
+    function evaluateState() { const mode = document.getElementById('mode').value; const evidence = document.getElementById('evidence').value; const result = resolveDisplayState(mode, evidence); const element = document.getElementById('result'); element.textContent = result.text; element.className = `result show ${result.state}`; }
+    function answerQuestion(questionId, button, correct, explanation) { const question = document.getElementById(questionId); if (question.dataset.answered) return; question.dataset.answered = 'true'; question.querySelectorAll('button').forEach((item) => { item.disabled = true; }); button.classList.add(correct ? 'correct' : 'wrong'); const feedback = question.querySelector('[data-feedback]'); feedback.textContent = explanation; feedback.className = `feedback show ${correct ? 'correct' : 'wrong'}`; }
+  </script>
+</body>
+</html>

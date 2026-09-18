@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第五十二课：生产数据库配置与 Flyway 迁移边界</title>
+  <style>
+    :root{--ink:#17242d;--muted:#566570;--paper:#f4f7f8;--panel:#fff;--line:#d8e1e5;--accent:#075f77;--pale:#e1f3f6;--good:#176840;--goodp:#e3f4e9;--warn:#875500;--warnp:#fff3dc;--code:#17242d}*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--paper);font:17px/1.76 Georgia,"Noto Serif SC","Microsoft YaHei",serif}main{width:min(940px,calc(100% - 34px));margin:auto;padding:48px 0 84px}h1,h2,h3{font-family:"Segoe UI","Microsoft YaHei",sans-serif}h1{margin:10px 0;font-size:clamp(34px,5.5vw,57px);line-height:1.1;letter-spacing:-.03em}h2{margin:48px 0 14px;font-size:26px}.eyebrow,.meta,label{font:700 12px/1.4 "Segoe UI","Microsoft YaHei",sans-serif;letter-spacing:.04em}.eyebrow{color:var(--accent);text-transform:uppercase}.lead,.meta{color:var(--muted)}.lead{font-size:19px}.goal,.step,.quiz,.summary,.sources,.practice,.callout{border:1px solid var(--line);background:var(--panel)}.goal{display:grid;grid-template-columns:150px 1fr;gap:18px;margin-top:28px;padding:22px 24px;border-left:5px solid var(--accent)}.goal h2{margin:0;font-size:18px}ul{margin:8px 0;padding-left:24px}li{margin:6px 0}.callout{margin-top:18px;padding:16px 19px;border-left:5px solid #d59217;background:var(--warnp);color:#694507}.callout.good{border-left-color:var(--good);background:var(--goodp);color:#195434}.callout.info{border-left-color:var(--accent);background:var(--pale);color:#164d5d}.step{display:grid;grid-template-columns:44px 1fr;gap:14px;margin-top:15px;padding:20px 21px}.number{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:#fff;background:var(--accent);font:700 14px "Segoe UI",sans-serif}.step-meta{color:var(--muted);font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif}code{padding:.1em .35em;border-radius:3px;color:#07566d;background:#eaf1f3;font:14px ui-monospace,Consolas,monospace}pre{margin:12px 0;padding:16px;overflow:auto;color:#e8edf1;background:var(--code);font:14px/1.6 ui-monospace,Consolas,monospace}pre code{padding:0;color:inherit;background:transparent}.why{margin-top:12px;padding:12px 14px;border-left:3px solid var(--accent);background:#f0f6f7;font-size:15px}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:15px}th,td{padding:11px 12px;text-align:left;vertical-align:top;border:1px solid var(--line)}th{background:#edf4f5;font:700 13px "Segoe UI","Microsoft YaHei",sans-serif}.practice,.summary,.sources{margin-top:18px;padding:22px}.summary{border-left:5px solid var(--good)}textarea{width:100%;min-height:92px;margin-top:7px;padding:10px;border:1px solid var(--line);font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif}button{min-height:42px;margin-top:12px;padding:9px 14px;color:#fff;border:1px solid var(--accent);background:var(--accent);font:700 14px "Segoe UI","Microsoft YaHei",sans-serif;cursor:pointer}.feedback{display:none;margin:14px 0 0;padding:12px 14px;border-left:4px solid var(--accent);background:var(--pale);color:#164d5d;font:15px/1.55 "Segoe UI","Microsoft YaHei",sans-serif}.feedback.show{display:block}.quiz{margin-top:16px;overflow:hidden}.quiz-header{padding:12px 18px;background:#edf4f5;color:var(--muted);font:700 12px "Segoe UI","Microsoft YaHei",sans-serif}.question{padding:20px;border-top:1px solid var(--line)}.question p{margin-top:0;font-weight:700}.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.option{margin:0;color:var(--ink);border-color:var(--line);background:#fff;text-align:left}.option.correct{color:var(--good);border-color:var(--good);background:var(--goodp)}.option.wrong{color:#9b363c;border-color:#9b363c;background:#fbe8e9}.source{display:block;padding:10px 0;color:var(--ink);border-bottom:1px solid var(--line);text-decoration:none}.source:last-child{border:0}.source small{display:block;color:var(--muted)}@media(max-width:700px){main{width:min(100% - 28px,940px);padding-top:32px}.goal,.options{grid-template-columns:1fr}.step{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">AI Full-stack · Java Side Track · Lesson 52</div>
+  <h1>第五十二课：生产数据库配置与 Flyway 迁移边界</h1>
+  <p class="meta">预计 90–120 分钟 · 基于第 51 课的 H2 与 JPA Repository</p>
+  <p class="lead">H2 让你验证了“对象能写进表”。但生产环境不能靠应用启动时临时建表和插入数据。本课把“连接哪个数据库”与“数据库结构如何演进”分开：Profile 选择环境，Flyway 记录并执行迁移。</p>
+
+  <section class="goal"><h2>本课胜利点</h2><ul><li>能区分开发环境的 H2 与生产 PostgreSQL 的职责。</li><li>能用 <code>application-dev.properties</code> 与 <code>application-prod.properties</code> 隔离连接信息。</li><li>能解释为什么生产环境使用 <code>ddl-auto=validate</code>，而不是 <code>create-drop</code>。</li><li>能把建表和种子数据迁入版本化的 Flyway SQL 文件。</li><li>能说清迁移文件为什么只能新增、不能改历史。</li></ul></section>
+
+  <h2>0. 先明确两条边界</h2>
+  <table><thead><tr><th>问题</th><th>负责者</th><th>例子</th></tr></thead><tbody><tr><td>本次应用连接哪一个数据库？</td><td>Spring Profile + 环境变量</td><td>本机 H2；线上 PostgreSQL</td></tr><tr><td>数据库应有哪些表和列？</td><td>Flyway 迁移文件</td><td><code>V1__create_releases.sql</code></td></tr><tr><td>Java 实体是否与已存在的表一致？</td><td>Hibernate 校验</td><td><code>ddl-auto=validate</code></td></tr></tbody></table>
+  <div class="callout info"><strong>前端类比：</strong>Profile 像 Vite 的不同 <code>.env</code> 文件，决定请求打到本地还是线上；Flyway 迁移则像被 Git 管理的数据库变更记录。两者都不能写进前端页面代码里。</div>
+
+  <h2>1. 脱稿：先判断风险</h2>
+  <section class="practice"><h3>不看后文，回答一句话</h3><p>如果生产应用保留 <code>spring.jpa.hibernate.ddl-auto=create-drop</code>，重启时可能发生什么？</p><label>我的判断<textarea id="risk" placeholder="提示：create-drop 的 drop 是谁执行、什么时候执行？"></textarea></label><button type="button" onclick="reviewRisk()">检查思路</button><p id="risk-feedback" class="feedback"></p></section>
+  <div class="callout"><strong>先记住：</strong><code>create-drop</code> 适合临时学习数据库；它能在启动创建、关闭删除表。生产数据不能交给这个行为决定命运。</div>
+
+  <h2>2. 第一步：把环境差异放进 Profile</h2>
+  <section class="step"><div class="number">1</div><div><h3>拆分配置文件</h3><p class="step-meta">修改 <code>java-backend/src/main/resources/application.properties</code>，并新建同目录下的两个 Profile 文件。</p><pre><code># application.properties：所有环境共同遵守的规则
+spring.application.name=java-backend
+spring.profiles.default=dev
+spring.jpa.hibernate.ddl-auto=validate
+spring.sql.init.mode=never
+
+# application-dev.properties：仅本机开发使用
+spring.datasource.url=jdbc:h2:mem:versiondb;DB_CLOSE_DELAY=-1
+spring.datasource.username=sa
+spring.datasource.password=
+
+# application-prod.properties：值来自部署平台的环境变量
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}</code></pre><div class="why"><strong>为什么密码不写死？</strong>配置文件会进入 Git；环境变量由部署平台在运行时注入。这样仓库、日志和课程截图里都不会出现生产密码。</div><p>本机使用默认的 <code>dev</code>；模拟生产配置时执行：<code>.mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=prod</code>。没有设置 <code>DB_URL</code> 时失败是安全且正确的，不要用真实密码补到文件里。</p></div></section>
+
+  <h2>3. 第二步：让 Flyway 成为唯一建表来源</h2>
+  <section class="step"><div class="number">2</div><div><h3>加入 Flyway 与 PostgreSQL 驱动</h3><p class="step-meta">在 <code>java-backend/pom.xml</code> 的 <code>&lt;dependencies&gt;</code> 中加入。保持 H2，供 dev Profile 和测试使用。</p><pre><code>&lt;dependency&gt;
+  &lt;groupId&gt;org.flywaydb&lt;/groupId&gt;
+  &lt;artifactId&gt;flyway-core&lt;/artifactId&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.flywaydb&lt;/groupId&gt;
+  &lt;artifactId&gt;flyway-database-postgresql&lt;/artifactId&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.postgresql&lt;/groupId&gt;
+  &lt;artifactId&gt;postgresql&lt;/artifactId&gt;
+  &lt;scope&gt;runtime&lt;/scope&gt;
+&lt;/dependency&gt;</code></pre><div class="why"><strong>为什么需要数据库专用模块？</strong>Flyway 核心负责迁移流程；PostgreSQL 模块提供该数据库的支持。Spring Boot 在类路径发现 Flyway 后，会在应用使用数据库前执行迁移。</div><h3>迁移旧的初始化 SQL</h3><p>删除 <code>data.sql</code>，新建目录 <code>src/main/resources/db/migration/</code>，然后新建：</p><pre><code>-- V1__create_releases.sql
+CREATE TABLE releases (
+  id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  release_label VARCHAR(255) NOT NULL UNIQUE,
+  version VARCHAR(255) NOT NULL
+);
+
+INSERT INTO releases (release_label, version) VALUES ('local', '1.0.1');
+INSERT INTO releases (release_label, version) VALUES ('staging', '1.1.0-rc1');</code></pre><div class="why"><strong>命名规则：</strong><code>V1__</code> 是版本 1；双下划线后是人类可读说明。Flyway 默认读取 <code>classpath:db/migration</code>，并把已执行版本记录在自己的历史表中。</div></div></section>
+
+  <h2>4. 第三步：验证而不是让 Hibernate 改库</h2>
+  <section class="step"><div class="number">3</div><div><h3>保留实体，改变 Hibernate 的职责</h3><p>不改 <code>ReleaseEntity</code>、<code>ReleaseJpaRepository</code> 或业务适配器。公共配置里的 <code>ddl-auto=validate</code> 会让 Hibernate 在启动时检查实体与 Flyway 创建的表是否匹配。</p><table><thead><tr><th>模式</th><th>适用场景</th><th>本课选择</th></tr></thead><tbody><tr><td><code>create-drop</code></td><td>短暂学习、一次性实验</td><td>不再用于默认应用启动</td></tr><tr><td><code>update</code></td><td>看似方便，但变更不可审计</td><td>不要用于生产</td></tr><tr><td><code>validate</code></td><td>只检查，不擅自改表</td><td>与 Flyway 配合使用</td></tr></tbody></table><p>运行 <code>.mvnw.cmd clean test</code>。预期：Flyway 建表和插入数据，JPA 查询测试与既有接口测试都通过。</p></div></section>
+
+  <h2>5. 迁移文件是不可变的历史</h2>
+  <section class="step"><div class="number">4</div><div><h3>做一个不会破坏历史的变更</h3><p>假设需要增加发布时间，不要回去改 <code>V1__create_releases.sql</code>。新建 <code>V2__add_released_at.sql</code>：</p><pre><code>ALTER TABLE releases ADD COLUMN released_at TIMESTAMP NULL;</code></pre><p>然后才在 Java 实体中增加对应字段，并为它写测试。线上数据库已经执行过 V1；改 V1 会让已记录的校验和与 Git 中的文件不一致，部署应当失败。</p><div class="callout good"><strong>胜利点：</strong>你现在可以把“代码需要的新结构”表达为一个可审查、可回放、可排序的 SQL 文件，而不是依赖某次手工连库操作。</div></div></section>
+
+  <h2>6. 验收清单</h2><section class="summary"><ul><li>默认 dev Profile 能使用 H2，prod Profile 只从环境变量获取 PostgreSQL 连接。</li><li><code>data.sql</code> 已被迁移文件替代，且 <code>spring.sql.init.mode=never</code> 防止两套初始化机制混用。</li><li>Flyway 的 <code>V1__create_releases.sql</code> 建表并插入课程数据。</li><li>Hibernate 使用 <code>validate</code>，只核对实体与表，不直接修改生产结构。</li><li>新增结构通过新版本迁移文件表达，不改已执行的历史文件。</li></ul></section>
+
+  <h2>7. 检索练习</h2><section class="quiz"><div class="quiz-header">选择后立即获得反馈</div><div class="question" id="q1"><p>1. 为什么生产环境不应使用 <code>create-drop</code>？</p><div class="options"><button class="option" onclick="answer('q1',this,true,'正确。它的生命周期包含删表，生产数据不能依赖应用进程的启动和关闭行为。')">它可能随应用生命周期删除表</button><button class="option" onclick="answer('q1',this,false,'H2 与 PostgreSQL 都能被 Flyway 管理；问题是建表责任，不是数据库名称。')">它只能配合 H2 使用</button></div><p class="feedback"></p></div><div class="question" id="q2"><p>2. 谁负责记录已经执行过哪些数据库结构变更？</p><div class="options"><button class="option" onclick="answer('q2',this,false,'Profile 选择配置环境，不记录数据库历史。')">Spring Profile</button><button class="option" onclick="answer('q2',this,true,'正确。Flyway 维护历史表，并据此按版本执行尚未应用的迁移。')">Flyway</button></div><p class="feedback"></p></div><div class="question" id="q3"><p>3. 需要加一列时正确做法是什么？</p><div class="options"><button class="option" onclick="answer('q3',this,false,'改历史会破坏已经部署环境中的迁移校验。')">修改 V1 文件</button><button class="option" onclick="answer('q3',this,true,'正确。新增版本保留完整演进历史，所有环境能得到相同的变更顺序。')">新增 V2 迁移文件</button></div><p class="feedback"></p></div></section>
+
+  <section class="sources"><h2 style="margin-top:0">依据</h2><a class="source" href="https://docs.spring.io/spring-boot/how-to/data-initialization.html" target="_blank" rel="noopener"><strong>Spring Boot：Database Initialization</strong><small>Flyway 默认目录、版本化脚本格式、数据库专用模块与运行时迁移顺序。</small></a><a class="source" href="https://docs.spring.io/spring-boot/appendix/application-properties/" target="_blank" rel="noopener"><strong>Spring Boot：Common Application Properties</strong><small>Flyway 配置项与默认值。</small></a><a class="source" href="https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database" target="_blank" rel="noopener"><strong>Flyway：PostgreSQL Database</strong><small>PostgreSQL JDBC URL 与数据库专用 Maven 模块。</small></a></section>
+  <p class="lead" style="margin-top:28px">下一课：为迁移增加可重复的集成测试，让“能在我的电脑运行”变成对数据库结构的自动化保证。</p>
+</main><script>function reviewRisk(){const v=document.getElementById('risk').value.trim();const e=document.getElementById('risk-feedback');e.textContent=v?'正确。关键风险是关闭时删表；生产应用重启不该决定数据是否存在。':'先写下你的判断，再检查。';e.className='feedback show'}function answer(id,b,ok,t){const q=document.getElementById(id);if(q.dataset.done)return;q.dataset.done='1';q.querySelectorAll('button').forEach(x=>x.disabled=true);b.classList.add(ok?'correct':'wrong');const f=q.querySelector('.feedback');f.textContent=t;f.className='feedback show'}</script>
+</body></html>
