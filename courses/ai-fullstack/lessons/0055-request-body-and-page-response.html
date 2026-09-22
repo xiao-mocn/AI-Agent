@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>第五十五课：读懂请求体与分页响应</title>
+  <style>
+    :root { --ink:#e8f0f2; --muted:#9babb2; --paper:#0b1419; --panel:#111e24; --panel-strong:#17272e; --line:#2a3e47; --accent:#ffb454; --accent-soft:#332718; --cyan:#67d8d1; --cyan-soft:#14302f; --good:#8bd17c; --danger:#ff8585; --shadow:0 24px 70px rgba(0,0,0,.28); }
+    * { box-sizing:border-box; } html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:linear-gradient(rgba(103,216,209,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(103,216,209,.035) 1px,transparent 1px),radial-gradient(circle at 18% 3%,rgba(255,180,84,.12),transparent 28rem),var(--paper); background-size:28px 28px,28px 28px,auto,auto; font:17px/1.78 Cambria,"Noto Serif SC","Microsoft YaHei",serif; }
+    main { width:min(1040px,calc(100% - 34px)); margin:0 auto; padding:42px 0 90px; } h1,h2,h3,.eyebrow,.meta,button,.tag,th,.kicker,label { font-family:Bahnschrift,"Microsoft YaHei UI","Microsoft YaHei",sans-serif; }
+    h1 { max-width:920px; margin:12px 0 14px; font-size:clamp(38px,6vw,68px); line-height:1.04; letter-spacing:-.045em; } h2 { margin:58px 0 16px; font-size:clamp(25px,4vw,34px); line-height:1.2; } h3 { margin:0 0 9px; font-size:19px; line-height:1.35; } p { margin:10px 0; } a { color:var(--cyan); }
+    code { padding:.12em .36em; border:1px solid rgba(103,216,209,.16); border-radius:4px; color:#a9eeea; background:#0c191e; font:14px/1.5 Consolas,monospace; } pre { margin:14px 0 8px; padding:17px 19px; overflow:auto; border:1px solid var(--line); color:#dbe6e9; background:#081115; font:14px/1.65 Consolas,monospace; } pre code { padding:0; border:0; color:inherit; background:transparent; }
+    .eyebrow,.meta,.kicker,.tag { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; } .eyebrow { color:var(--accent); } .meta,.lead { color:var(--muted); } .lead { max-width:860px; font-size:20px; }
+    .goal,.callout,.step,.practice,.summary,.sources,.quiz,.map,.contract { border:1px solid var(--line); background:rgba(17,30,36,.94); box-shadow:var(--shadow); } .goal { display:grid; grid-template-columns:170px 1fr; gap:22px; margin-top:25px; padding:24px 26px; border-left:5px solid var(--accent); } .goal h2 { margin:0; font-size:18px; } ul,ol { margin:8px 0; padding-left:23px; } li { margin:7px 0; }
+    .callout { margin-top:17px; padding:17px 20px; border-left:5px solid var(--cyan); } .callout.warn { border-left-color:var(--accent); background:rgba(51,39,24,.84); } .callout.good { border-left-color:var(--good); background:rgba(24,53,34,.84); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; } .card { padding:18px; border:1px solid var(--line); background:rgba(17,30,36,.94); } .card strong { display:block; margin-bottom:6px; color:var(--accent); font-family:Bahnschrift,"Microsoft YaHei UI",sans-serif; }
+    .step { display:grid; grid-template-columns:48px 1fr; gap:15px; margin-top:15px; padding:22px; } .number { display:grid; place-items:center; width:36px; height:36px; border:1px solid var(--accent); border-radius:50%; color:var(--accent); font:700 14px Consolas,monospace; } .step-meta { color:var(--muted); font:14px/1.6 Bahnschrift,"Microsoft YaHei UI",sans-serif; }
+    .map { padding:24px; } .flow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:15px; } .node { min-height:102px; padding:15px; border:1px solid var(--line); background:#081115; } .node b { display:block; color:var(--cyan); font:700 13px Bahnschrift,sans-serif; } .node span { display:block; margin-top:7px; color:var(--muted); font:13px/1.5 Consolas,monospace; }
+    table { width:100%; margin-top:15px; border-collapse:collapse; font-size:15px; } th,td { padding:12px 13px; border:1px solid var(--line); text-align:left; vertical-align:top; } th { color:var(--accent); background:#0a151a; font-size:13px; }
+    .contract { margin-top:18px; padding:23px; border-top:5px solid var(--cyan); } label { display:block; margin-top:14px; color:var(--muted); font-size:13px; font-weight:700; } textarea { width:100%; min-height:110px; margin-top:7px; padding:12px; border:1px solid var(--line); color:var(--ink); background:#081115; font:14px/1.6 Consolas,monospace; resize:vertical; } button.action,.option { min-height:43px; margin-top:12px; padding:9px 15px; border:1px solid var(--cyan); color:#081115; background:var(--cyan); cursor:pointer; font-weight:800; } button:hover,button:focus-visible { filter:brightness(1.08); outline:3px solid rgba(103,216,209,.2); }
+    .feedback { display:none; margin:14px 0 0; padding:13px 15px; border-left:4px solid var(--cyan); color:#b8f2ee; background:var(--cyan-soft); } .feedback.show { display:block; } .feedback.warn { border-left-color:var(--accent); color:#ffd69d; background:var(--accent-soft); }
+    .quiz { overflow:hidden; } .quiz-header { padding:13px 18px; color:var(--muted); background:#0a151a; font:700 12px Bahnschrift,sans-serif; letter-spacing:.08em; } .question { padding:20px; border-top:1px solid var(--line); } .question>p:first-child { margin-top:0; font-weight:700; } .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .option { margin:0; color:var(--ink); background:var(--panel-strong); } .option.correct { color:#0b1a0e; border-color:var(--good); background:var(--good); } .option.wrong { color:#260707; border-color:var(--danger); background:var(--danger); } button:disabled { cursor:default; }
+    .summary { margin-top:18px; padding:22px 24px; border-left:5px solid var(--good); } .sources { margin-top:18px; padding:17px 21px; } .source { display:block; padding:11px 0; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; } .source:last-child { border-bottom:0; } .source:hover { color:var(--cyan); } .source small { display:block; margin-top:3px; color:var(--muted); } .next { margin-top:30px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); }
+    @media (max-width:700px) { main { width:min(100% - 26px,1040px); padding-top:28px; } .goal,.grid,.options,.flow { grid-template-columns:1fr; } .step { grid-template-columns:1fr; } } @media print { :root { --ink:#18252a; --muted:#52636b; --paper:#fff; --panel:#fff; --panel-strong:#f5f8f8; --line:#bcc9ce; } body { background:#fff; } .goal,.callout,.step,.practice,.summary,.sources,.quiz,.map,.contract { box-shadow:none; } pre,textarea { color:#17242d; background:#f4f7f8; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">AI Full-stack · eao-api Onboarding · Lesson 55</div>
+    <h1>第五十五课：<br>读懂请求体与分页响应</h1>
+    <p class="meta">预计 60–90 分钟 · 后端上岗桥接 · 第 3 天</p>
+    <p class="lead">上一课你已经找到了 HTTP 入口。现在把镜头推进方法签名：前端的筛选条件如何进入 <code>BrandPageReqVO</code>，而后端的分页结果又为何能被页面直接读成 <code>list</code> 与 <code>total</code>？</p>
+
+    <div class="goal"><h2>本课胜利点</h2><ul>
+      <li>能从 <code>@RequestBody BrandPageReqVO</code> 解释 JSON 请求体的接收位置。</li>
+      <li>能区分继承得到的分页字段与品牌模块自己的筛选字段。</li>
+      <li>能读出 <code>CommonResult&lt;PageResult&lt;BrandRespVO&gt;&gt;</code> 的三层响应结构。</li>
+      <li>能把前端的 <code>searchParams</code>、<code>res.list</code>、<code>res.total</code> 对上后端类型。</li>
+      <li>能标出本课边界：只读 VO 和包装结构，不追 Service、Mapper 或数据库。</li>
+    </ul></div>
+
+    <h2>0. 先把第 54 课的入口接上</h2>
+    <section class="contract">
+      <h3>已确认的 Controller 方法</h3>
+      <pre><code>@PostMapping("/page")
+public CommonResult&lt;PageResult&lt;BrandRespVO&gt;&gt; getBrandPage(
+        @RequestBody BrandPageReqVO pageReqVO) {
+    return success(brandService.getBrandPage(pageReqVO));
+}</code></pre>
+      <p>把它按前端熟悉的函数签名来读：<code>BrandPageReqVO</code> 是输入，<code>CommonResult&lt;...&gt;</code> 是统一信封，信封里的 <code>PageResult&lt;BrandRespVO&gt;</code> 才是分页业务数据。</p>
+      <div class="callout good"><strong>本课的关键切换：</strong>上节课用“路径 + HTTP 方法”定位方法；本节课用“参数类型 + 返回类型”定位数据契约。Controller 不是业务细节的终点，但它是数据进入与离开 Java 的边界。</div>
+    </section>
+
+    <h2>1. <code>@RequestBody</code>：把 JSON 放进参数对象</h2>
+    <div class="step"><div class="number">01</div><div>
+      <h3>从前端 <code>data</code> 找到 Java 参数</h3>
+      <p class="step-meta">前端：<code>src/api/iot/brand/index.ts</code></p>
+      <pre><code>getBrandPage: async (data: any) =&gt; {
+  return await request.post({ url: '/model/brand/page', data })
+}</code></pre>
+      <p><code>data</code> 会作为 POST 请求体发送。Controller 中的 <code>@RequestBody</code> 让 Spring 将这段 JSON 反序列化为 <code>BrandPageReqVO pageReqVO</code>；它不是“某个字段”，而是整个请求体的接收口。</p>
+      <div class="callout warn"><strong>边界提醒：</strong>不要把 <code>@RequestBody</code> 理解成自动证明输入一定合法。真实项目的校验触发时机还取决于 Controller 参数上的校验注解和全局配置；本课先确认字段归属，不擅自推断校验结果。</div>
+    </div></div>
+
+    <h2>2. 请求 VO：分页公共字段 + 业务筛选字段</h2>
+    <div class="step"><div class="number">02</div><div>
+      <h3>读继承关系，别只看当前文件</h3>
+      <p class="step-meta">文件：<code>eao-common/contracts/eao-model-contract/.../BrandPageReqVO.java</code></p>
+      <pre><code>@Data
+@EqualsAndHashCode(callSuper = true)
+public class BrandPageReqVO extends PageParam {
+    private String brand;
+    private String manufacturer;
+}</code></pre>
+      <p><code>brand</code> 与 <code>manufacturer</code> 是品牌模块新增的筛选条件。<code>extends PageParam</code> 表示 <code>pageNo</code>、<code>pageSize</code> 定义在父类，仍是这个请求对象的一部分。</p>
+      <table><thead><tr><th>字段来源</th><th>字段</th><th>在当前链路中的意义</th></tr></thead><tbody>
+        <tr><td><code>PageParam</code></td><td><code>pageNo</code>、<code>pageSize</code></td><td>告诉后端需要第几页、每页多少条；默认 1 和 10，且定义了 1–100 的边界。</td></tr>
+        <tr><td><code>BrandPageReqVO</code></td><td><code>brand</code></td><td>型号编码的模糊筛选条件。</td></tr>
+        <tr><td><code>BrandPageReqVO</code></td><td><code>manufacturer</code></td><td>品牌商的模糊筛选条件。</td></tr>
+      </tbody></table>
+    </div></div>
+
+    <h2>3. 响应类型：从 Java 泛型还原前端对象</h2>
+    <section class="map">
+      <p class="kicker">由外到内拆开，不要一次背下三层尖括号</p>
+      <div class="flow"><div class="node"><b>01 · HTTP 响应</b><span>{ code, data, msg }</span></div><div class="node"><b>02 · CommonResult</b><span>统一结果信封</span></div><div class="node"><b>03 · PageResult</b><span>{ list, total }</span></div><div class="node"><b>04 · BrandRespVO</b><span>每一行品牌数据</span></div></div>
+      <pre><code>CommonResult&lt;PageResult&lt;BrandRespVO&gt;&gt;
+└─ data: PageResult&lt;BrandRespVO&gt;
+   ├─ list: List&lt;BrandRespVO&gt;
+   └─ total: Long</code></pre>
+      <p>前端的 <code>res.list</code> 与 <code>res.total</code> 正对应 <code>PageResult</code>。每个 <code>list</code> 元素是一个 <code>BrandRespVO</code>，包含 <code>brandId</code>、<code>brand</code>、<code>manufacturer</code>、<code>createTime</code> 等展示字段。</p>
+    </section>
+
+    <h2>4. 动手验收：写出一次完整的字段对照</h2>
+    <section class="contract">
+      <h3>不看正文，回答下面四个定位点</h3>
+      <ol><li><code>searchParams.pageNo</code> 与 <code>searchParams.pageSize</code> 来自哪个 Java 父类？</li><li><code>searchParams.brand</code> 和 <code>searchParams.manufacturer</code> 属于哪个请求 VO？</li><li>为什么 <code>tableData.value = res.list</code> 能拿到多条记录？</li><li>为什么 <code>total.value = res.total</code> 不是某一行品牌的字段？</li></ol>
+      <label for="answer">我的对照证据（至少写出：PageParam、BrandPageReqVO、PageResult、BrandRespVO）</label>
+      <textarea id="answer" placeholder="例如：pageNo/pageSize 继承自……；brand/manufacturer 定义在……；res.list 是……；每一项是……"></textarea>
+      <button class="action" type="button" onclick="reviewContract()">检查字段对照</button><p id="feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <h2>5. 暂时不深入的地方</h2>
+    <div class="grid"><article class="card"><strong>Service / Mapper</strong><p>它们决定筛选如何变成查询；后续再沿 <code>brandService.getBrandPage</code> 向下追踪。</p></article><article class="card"><strong>前端请求封装</strong><p>当前只把 <code>request.post({ data })</code> 当作 JSON 请求体的证据，不展开拦截器和错误处理。</p></article><article class="card"><strong>Lombok</strong><p><code>@Data</code> 会生成访问器方法；现在只需知道字段可以参与 Spring 的对象绑定。</p></article><article class="card"><strong>校验与权限</strong><p>这些是生产入口的重要边界，但要在看清数据流后单独学习，避免把当前练习变成注解清单。</p></article></div>
+
+    <h2>6. 检索练习</h2>
+    <div class="quiz"><div class="quiz-header">先拆层，再判断 · 每题只有一个正确答案</div>
+      <div class="question" id="q1"><p>1. <code>BrandPageReqVO</code> 里没有直接声明 <code>pageSize</code>，它为什么仍能接收该字段？</p><div class="options"><button class="option" type="button" onclick="answer('q1',this,true,'正确。BrandPageReqVO 继承 PageParam，pageSize 是继承来的实例字段。')">字段来自父类</button><button class="option" type="button" onclick="answer('q1',this,false,'不是。请求路径只负责路由，不定义请求对象字段。')">路径自动补齐</button><button class="option" type="button" onclick="answer('q1',this,false,'不是。BrandRespVO 描述的是响应中的一条品牌记录。')">响应对象提供</button><button class="option" type="button" onclick="answer('q1',this,false,'不是。Controller 不会凭空增加参数字段。')">Controller 生成</button></div><p class="feedback" aria-live="polite"></p></div>
+      <div class="question" id="q2"><p>2. <code>PageResult&lt;BrandRespVO&gt;</code> 中的 <code>total</code> 描述什么？</p><div class="options"><button class="option" type="button" onclick="answer('q2',this,false,'不是。当前页记录放在 list 中，list 中每个元素才是一条 BrandRespVO。')">当前页的一条记录</button><button class="option" type="button" onclick="answer('q2',this,true,'正确。total 是分页结果的总量，用于前端分页控件计算页数。')">匹配条件的总量</button><button class="option" type="button" onclick="answer('q2',this,false,'不是。HTTP 状态不由 PageResult.total 表示。')">HTTP 状态码</button><button class="option" type="button" onclick="answer('q2',this,false,'不是。页码属于请求侧的 pageNo。')">当前请求页码</button></div><p class="feedback" aria-live="polite"></p></div>
+      <div class="question" id="q3"><p>3. 哪一项最准确地说明 <code>@RequestBody</code> 在本方法中的职责？</p><div class="options"><button class="option" type="button" onclick="answer('q3',this,false,'不是。响应包装由返回类型和 success(...) 决定。')">包装响应结果</button><button class="option" type="button" onclick="answer('q3',this,true,'正确。它将 POST 请求体中的 JSON 绑定到 BrandPageReqVO 参数。')">接收 JSON 请求体</button><button class="option" type="button" onclick="answer('q3',this,false,'不是。URL 映射由 @PostMapping 与类级 @RequestMapping 决定。')">组合 URL 路径</button><button class="option" type="button" onclick="answer('q3',this,false,'不是。它不会直接执行数据库查询。')">执行数据库分页</button></div><p class="feedback" aria-live="polite"></p></div>
+    </div>
+
+    <h2>7. 本课总结</h2>
+    <div class="summary"><ul><li><code>@RequestBody BrandPageReqVO</code> 是分页筛选 JSON 进入 Java 的位置。</li><li><code>BrandPageReqVO</code> 自己定义 <code>brand</code>、<code>manufacturer</code>，并从 <code>PageParam</code> 继承 <code>pageNo</code>、<code>pageSize</code>。</li><li><code>CommonResult</code> 是统一信封，<code>PageResult</code> 提供 <code>list</code> 与 <code>total</code>，<code>BrandRespVO</code> 描述每一条数据。</li><li>现在你可以从页面字段一路解释到 Controller 参数和返回结构，而不是只知道“接口能调用”。</li></ul></div>
+
+    <h2>一手资料</h2>
+    <section class="sources"><a class="source" href="file:///E:/project/eao-front/src/api/iot/brand/index.ts"><strong>本地：eao-front 品牌 API</strong><small>确认 POST 请求体的来源和前端调用方式。</small></a><a class="source" href="file:///E:/project/eao-api/domains/eao-model/src/main/java/com/dgc/ems/hmi/model/controller/admin/brand/BrandController.java"><strong>本地：BrandController</strong><small>确认 @RequestBody、输入 VO 与返回泛型的实际签名。</small></a><a class="source" href="file:///E:/project/eao-common/contracts/eao-model-contract/src/main/java/com/dgc/ems/hmi/model/api/vo/brand/BrandPageReqVO.java"><strong>本地：BrandPageReqVO</strong><small>确认业务筛选字段和对 PageParam 的继承。</small></a><a class="source" href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/arguments.html" target="_blank" rel="noopener"><strong>Spring Framework：Method Arguments</strong><small>官方文档：@RequestBody 如何从 HTTP 请求体读取并反序列化数据。</small></a></section>
+
+    <div class="callout"><strong>卡住时直接问我：</strong>告诉我你已确认的字段、文件和方法；我会按“前端字段 → VO → Controller → 返回包装”逐层给提示，而不是直接替你跳到 Service。</div>
+    <p class="next">下一课：沿 <code>brandService.getBrandPage(pageReqVO)</code> 进入 Service 接口与实现，区分 Controller 的“接收/返回”职责和 Service 的“业务编排”职责。</p>
+  </main>
+  <script>
+    function answer(id, button, correct, text) { const box=document.getElementById(id); if (box.dataset.done) return; box.dataset.done='1'; box.querySelectorAll('button').forEach(function(item){ item.disabled=true; }); button.classList.add(correct?'correct':'wrong'); const feedback=box.querySelector('.feedback'); feedback.textContent=text; feedback.className=correct?'feedback show':'feedback show warn'; }
+    function reviewContract() { const value=document.getElementById('answer').value.toLowerCase(); const keys=['pageparam','brandpagereqvo','pageresult','brandrespvo']; const count=keys.filter(function(key){ return value.includes(key); }).length; const feedback=document.getElementById('feedback'); if (count<4) { feedback.textContent='当前命中 '+count+'/4 个关键类型。补齐 PageParam、BrandPageReqVO、PageResult 和 BrandRespVO，再说明字段流向。'; feedback.className='feedback show warn'; return; } feedback.textContent='字段对照完整：你已将分页请求、业务筛选、分页容器和单行响应对象连成一条可复查的数据链。'; feedback.className='feedback show'; }
+  </script>
+</body>
+</html>
