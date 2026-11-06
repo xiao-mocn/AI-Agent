@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 13 课：解释技术决策</title>
+  <style>
+    :root { --text:#1a1a1a; --muted:#6b6b6b; --accent:#b45309; --bg:#fafaf8; --border:#e2e2dc; --code:#f4f4f0; --success:#16a34a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font:18px/1.7 Georgia,'Times New Roman',serif; color:var(--text); background:var(--bg); max-width:680px; margin:0 auto; padding:4rem 2rem 6rem; }
+    .breadcrumb,.tag,h2,.goal,.vocab,.review,.step,.pattern,.callout,.warn,.practice,.quiz,.teacher { font-family:'Helvetica Neue',Arial,sans-serif; }
+    .breadcrumb { font-size:.78rem; color:var(--muted); margin-bottom:2.5rem; letter-spacing:.02em; }
+    .tag { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.1em; padding:3px 9px; border-radius:3px; background:#fef3c7; color:var(--accent); margin-bottom:.9rem; }
+    h1 { font-size:2.1rem; font-weight:normal; line-height:1.25; margin-bottom:.4rem; }
+    .subtitle { font-style:italic; color:var(--muted); font-size:1.05rem; margin-bottom:3rem; }
+    h2 { font-size:.82rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:2.8rem 0 1rem; }
+    p { margin-bottom:1rem; }
+    .goal,.practice { border:1px solid var(--border); border-radius:8px; padding:1rem 1.25rem; background:white; margin:1.5rem 0; }
+    .goal ul,.summary ul { padding-left:1.25rem; }
+    .goal li,.summary li { margin:.35rem 0; }
+    .vocab { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+    .review { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+    .card { border:1px solid var(--border); border-radius:7px; padding:.85rem; background:white; cursor:pointer; transition:background .12s,border-color .12s; }
+    .card:hover { border-color:var(--accent); }
+    .card.on { border-color:var(--accent); background:#fffbeb; }
+    .word { display:block; color:var(--accent); font-weight:700; }
+    .example { display:block; color:var(--muted); font-size:.75rem; margin-top:.3rem; }
+    .meaning { display:none; font-size:.83rem; margin-top:.45rem; }
+    .card.on .meaning { display:block; }
+    .review .card { padding:.75rem .85rem; }
+    .pattern { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:1.5rem 0; }
+    .row { padding:1rem 1.2rem; border-bottom:1px solid var(--border); }
+    .row:last-child { border-bottom:0; }
+    .en { font:1.08rem Georgia,serif; margin:.4rem 0; }
+    .zh,.hint { font-size:.84rem; color:var(--muted); }
+    .blank { color:var(--accent); border-bottom:2px dotted var(--accent); }
+    .callout,.warn,.step { border-left:3px solid var(--accent); padding:.75rem 1.1rem; background:#fffbeb; margin:1.2rem 0; font-size:.9rem; line-height:1.6; }
+    .warn { border-left-color:#d97706; }
+    textarea { width:100%; min-height:130px; padding:.6rem; font:1rem Georgia,serif; border:1px solid var(--border); border-radius:6px; resize:vertical; }
+    .quiz { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:1.5rem 0; }
+    .quiz-header { padding:.6rem 1.1rem; background:var(--code); font-size:.72rem; font-weight:700; letter-spacing:.1em; color:var(--muted); }
+    .quiz-q { padding:1rem 1.1rem; border-top:1px solid var(--border); }
+    .quiz-question { font:.95rem/1.6 Georgia,serif; margin-bottom:.7rem; }
+    .quiz-options { display:flex; gap:.45rem; flex-wrap:wrap; }
+    .quiz-btn { font:.83rem 'Helvetica Neue',Arial,sans-serif; padding:.35rem .8rem; border:1px solid var(--border); border-radius:4px; background:white; cursor:pointer; }
+    .quiz-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+    .quiz-btn.correct { color:var(--success); border-color:var(--success); background:#f0fdf4; }
+    .quiz-btn.wrong { color:#dc2626; border-color:#dc2626; background:#fef2f2; }
+    .quiz-explain { display:none; color:var(--muted); font-size:.83rem; margin-top:.6rem; padding-top:.6rem; border-top:1px dashed var(--border); }
+    .quiz-explain.show { display:block; }
+    hr { border:0; border-top:1px solid var(--border); margin:2.5rem 0; }
+    .teacher { padding:1rem 1.1rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; font-size:.88rem; }
+    @media(max-width:520px) { .vocab { grid-template-columns:1fr; } .review { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="breadcrumb">程序员英语实战 › 第 13 课（共 N 课）</div>
+  <div class="tag">第 13 课 · 词汇强化 + 技术讨论</div>
+  <h1>用英文解释技术决策</h1>
+  <p class="subtitle">说清楚选了什么、依据是什么，以及方案会带来什么影响。</p>
+
+  <div class="goal">
+    <strong>本课目标</strong>
+    <ul>
+      <li>掌握 12 个解释技术决策时常用的词。</li>
+      <li>复习 6 个提出方案时学过的词。</li>
+      <li>能用三句话说明决策、理由和证据。</li>
+    </ul>
+  </div>
+
+  <h2>本课先背：12 个决策说明词</h2>
+  <p>先读英文词和例句，试着回忆中文；点击卡片后再核对释义。</p>
+  <div class="vocab">
+    <div class="card"><span class="word">decision</span><span class="example">We made a decision.</span><span class="meaning">决定、决策</span></div>
+    <div class="card"><span class="word">rationale</span><span class="example">Here is the rationale.</span><span class="meaning">决策理由、依据</span></div>
+    <div class="card"><span class="word">evidence</span><span class="example">The test results are evidence.</span><span class="meaning">证据</span></div>
+    <div class="card"><span class="word">assumption</span><span class="example">This assumption needs a check.</span><span class="meaning">假设</span></div>
+    <div class="card"><span class="word">requirement</span><span class="example">The requirement is fast response.</span><span class="meaning">需求、要求</span></div>
+    <div class="card"><span class="word">constraint</span><span class="example">Time is a constraint.</span><span class="meaning">限制条件</span></div>
+    <div class="card"><span class="word">metric</span><span class="example">We track one key metric.</span><span class="meaning">指标</span></div>
+    <div class="card"><span class="word">benchmark</span><span class="example">The benchmark shows a speed gain.</span><span class="meaning">基准测试、对比基准</span></div>
+    <div class="card"><span class="word">maintainable</span><span class="example">The code should be maintainable.</span><span class="meaning">易于维护的</span></div>
+    <div class="card"><span class="word">reliable</span><span class="example">We need a reliable service.</span><span class="meaning">可靠的</span></div>
+    <div class="card"><span class="word">performance</span><span class="example">This change improves performance.</span><span class="meaning">性能</span></div>
+    <div class="card"><span class="word">rollout</span><span class="example">We'll use a gradual rollout.</span><span class="meaning">逐步发布、分阶段上线</span></div>
+  </div>
+
+  <h2>间隔复习：6 个方案词</h2>
+  <p>先看英文词和例句回忆含义，再点击卡片翻开中文释义。</p>
+  <div class="review">
+    <div class="card"><span class="word">proposal</span><span class="example">I have a proposal.</span><span class="meaning">方案建议</span></div>
+    <div class="card"><span class="word">approach</span><span class="example">This approach is simpler.</span><span class="meaning">方法、路径</span></div>
+    <div class="card"><span class="word">benefit</span><span class="example">The benefit is speed.</span><span class="meaning">好处</span></div>
+    <div class="card"><span class="word">drawback</span><span class="example">The drawback is cost.</span><span class="meaning">缺点</span></div>
+    <div class="card"><span class="word">recommend</span><span class="example">I recommend option A.</span><span class="meaning">推荐</span></div>
+    <div class="card"><span class="word">feasible</span><span class="example">It is feasible this sprint.</span><span class="meaning">可行的</span></div>
+  </div>
+
+  <h2>解释决策的三句话</h2>
+  <div class="pattern">
+    <div class="row"><p class="en">We decided to use <span class="blank">___</span>.</p><p class="zh">我们决定使用 ___。</p></div>
+    <div class="row"><p class="en">The rationale is <span class="blank">___</span>.</p><p class="zh">理由是 ___。</p></div>
+    <div class="row"><p class="en">The evidence is <span class="blank">___</span>.</p><p class="zh">依据是 ___。</p></div>
+  </div>
+  <div class="callout"><strong>把观点和证据分开：</strong>“I think this is faster” 是个人判断；“The benchmark shows a 20% reduction in response time” 则给出了可检查的依据。暂时没有数据时，可以说明这是一个 assumption，并约定如何验证。</div>
+
+  <h2>轮到你了</h2>
+  <div class="step"><strong>步骤 1：</strong>点击词卡核对至少 8 个新词，再用复习卡回忆旧词。</div>
+  <div class="step"><strong>步骤 2：</strong>选一个技术决策，例如“为什么选缓存”或“为什么分阶段发布”。</div>
+  <div class="step"><strong>步骤 3：</strong>用三句话说明决策、rationale 和 evidence；至少使用 4 个新词。</div>
+  <div class="practice"><textarea placeholder="We decided to ...&#10;The rationale is ...&#10;The evidence is ..."></textarea><p class="hint">没有实际测量数据时，不要把 assumption 说成已验证的事实。</p></div>
+
+  <h2>词汇与场景测验</h2>
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+    <div class="quiz-q" id="q1"><p class="quiz-question">1. rationale 指什么？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q1',this,true,'rationale 是支持某项决定的理由或依据。')">决策理由</button><button class="quiz-btn" onclick="answer('q1',this,false,'metric 是指标。')">指标</button><button class="quiz-btn" onclick="answer('q1',this,false,'rollout 是分阶段发布。')">发布阶段</button></div><div class="quiz-explain" id="q1-explain"></div></div>
+    <div class="quiz-q" id="q2"><p class="quiz-question">2. 为什么用 benchmark 解释性能决策？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q2',this,true,'benchmark 提供可比较的测量结果，让性能判断有证据支撑。')">用可比较的数据支持判断</button><button class="quiz-btn" onclick="answer('q2',this,false,'benchmark 是测量依据，不是个人偏好。')">表达个人偏好</button><button class="quiz-btn" onclick="answer('q2',this,false,'它不能代替对需求和限制条件的说明。')">隐藏限制条件</button></div><div class="quiz-explain" id="q2-explain"></div></div>
+    <div class="quiz-q" id="q3"><p class="quiz-question">3. 如果还没验证“新方案会更快”，应该怎样描述？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q3',this,true,'正确。尚未验证的判断应称为 assumption，并说明准备怎样验证。')">说明这是 assumption，并安排验证</button><button class="quiz-btn" onclick="answer('q3',this,false,'未经验证的判断不能当作 evidence。')">当成 evidence 来报告</button><button class="quiz-btn" onclick="answer('q3',this,false,'忽略假设会让决策依据不透明。')">不提这个假设</button></div><div class="quiz-explain" id="q3-explain"></div></div>
+  </div>
+
+  <h2>本课总结</h2>
+  <div class="summary"><ul><li>decision 说明选了什么，rationale 说明为什么。</li><li>用 evidence、metric 或 benchmark 支持技术判断。</li><li>未验证的内容应标记为 assumption，并说明验证计划。</li></ul></div>
+  <hr>
+  <div class="teacher"><strong>有疑问吗？</strong><p>下一课将学习如何用英文描述系统架构和组件关系，继续把技术词汇放进真实工作表达中。</p></div>
+  <script>
+    document.querySelectorAll('.card').forEach(card => card.addEventListener('click', () => card.classList.toggle('on')));
+    function answer(id, button, isCorrect, explanation) {
+      const question = document.getElementById(id);
+      if (question.dataset.answered) return;
+      question.dataset.answered = '1';
+      question.querySelectorAll('.quiz-btn').forEach(option => { option.disabled = true; });
+      button.classList.add(isCorrect ? 'correct' : 'wrong');
+      const explanationElement = document.getElementById(id + '-explain');
+      explanationElement.textContent = (isCorrect ? '正确。' : '错误。') + ' ' + explanation;
+      explanationElement.classList.add('show');
+    }
+  </script>
+</body>
+</html>

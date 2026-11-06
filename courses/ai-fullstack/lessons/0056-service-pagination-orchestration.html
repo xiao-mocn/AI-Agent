@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="color-scheme" content="dark">
+  <title>第五十六课：追踪 Service 的分页编排</title>
+  <style>
+    :root{--ink:#e8f0f2;--muted:#9babb2;--paper:#0b1419;--panel:#111e24;--line:#2a3e47;--accent:#ffb454;--cyan:#67d8d1;--cyan-soft:#14302f;--good:#8bd17c;--danger:#ff8585;--shadow:0 24px 70px rgba(0,0,0,.28)}*{box-sizing:border-box}body{margin:0;color:var(--ink);background:linear-gradient(rgba(103,216,209,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(103,216,209,.035) 1px,transparent 1px),radial-gradient(circle at 18% 3%,rgba(255,180,84,.12),transparent 28rem),var(--paper);background-size:28px 28px,28px 28px,auto,auto;font:17px/1.78 Cambria,"Noto Serif SC","Microsoft YaHei",serif}main{width:min(1040px,calc(100% - 34px));margin:auto;padding:42px 0 90px}h1,h2,h3,button,.eyebrow,.meta,label,th{font-family:Bahnschrift,"Microsoft YaHei UI","Microsoft YaHei",sans-serif}h1{margin:12px 0 14px;font-size:clamp(38px,6vw,68px);line-height:1.04;letter-spacing:-.045em}h2{margin:58px 0 16px;font-size:clamp(25px,4vw,34px)}h3{margin:0 0 9px;font-size:19px}p{margin:10px 0}.eyebrow{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase}.meta,.lead{color:var(--muted)}.lead{max-width:860px;font-size:20px}code{padding:.12em .36em;border:1px solid rgba(103,216,209,.16);border-radius:4px;color:#a9eeea;background:#0c191e;font:14px/1.5 Consolas,monospace}pre{margin:14px 0 8px;padding:17px 19px;overflow:auto;border:1px solid var(--line);background:#081115;font:14px/1.65 Consolas,monospace}pre code{padding:0;border:0;background:transparent}.goal,.step,.callout,.practice,.quiz,.summary,.sources,.flow{border:1px solid var(--line);background:rgba(17,30,36,.94);box-shadow:var(--shadow)}.goal{display:grid;grid-template-columns:170px 1fr;gap:22px;margin-top:25px;padding:24px 26px;border-left:5px solid var(--accent)}.goal h2{margin:0;font-size:18px}ul,ol{margin:8px 0;padding-left:23px}li{margin:7px 0}.step{display:grid;grid-template-columns:48px 1fr;gap:15px;margin-top:15px;padding:22px}.number{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--accent);border-radius:50%;color:var(--accent);font:700 14px Consolas,monospace}.callout{margin-top:17px;padding:17px 20px;border-left:5px solid var(--cyan)}.callout.good{border-left-color:var(--good)}.callout.warn{border-left-color:var(--accent)}.flow{padding:23px}.nodes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:15px}.node{min-height:106px;padding:15px;border:1px solid var(--line);background:#081115}.node b{display:block;color:var(--cyan);font:700 13px Bahnschrift,sans-serif}.node span{display:block;margin-top:7px;color:var(--muted);font:13px/1.5 Consolas,monospace}.practice{margin-top:18px;padding:23px;border-top:5px solid var(--cyan)}textarea{width:100%;min-height:105px;margin-top:7px;padding:12px;border:1px solid var(--line);color:var(--ink);background:#081115;font:14px/1.6 Consolas,monospace}label{display:block;margin-top:14px;color:var(--muted);font-size:13px;font-weight:700}button{min-height:43px;margin-top:12px;padding:9px 15px;border:1px solid var(--cyan);color:#081115;background:var(--cyan);cursor:pointer;font-weight:800}.feedback{display:none;margin:14px 0 0;padding:13px 15px;border-left:4px solid var(--cyan);color:#b8f2ee;background:var(--cyan-soft)}.feedback.show{display:block}.feedback.warn{border-left-color:var(--accent);color:#ffd69d}.quiz{overflow:hidden}.quiz-header{padding:13px 18px;color:var(--muted);background:#0a151a;font:700 12px Bahnschrift,sans-serif;letter-spacing:.08em}.question{padding:20px;border-top:1px solid var(--line)}.question>p:first-child{margin-top:0;font-weight:700}.options{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.option{margin:0;color:var(--ink);background:#17272e}.option.correct{color:#0b1a0e;border-color:var(--good);background:var(--good)}.option.wrong{color:#260707;border-color:var(--danger);background:var(--danger)}button:disabled{cursor:default}.summary{margin-top:18px;padding:22px 24px;border-left:5px solid var(--good)}.sources{margin-top:18px;padding:17px 21px}.source{display:block;padding:11px 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}.source:last-child{border-bottom:0}.source small{display:block;margin-top:3px;color:var(--muted)}.next{margin-top:30px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted)}@media(max-width:700px){main{width:min(100% - 26px,1040px);padding-top:28px}.goal,.nodes,.options{grid-template-columns:1fr}.step{grid-template-columns:1fr}}@media print{:root{--ink:#18252a;--muted:#52636b;--paper:#fff;--line:#bcc9ce}body{background:#fff}.goal,.step,.callout,.practice,.quiz,.summary,.sources,.flow{box-shadow:none}}
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">AI Full-stack · eao-api Onboarding · Lesson 56</div>
+  <h1>第五十六课：<br>追踪 Service 的分页编排</h1>
+  <p class="meta">预计 60–90 分钟 · 后端上岗桥接 · 第 4 天</p>
+  <p class="lead">Controller 已经把请求交给 <code>brandService.getBrandPage(pageReqVO)</code>。这一行不像前端的“再调一个 API”，而是进入业务层的明确边界：接口声明承诺能力，实现类组织查询与转换。</p>
+
+  <div class="goal"><h2>本课胜利点</h2><ul><li>能从 Controller 字段定位到 <code>BrandService</code> 接口。</li><li>能在 <code>BrandServiceImpl</code> 找到同签名实现。</li><li>能复述分页链路中 Mapper、DO、Convert、RespVO 的先后顺序。</li><li>能解释 Service 为什么不应返回数据库 DO 给 Controller。</li><li>能区分本课必须掌握的编排职责与暂不展开的 SQL 细节。</li></ul></div>
+
+  <h2>0. 先写出你的预测</h2>
+  <section class="practice"><h3>不打开实现类，先回答</h3><p>Controller 接到 <code>BrandPageReqVO</code> 后，Service 最可能把它交给哪个层？拿到数据库对象后，为什么不能直接返回给前端？带着预测再阅读，能减少“看过很多行、没有形成链路”的感觉。</p><div class="callout good"><strong>前端类比：</strong>把 Service 想成页面调用 API 后的业务编排函数；它不负责 HTTP 路由，也不直接把数据库表模型泄露给页面。</div></section>
+
+  <h2>1. 从 Controller 进入接口：先确认契约</h2>
+  <div class="step"><div class="number">01</div><div><h3>字段类型是下一站的线索</h3><pre><code>@Resource
+private BrandService brandService;
+
+public CommonResult&lt;PageResult&lt;BrandRespVO&gt;&gt; getBrandPage(
+        @RequestBody BrandPageReqVO pageReqVO) {
+    return success(brandService.getBrandPage(pageReqVO));
+}</code></pre><p>先跳到 <code>BrandService</code>，确认接口中的方法签名：输入仍是 <code>BrandPageReqVO</code>，返回变成 <code>PageResult&lt;BrandRespVO&gt;</code>。接口只声明“能完成什么”，此时还没有说明怎样查库。</p></div></div>
+
+  <h2>2. 从接口进入实现：找到真正的编排</h2>
+  <div class="step"><div class="number">02</div><div><h3>用同名、同参数、同返回类型确认实现</h3><pre><code>@Override
+public PageResult&lt;BrandRespVO&gt; getBrandPage(BrandPageReqVO pageReqVO) {
+    PageResult&lt;BrandInfoDO&gt; pageResult = brandInfoMapper.selectPage(
+            pageReqVO, pageReqVO.getBrand(), pageReqVO.getManufacturer());
+    return BrandConvert.INSTANCE.convertPage(pageResult);
+}</code></pre><p><code>@Override</code> 是这里的护栏：它声明这个方法实现了接口的同一项承诺。第一行从 Mapper 取回数据库对象的分页结果，第二行把它转换为对外响应 VO；这两步正是本节要能复述的业务编排。</p><div class="callout warn"><strong>暂不追 SQL：</strong>本课只确认 Mapper 调用的输入、输出和转换位置。筛选条件怎样拼成 SQL、分页插件如何工作，留给后续 Mapper 课；不要因一次追太深而丢掉主线。</div></div></div>
+
+  <h2>3. 把类型变化画成一条链</h2>
+  <section class="flow"><div class="nodes"><div class="node"><b>01 · Controller</b><span>BrandPageReqVO</span></div><div class="node"><b>02 · Mapper</b><span>PageResult&lt;BrandInfoDO&gt;</span></div><div class="node"><b>03 · Convert</b><span>convertPage(...)</span></div><div class="node"><b>04 · Service 返回</b><span>PageResult&lt;BrandRespVO&gt;</span></div></div><pre><code>BrandPageReqVO
+  → brandInfoMapper.selectPage(...)
+  → PageResult&lt;BrandInfoDO&gt;
+  → BrandConvert.INSTANCE.convertPage(...)
+  → PageResult&lt;BrandRespVO&gt;</code></pre><p><code>DO</code> 是数据访问层使用的对象，通常贴近表字段；<code>RespVO</code> 是接口响应使用的对象，表达允许对外输出的数据。Convert 让两种职责分开，未来新增内部字段时不会自然地泄露到接口。</p></section>
+
+  <h2>4. 动手验收：用证据描述 Service 边界</h2>
+  <section class="practice"><h3>只写四行，不要解释 SQL</h3><ol><li>接口文件和方法签名。</li><li>实现类和 <code>@Override</code> 方法。</li><li>Mapper 的输入与返回类型。</li><li>Convert 前后的元素类型变化。</li></ol><label for="answer">我的证据链（需包含 BrandService、BrandServiceImpl、BrandInfoDO、BrandRespVO）</label><textarea id="answer" placeholder="BrandService#getBrandPage(...) → BrandServiceImpl... → Mapper 返回 ... → Convert 返回 ..."></textarea><button type="button" onclick="review()">检查证据链</button><p id="feedback" class="feedback" aria-live="polite"></p></section>
+
+  <h2>5. 检索练习</h2>
+  <div class="quiz"><div class="quiz-header">先定职责，再定类型 · 每题只有一个正确答案</div>
+    <div class="question" id="q1"><p>1. 为什么先查看 <code>BrandService</code> 接口，而不是立刻读 Mapper？</p><div class="options"><button class="option" type="button" onclick="answer('q1',this,true,'正确。接口先说明 Controller 调用的业务能力和稳定的输入输出契约，再进入实现追踪细节。')">先确认业务契约</button><button class="option" type="button" onclick="answer('q1',this,false,'不是。接口不是用来生成 SQL 的。')">接口负责生成 SQL</button><button class="option" type="button" onclick="answer('q1',this,false,'不是。Controller 已负责 HTTP 路由。')">接口负责路由 HTTP</button><button class="option" type="button" onclick="answer('q1',this,false,'不是。转换发生在实现中的 Convert 调用处。')">接口负责转换对象</button></div><p class="feedback" aria-live="polite"></p></div>
+    <div class="question" id="q2"><p>2. Mapper 返回 <code>PageResult&lt;BrandInfoDO&gt;</code> 后，Service 紧接着做什么？</p><div class="options"><button class="option" type="button" onclick="answer('q2',this,false,'不是。HTTP 成功包装由 Controller 的 success(...) 完成。')">再次包装 HTTP 响应</button><button class="option" type="button" onclick="answer('q2',this,true,'正确。通过 BrandConvert.convertPage 将 DO 分页结果转换为对外的 RespVO 分页结果。')">转换为响应 VO</button><button class="option" type="button" onclick="answer('q2',this,false,'不是。本方法已收到请求 VO，不需要重新解析 JSON。')">重新解析 JSON</button><button class="option" type="button" onclick="answer('q2',this,false,'不是。查询由 Mapper 调用执行；本课不展开 SQL。')">手写 SQL 查询</button></div><p class="feedback" aria-live="polite"></p></div>
+    <div class="question" id="q3"><p>3. 把 <code>BrandInfoDO</code> 直接返回给 Controller 的主要风险是什么？</p><div class="options"><button class="option" type="button" onclick="answer('q3',this,true,'正确。数据表模型和接口输出职责不同，直接返回会增加内部字段意外暴露与契约耦合的风险。')">泄露并耦合内部模型</button><button class="option" type="button" onclick="answer('q3',this,false,'不是。分页仍可以存在，关键问题是职责和边界。')">无法执行分页</button><button class="option" type="button" onclick="answer('q3',this,false,'不是。HTTP 方法由 Controller 的映射注解决定。')">会改变 HTTP 方法</button><button class="option" type="button" onclick="answer('q3',this,false,'不是。继承关系和是否转换没有直接关系。')">会失去继承字段</button></div><p class="feedback" aria-live="polite"></p></div>
+  </div>
+
+  <h2>6. 本课总结</h2>
+  <div class="summary"><ul><li><code>BrandService</code> 是 Controller 与业务实现之间的能力契约。</li><li><code>BrandServiceImpl#getBrandPage</code> 编排 Mapper 查询与 Convert 转换。</li><li>Mapper 侧得到 <code>PageResult&lt;BrandInfoDO&gt;</code>，Convert 后才成为接口使用的 <code>PageResult&lt;BrandRespVO&gt;</code>。</li><li>当前要掌握的是职责、类型和调用顺序；SQL 条件与分页实现稍后再追。</li></ul></div>
+
+  <h2>一手资料</h2>
+  <section class="sources"><a class="source" href="file:///E:/project/eao-api/domains/eao-model/src/main/java/com/dgc/ems/hmi/model/service/model/brand/BrandService.java"><strong>本地：BrandService</strong><small>确认接口声明的输入、输出与业务名称。</small></a><a class="source" href="file:///E:/project/eao-api/domains/eao-model/src/main/java/com/dgc/ems/hmi/model/service/model/brand/BrandServiceImpl.java"><strong>本地：BrandServiceImpl</strong><small>确认 Mapper 查询与 Convert 转换的真实顺序。</small></a><a class="source" href="https://docs.spring.io/spring-framework/reference/core/beans/classpath-scanning.html" target="_blank" rel="noopener"><strong>Spring Framework：Classpath Scanning</strong><small>官方文档：了解 @Service 作为 Spring 管理组件的基础职责。</small></a></section>
+  <div class="callout"><strong>卡住时直接问我：</strong>先告诉我你在 Controller、接口、实现类分别看到了什么；我会按“字段类型 → 方法签名 → Mapper 调用 → 类型转换”逐层提示。</div>
+  <p class="next">下一课：进入 <code>BrandInfoMapper.selectPage</code>，阅读分页查询条件如何从 <code>BrandPageReqVO</code> 变成数据访问层的筛选规则，并开始认识 Mapper 与 SQL/XML 的边界。</p>
+</main><script>
+function answer(id,button,correct,text){const box=document.getElementById(id);if(box.dataset.done)return;box.dataset.done='1';box.querySelectorAll('button').forEach(function(item){item.disabled=true});button.classList.add(correct?'correct':'wrong');const feedback=box.querySelector('.feedback');feedback.textContent=text;feedback.className=correct?'feedback show':'feedback show warn'}
+function review(){const value=document.getElementById('answer').value.toLowerCase();const keys=['brandservice','brandserviceimpl','brandinfodo','brandrespvo'];const count=keys.filter(function(key){return value.includes(key)}).length;const feedback=document.getElementById('feedback');if(count<4){feedback.textContent='当前命中 '+count+'/4 个关键类型。补齐 BrandService、BrandServiceImpl、BrandInfoDO 与 BrandRespVO。';feedback.className='feedback show warn';return}feedback.textContent='证据链完整：你已经把接口、实现、数据访问对象和响应对象按职责连起来了。';feedback.className='feedback show'}
+</script></body></html>
