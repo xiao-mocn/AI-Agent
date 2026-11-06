@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 12 课：提出技术方案建议</title>
+  <style>
+    :root { --text:#1a1a1a; --muted:#6b6b6b; --accent:#b45309; --bg:#fafaf8; --border:#e2e2dc; --code:#f4f4f0; --success:#16a34a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font:18px/1.7 Georgia,'Times New Roman',serif; color:var(--text); background:var(--bg); max-width:680px; margin:0 auto; padding:4rem 2rem 6rem; }
+    .breadcrumb,.tag,h2,.goal,.vocab,.review,.step,.pattern,.practice,.quiz,.teacher { font-family:'Helvetica Neue',Arial,sans-serif; }
+    .breadcrumb { font-size:.78rem; color:var(--muted); margin-bottom:2.5rem; letter-spacing:.02em; }
+    .tag { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.1em; padding:3px 9px; border-radius:3px; background:#fef3c7; color:var(--accent); margin-bottom:.9rem; }
+    h1 { font-size:2.1rem; font-weight:normal; line-height:1.25; margin-bottom:.4rem; }
+    .subtitle { font-style:italic; color:var(--muted); font-size:1.05rem; margin-bottom:3rem; }
+    h2 { font-size:.82rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:2.8rem 0 1rem; }
+    p { margin-bottom:1rem; }
+    .goal,.practice { border:1px solid var(--border); border-radius:8px; padding:1rem 1.25rem; background:white; margin:1.5rem 0; }
+    .goal ul,.summary ul { padding-left:1.25rem; }
+    .goal li,.summary li { margin:.35rem 0; }
+    .vocab { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+    .review { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+    .card { border:1px solid var(--border); border-radius:7px; padding:.85rem; background:white; cursor:pointer; transition:background .12s,border-color .12s; }
+    .card:hover { border-color:var(--accent); }
+    .card.on { border-color:var(--accent); background:#fffbeb; }
+    .word { display:block; color:var(--accent); font-weight:700; }
+    .example { display:block; color:var(--muted); font-size:.75rem; margin-top:.3rem; }
+    .meaning { display:none; font-size:.83rem; margin-top:.45rem; }
+    .card.on .meaning { display:block; }
+    .review .card { padding:.75rem .85rem; }
+    .pattern { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:1.5rem 0; }
+    .row { padding:1rem 1.2rem; border-bottom:1px solid var(--border); }
+    .row:last-child { border-bottom:0; }
+    .en { font:1.08rem Georgia,serif; margin:.4rem 0; }
+    .zh,.hint { font-size:.84rem; color:var(--muted); }
+    .blank { color:var(--accent); border-bottom:2px dotted var(--accent); }
+    .step { border-left:3px solid var(--accent); background:#fffbeb; padding:.75rem 1.1rem; margin:1.2rem 0; font-size:.9rem; }
+    textarea { width:100%; min-height:125px; padding:.6rem; font:1rem Georgia,serif; border:1px solid var(--border); border-radius:6px; resize:vertical; }
+    .quiz { border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:1.5rem 0; }
+    .quiz-header { padding:.6rem 1.1rem; background:var(--code); font-size:.72rem; font-weight:700; letter-spacing:.1em; color:var(--muted); }
+    .quiz-q { padding:1rem 1.1rem; border-top:1px solid var(--border); }
+    .quiz-question { font:.95rem/1.6 Georgia,serif; margin-bottom:.7rem; }
+    .quiz-options { display:flex; gap:.45rem; flex-wrap:wrap; }
+    .quiz-btn { font: .83rem 'Helvetica Neue',Arial,sans-serif; padding:.35rem .8rem; border:1px solid var(--border); border-radius:4px; background:white; cursor:pointer; }
+    .quiz-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+    .quiz-btn.correct { color:var(--success); border-color:var(--success); background:#f0fdf4; }
+    .quiz-btn.wrong { color:#dc2626; border-color:#dc2626; background:#fef2f2; }
+    .quiz-explain { display:none; color:var(--muted); font-size:.83rem; margin-top:.6rem; padding-top:.6rem; border-top:1px dashed var(--border); }
+    .quiz-explain.show { display:block; }
+    hr { border:0; border-top:1px solid var(--border); margin:2.5rem 0; }
+    .teacher { padding:1rem 1.1rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; font-size:.88rem; }
+    @media(max-width:520px) { .vocab { grid-template-columns:1fr; } .review { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="breadcrumb">程序员英语实战 › 第 12 课（共 N 课）</div>
+  <div class="tag">第 12 课 · 词汇强化 + 技术讨论</div>
+  <h1>用英文提出技术方案建议</h1>
+  <p class="subtitle">说明方案、好处与取舍，让建议可讨论、可评估。</p>
+
+  <div class="goal">
+    <strong>本课目标</strong>
+    <ul><li>掌握 12 个技术方案词。</li><li>复习 6 个风险沟通词。</li><li>能提出三句技术建议。</li></ul>
+  </div>
+
+  <h2>本课先背：12 个方案词</h2>
+  <p>先看英文词和例句，试着回忆中文；点击卡片后再核对释义。</p>
+  <div class="vocab">
+    <div class="card"><span class="word">proposal</span><span class="example">I have a proposal.</span><span class="meaning">方案建议</span></div>
+    <div class="card"><span class="word">approach</span><span class="example">This approach is simpler.</span><span class="meaning">方法、路径</span></div>
+    <div class="card"><span class="word">option</span><span class="example">We have two options.</span><span class="meaning">选项</span></div>
+    <div class="card"><span class="word">trade-off</span><span class="example">There is a trade-off.</span><span class="meaning">取舍</span></div>
+    <div class="card"><span class="word">benefit</span><span class="example">The benefit is speed.</span><span class="meaning">好处</span></div>
+    <div class="card"><span class="word">drawback</span><span class="example">The drawback is cost.</span><span class="meaning">缺点</span></div>
+    <div class="card"><span class="word">recommend</span><span class="example">I recommend option A.</span><span class="meaning">推荐</span></div>
+    <div class="card"><span class="word">evaluate</span><span class="example">We need to evaluate it.</span><span class="meaning">评估</span></div>
+    <div class="card"><span class="word">feasible</span><span class="example">It is feasible this sprint.</span><span class="meaning">可行的</span></div>
+    <div class="card"><span class="word">scope</span><span class="example">Keep the scope small.</span><span class="meaning">范围</span></div>
+    <div class="card"><span class="word">complexity</span><span class="example">It adds complexity.</span><span class="meaning">复杂度</span></div>
+    <div class="card"><span class="word">prototype</span><span class="example">Build a prototype.</span><span class="meaning">原型</span></div>
+  </div>
+
+  <h2>间隔复习：6 个已学词</h2>
+  <p>先看英文和例句回忆含义，再点击卡片翻开中文释义。</p>
+  <div class="review">
+    <div class="card"><span class="word">risk</span><span class="example">There is a risk of delay.</span><span class="meaning">风险</span></div>
+    <div class="card"><span class="word">impact</span><span class="example">The impact is two days.</span><span class="meaning">影响</span></div>
+    <div class="card"><span class="word">delay</span><span class="example">The release may be delayed.</span><span class="meaning">延期</span></div>
+    <div class="card"><span class="word">dependency</span><span class="example">We are waiting for a dependency.</span><span class="meaning">依赖</span></div>
+    <div class="card"><span class="word">mitigate</span><span class="example">We can mitigate the risk.</span><span class="meaning">缓解风险</span></div>
+    <div class="card"><span class="word">timeline</span><span class="example">This affects the timeline.</span><span class="meaning">时间线</span></div>
+  </div>
+
+  <h2>三句方案模板</h2>
+  <div class="pattern">
+    <div class="row"><p class="en">I recommend <span class="blank">___</span> as an approach.</p><p class="zh">我推荐 ___ 作为方案。</p></div>
+    <div class="row"><p class="en">The main benefit is <span class="blank">___</span>.</p><p class="zh">主要好处是 ___。</p></div>
+    <div class="row"><p class="en">The trade-off is <span class="blank">___</span>.</p><p class="zh">取舍是 ___。</p></div>
+  </div>
+
+  <h2>轮到你了</h2>
+  <div class="step"><strong>步骤 1：</strong>点击词卡核对至少 8 个新词，再用复习卡回忆旧词。</div>
+  <div class="step"><strong>步骤 2：</strong>选择一个方案，例如先做原型还是直接重构。</div>
+  <div class="step"><strong>步骤 3：</strong>写 3 句建议，至少使用 4 个新词。</div>
+  <div class="practice"><textarea placeholder="I recommend ... as an approach.&#10;The main benefit is ...&#10;The trade-off is ..."></textarea><p class="hint">同时说明 benefit 与 drawback，让团队看清方案取舍。</p></div>
+
+  <h2>词汇与场景测验</h2>
+  <div class="quiz">
+    <div class="quiz-header">快速测验 · 三题</div>
+    <div class="quiz-q" id="q1"><p class="quiz-question">1. trade-off 是什么？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q1',this,true,'trade-off 表示方案之间的取舍。')">取舍</button><button class="quiz-btn" onclick="answer('q1',this,false,'benefit 才是好处。')">好处</button></div><div class="quiz-explain" id="q1-explain"></div></div>
+    <div class="quiz-q" id="q2"><p class="quiz-question">2. 为什么方案要说明 drawback？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q2',this,true,'说明限制能帮助团队做知情决策。')">让取舍可见</button><button class="quiz-btn" onclick="answer('q2',this,false,'隐藏限制会增加后续风险。')">隐藏限制</button></div><div class="quiz-explain" id="q2-explain"></div></div>
+    <div class="quiz-q" id="q3"><p class="quiz-question">3. prototype 适合做什么？</p><div class="quiz-options"><button class="quiz-btn" onclick="answer('q3',this,true,'原型可先验证可行性和关键假设。')">验证关键假设</button><button class="quiz-btn" onclick="answer('q3',this,false,'原型不等于直接发布生产。')">直接发布生产</button></div><div class="quiz-explain" id="q3-explain"></div></div>
+  </div>
+
+  <h2>本课总结</h2>
+  <div class="summary"><ul><li>方案包含 proposal、benefit 与 trade-off。</li><li>说明 complexity 和 scope，团队才能评估可行性。</li><li>不确定时先做 prototype 验证假设。</li></ul></div>
+  <hr>
+  <div class="teacher"><strong>有疑问吗？</strong><p>下一课将学习怎样用英文解释技术决策，继续把词汇用于真实协作。</p></div>
+  <script>
+    document.querySelectorAll('.card').forEach(card => card.addEventListener('click', () => card.classList.toggle('on')));
+    function answer(id, button, isCorrect, explanation) {
+      const question = document.getElementById(id);
+      if (question.dataset.answered) return;
+      question.dataset.answered = '1';
+      question.querySelectorAll('.quiz-btn').forEach(option => { option.disabled = true; });
+      button.classList.add(isCorrect ? 'correct' : 'wrong');
+      const explanationElement = document.getElementById(id + '-explain');
+      explanationElement.textContent = (isCorrect ? '正确。' : '错误。') + ' ' + explanation;
+      explanationElement.classList.add('show');
+    }
+  </script>
+</body>
+</html>
