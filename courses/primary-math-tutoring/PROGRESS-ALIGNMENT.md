@@ -59,3 +59,7 @@
 1. 按 slides/0002-week-01-addition-subtraction-strategies-notes.md 授课
 2. 每次课后补充 learning-records/000X.md
 3. 按需生成后续周次课件
+
+## 2026-11-06｜用户确认的下一次课
+
+下一次课先复习加减巧算与巧添符号，优先使用学生错题、不会做的题和需要现场核对的作业；再开始“算式猜谜”。最新课程材料见 `slides/0007-review-length-and-puzzles.pptx` 及 `slides/0007-review-length-and-puzzles-teacher.md`，在错题复习后穿插长度单位换算。文件编号不是实际课次，授课和掌握情况仍待课后记录。本条优先于上文关于下一课主题未确认的描述。
